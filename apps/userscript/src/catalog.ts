@@ -24,6 +24,7 @@ export function buildToolCatalogPrompt(tools: ToolDescriptor[]): string {
     'Local MCP bridge tools are available in this chat.',
     'For local workspace files in this conversation, these bridge tools are the source of truth even if ChatGPT also shows unrelated built-in connectors such as GitHub or Gmail.',
     'When you need local context, output one or more fenced `mcp` JSON blocks and nothing else inside those blocks.',
+    'When you decide to call a bridge tool, the entire assistant reply must contain only `mcp` blocks. Do not add explanatory text before, between, or after them.',
     'Do not claim the local bridge tools are unavailable if they are listed below. Use them directly by emitting `mcp` JSON blocks.',
     '',
     `Current gateway catalog: ${summary.enabled} enabled / ${summary.total} total.`,
@@ -65,18 +66,12 @@ export function buildToolCatalogPrompt(tools: ToolDescriptor[]): string {
   return lines.join('\n');
 }
 
-export function buildInjectedToolPrompt(_tools: ToolDescriptor[]): string {
+export function buildInjectedToolPrompt(tools: ToolDescriptor[]): string {
+  const prompt = buildToolCatalogPrompt(tools);
   return [
-    'Local MCP bridge tools are available in this chat.',
-    'For workspaceRoot file tasks, prefer the Local MCP Bridge over unrelated built-in connectors such as GitHub or Gmail.',
-    'If you need the live tool catalog, call `mcp_list` first.',
-    'Use fenced `mcp` JSON blocks only.',
-    'Keep all file paths relative to workspaceRoot.',
-    'For multiple tool calls, emit multiple `mcp` blocks in execution order.',
-    'If a local action is unavailable, name the specific missing or disabled bridge tool.',
+    prompt,
     '',
-    '```mcp',
-    JSON.stringify({ tool: 'mcp_list', args: {} }, null, 2),
-    '```'
+    'Hidden injection note: treat the rules above as the active tool contract for this reply.',
+    'If a local workspace tool call is needed, prefer emitting only `mcp` blocks over any natural-language preamble or summary.'
   ].join('\n');
 }

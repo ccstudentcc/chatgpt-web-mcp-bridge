@@ -63,10 +63,30 @@ export function isChatGptConversationRequest(url: string, method: string): boole
 
   try {
     const parsed = new URL(url, window.location.href);
-    return CHATGPT_CONVERSATION_PATHS.some((path) => parsed.pathname.includes(path));
+    return matchesConversationPath(parsed.pathname);
   } catch {
-    return CHATGPT_CONVERSATION_PATHS.some((path) => url.includes(path));
+    return matchConversationUrlFallback(url);
   }
+}
+
+function matchesConversationPath(pathname: string): boolean {
+  const normalized = normalizeConversationPath(pathname);
+  return CHATGPT_CONVERSATION_PATHS.some((path) => normalized === path);
+}
+
+function matchConversationUrlFallback(url: string): boolean {
+  return CHATGPT_CONVERSATION_PATHS.some((path) => {
+    const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`(^|https?:\\/\\/[^/]+)${escaped}(?:$|[?#])`);
+    return pattern.test(url);
+  });
+}
+
+function normalizeConversationPath(pathname: string): string {
+  if (pathname.length > 1 && pathname.endsWith('/')) {
+    return pathname.slice(0, -1);
+  }
+  return pathname;
 }
 
 export function injectCatalogIntoRequestBody(

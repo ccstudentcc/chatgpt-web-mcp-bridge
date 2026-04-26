@@ -29,7 +29,7 @@ export function insertIntoChatInput(value: string): boolean {
 }
 
 export async function sendCurrentChatInput(): Promise<boolean> {
-  const deadline = Date.now() + 1_500;
+  const deadline = Date.now() + 3_000;
   while (Date.now() < deadline) {
     const button = findSendButton();
     if (button) {
@@ -41,6 +41,20 @@ export async function sendCurrentChatInput(): Promise<boolean> {
   }
 
   return false;
+}
+
+export function readCurrentChatInputText(): string {
+  const editable = findVisibleEditable();
+  if (editable) {
+    return normalizeChatInputText(editable.innerText || editable.textContent || '');
+  }
+
+  const textarea = findVisibleTextarea();
+  if (textarea) {
+    return normalizeChatInputText(textarea.value);
+  }
+
+  return '';
 }
 
 function findSendButton(): HTMLButtonElement | null {
@@ -229,6 +243,10 @@ function looksLikeSendButton(button: HTMLButtonElement): boolean {
 
   const label = button.getAttribute('aria-label') ?? '';
   return /send|message|提示|发送/i.test(label) && !/voice|speech|语音/i.test(label);
+}
+
+function normalizeChatInputText(value: string): string {
+  return value.replace(/\u00a0/g, ' ').trim();
 }
 
 function wait(ms: number): Promise<void> {

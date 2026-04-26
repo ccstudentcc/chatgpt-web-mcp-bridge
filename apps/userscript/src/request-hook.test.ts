@@ -16,6 +16,7 @@ describe('isChatGptConversationRequest', () => {
   it('ignores non-post or unrelated requests', () => {
     expect(isChatGptConversationRequest('https://chatgpt.com/backend-api/conversation', 'GET')).toBe(false);
     expect(isChatGptConversationRequest('https://chatgpt.com/backend-api/models', 'POST')).toBe(false);
+    expect(isChatGptConversationRequest('https://chatgpt.com/backend-api/f/conversation/prepare', 'POST')).toBe(false);
   });
 });
 

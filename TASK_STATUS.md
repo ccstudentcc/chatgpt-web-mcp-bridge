@@ -21,10 +21,12 @@
 - The userscript now bootstraps the request-hook prompt from the last successful `/tools` snapshot before `DOMContentLoaded`, then warms it from a fresh gateway call in parallel so new-chat first turns do not depend solely on the current page's async panel sync.
 - The injected tool-catalog prompt now explicitly tells ChatGPT to prefer Local MCP Bridge tools for `workspaceRoot` file tasks over unrelated built-in connectors such as GitHub or Gmail, and to report specific disabled bridge tools instead of claiming local tools are unavailable.
 - Automatic request injection now uses a short bootstrap MCP prompt, while `Insert MCP list` / `Copy MCP list` still expose the full catalog for manual diagnostics.
+- Hidden request injection now reuses the full live catalog prompt plus stricter format rules, because the shorter bootstrap prompt was not reliably enough to keep ChatGPT on pure `mcp`-only replies after the first turn.
 - The main panel now treats `Synthetic system` as the normal operator-facing mode; prepend-user remains in code only as a hidden fallback path instead of a visible mode switch.
 - Gateway startup now auto-creates `config.json` and backfills `workspaceRoot` from the current startup directory when the config is missing or incomplete.
 - The userscript panel is now a collapsible inspector-style surface with runtime badges, expandable batch/result payloads, and an in-panel activity log stream.
 - The panel activity log now records request-hook diagnostics for real ChatGPT conversation requests: injected, prompt-not-ready race, or matched-but-unpatched body. The userscript listens for page-hook `postMessage` events and rerenders immediately when those diagnostics arrive, so the hook status is visible in-panel during the same turn.
+- Request-hook matching now targets the exact ChatGPT conversation endpoints instead of any pathname containing `/conversation`, so `POST /backend-api/f/conversation/prepare` no longer shows up as a false "body shape was not patched" warning.
 - HAR evidence from `tmp/chatgpt.com.har` showed a real `POST /backend-api/f/conversation` request without the injected prompt marker, which confirmed the hook path was correct but the Tampermonkey sandbox-to-page prompt bridge was not. Prompt sync and diagnostics now use `postMessage` plus a shared DOM attribute instead of cross-world custom window events.
 - HAR evidence from `tmp/chatgpt.com3.har` confirmed that prepend-user injection worked technically but leaked the injected prompt into persisted conversation content and share pages. A local request-injection mode switch now defaults to the synthetic `system` experiment so that hidden injection can be A/B tested without rebuilding the userscript.
 - HAR evidence from `tmp/chatgpt.com4.har` confirmed the synthetic `system` path was serialized as a separate system message while preserving the user's visible message body, so the visible prepend-user switch is no longer needed in the main UI.
@@ -33,6 +35,9 @@
 - `Auto execute`, `Auto insert`, and `Auto send` now behave as real userscript-local overrides instead of passive status display.
 - A userscript-local `Continue on error` toggle now defaults to off; when enabled, a batch keeps executing later tools after one tool call fails.
 - Structured failure results now follow the same insert/send automation path as successful tool results.
+- Automatic result delivery now logs insert/send success and send-button misses explicitly, and waits longer for the real send button to enable before downgrading to "inserted but not sent".
+- Auto-send now requires post-click confirmation from the composer state before reporting `sent`; clicking the button alone no longer counts as a successful submission.
+- Assistant reply scanning now walks back through the newest assistant messages instead of only the single latest node, so older mixed text-plus-`mcp` replies can still surface unexecuted tool calls.
 - `search_files` now preserves its case-insensitive path-substring semantics while using `rg` for candidate prefilter when available and falling back to the Node walker if `rg` is missing or fails.
 - `read_file` now blocks only high-confidence secret material and otherwise returns redacted content for lower-confidence assignment-style patterns such as `token = ...` or `api_key = ...`, avoiding full-file rejection during code review.
 - `grep_files` now follows the same two-tier sensitive-content policy as `read_file`: high-confidence secrets block the response, while lower-confidence assignment-style patterns are redacted inline.
@@ -77,6 +82,15 @@
 - `pnpm --filter @cwmb/userscript build` succeeded again after the startup bootstrap change.
 - `pnpm --filter @cwmb/userscript test` now also covers the stronger catalog prompt wording for native-connector override guidance.
 - `pnpm --filter @cwmb/userscript test` now also covers the short injected bootstrap prompt and synthetic-system request injection mode.
+- `tmp/chatgpt.com4.har` review showed the noisy "body shape was not patched" warnings were coming from `POST /backend-api/f/conversation/prepare`, not the real `POST /backend-api/f/conversation` submit path.
+- User live validation showed the short hidden prompt still allowed mixed natural-language plus `mcp` replies unless the full catalog prompt had first been injected visibly into the chat, so the hidden path now uses the stricter full catalog prompt too.
+- `pnpm --filter @cwmb/protocol build` succeeded again after tightening request-hook endpoint matching and extending auto-send wait time.
+- `pnpm --filter @cwmb/userscript lint` succeeded again after tightening request-hook endpoint matching and extending auto-send wait time.
+- `pnpm --filter @cwmb/userscript test` succeeded again with 9 passing files and 38 passing tests after excluding `/conversation/prepare` from request-hook matching.
+- `pnpm --filter @cwmb/userscript build` succeeded again after the request-hook and auto-send diagnostics follow-up.
+- `pnpm --filter @cwmb/userscript lint` succeeded again after switching hidden request injection to the full strict catalog prompt, broadening assistant-message scanning, and requiring composer-clear confirmation before `sent`.
+- `pnpm --filter @cwmb/userscript test` now succeeds with 9 passing files and 39 passing tests after covering the stricter injected prompt and composer text reads used by send confirmation.
+- `pnpm --filter @cwmb/userscript build` succeeded again after the prompt-strengthening and auto-send confirmation follow-up.
 - `pnpm -r lint` succeeded.
 - `pnpm -r test` succeeded across protocol, shared, gateway, and userscript.
 - `pnpm -r build` succeeded across protocol, shared, gateway, and userscript.

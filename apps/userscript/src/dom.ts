@@ -1,9 +1,14 @@
 import { chatgptSelectors } from './selectors.js';
 
-export function findLatestAssistantMessage(): HTMLElement | null {
+export function findAssistantMessages(): HTMLElement[] {
   const candidates = Array.from(document.querySelectorAll(chatgptSelectors.assistantMessage)) as HTMLElement[];
-  if (candidates.length > 0) return candidates[candidates.length - 1] ?? null;
-  return fallbackFindLatestCodeContainer();
+  if (candidates.length > 0) return candidates;
+  return fallbackFindCodeContainers();
+}
+
+export function findLatestAssistantMessage(): HTMLElement | null {
+  const candidates = findAssistantMessages();
+  return candidates.length > 0 ? candidates[candidates.length - 1] ?? null : null;
 }
 
 export function findLatestUserMessage(): HTMLElement | null {
@@ -24,8 +29,10 @@ export function onChatMutation(callback: () => void): void {
   observer.observe(document.body, { childList: true, subtree: true, characterData: true });
 }
 
-function fallbackFindLatestCodeContainer(): HTMLElement | null {
+function fallbackFindCodeContainers(): HTMLElement[] {
   const codeBlocks = Array.from(document.querySelectorAll(chatgptSelectors.codeBlock)) as HTMLElement[];
-  const last = codeBlocks.slice(-5).reverse().find((node) => (node.innerText || '').includes('"tool"'));
-  return last?.closest('pre') as HTMLElement | null;
+  return codeBlocks
+    .slice(-8)
+    .map((node) => node.closest('pre') as HTMLElement | null)
+    .filter((node): node is HTMLElement => Boolean(node) && (node!.innerText || '').includes('"tool"'));
 }

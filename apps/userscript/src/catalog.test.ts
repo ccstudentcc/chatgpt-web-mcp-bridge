@@ -19,6 +19,7 @@ describe('buildToolCatalogPrompt', () => {
     expect(prompt).toContain('Local MCP bridge tools are available in this chat.');
     expect(prompt).toContain('these bridge tools are the source of truth even if ChatGPT also shows unrelated built-in connectors such as GitHub or Gmail');
     expect(prompt).toContain('Do not claim the local bridge tools are unavailable if they are listed below.');
+    expect(prompt).toContain('the entire assistant reply must contain only `mcp` blocks');
     expect(prompt).toContain('prefer these bridge tools over unrelated built-in connectors');
     expect(prompt).toContain('```mcp');
     expect(prompt).toContain('"tool": "mcp_list"');
@@ -31,15 +32,17 @@ describe('buildToolCatalogPrompt', () => {
 });
 
 describe('buildInjectedToolPrompt', () => {
-  it('renders a short bootstrap prompt that points models at mcp_list first', () => {
+  it('renders the full strict catalog prompt for hidden injection', () => {
     const prompt = buildInjectedToolPrompt(createTools());
 
     expect(prompt).toContain('Local MCP bridge tools are available in this chat.');
-    expect(prompt).toContain('prefer the Local MCP Bridge over unrelated built-in connectors');
+    expect(prompt).toContain('prefer these bridge tools over unrelated built-in connectors');
     expect(prompt).toContain('call `mcp_list` first');
+    expect(prompt).toContain('the entire assistant reply must contain only `mcp` blocks');
     expect(prompt).toContain('"tool": "mcp_list"');
-    expect(prompt).not.toContain('"tool": "read_file"');
-    expect(prompt).not.toContain('Currently disabled tools');
+    expect(prompt).toContain('"tool": "read_file"');
+    expect(prompt).toContain('Currently disabled tools');
+    expect(prompt).toContain('Hidden injection note: treat the rules above as the active tool contract for this reply.');
   });
 });
 

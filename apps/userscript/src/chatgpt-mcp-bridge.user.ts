@@ -5,9 +5,9 @@ import type { ToolCallFailure, ToolCallRequest } from '@cwmb/protocol';
 import type { BatchFailureItem, BatchResultItem } from './batch.js';
 import { createBatchId, executeBatch } from './batch.js';
 import { callTool, health, listTools } from './gateway-client.js';
-import { extractVisibleText, findLatestAssistantMessage, findLatestUserMessage, onChatMutation } from './dom.js';
+import { extractVisibleText, findAssistantMessages, findLatestUserMessage, onChatMutation } from './dom.js';
 import { sha256Normalized } from './hash.js';
-import { formatBatchToolResult, formatToolResult, insertIntoChatInput, sendCurrentChatInput } from './inserter.js';
+import { formatBatchToolResult, formatToolResult, insertIntoChatInput, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
 import { parseMcpBlocks, parseRenderedMcpBlocks } from './parser.js';
 import { canAutoRunForRequest, recordAutoRunForRequest, syncAutoRoundRequest } from './round-guard.js';
 import { installPageRequestHook, syncRequestPrompt, type RequestHookStatus } from './request-hook.js';
@@ -66,36 +66,29 @@ async function refreshGatewayStatus(): Promise<void> {
 
 async function scanLatestAssistantMessage(): Promise<void> {
   if (state.status === 'executing' || state.status === 'batch_executing') return;
-  const message = findLatestAssistantMessage();
-  if (!message) return;
-  const messageText = extractVisibleText(message);
-  const messageId = getMessageIdentity(message, messageText);
   const requestId = getCurrentRequestIdentity();
-  const renderedParsed = await parseRenderedMcpBlocks(message);
-  const parsed = renderedParsed.blocks.length > 0 ? renderedParsed : await parseMcpBlocks(messageText);
-  const normalizedBlocks = await Promise.all(parsed.blocks.map(async (item) => ({
-    ...item,
-    callId: await sha256Normalized(`${messageId}\n\n${item.raw}`)
-  })));
-  const next = normalizedBlocks.filter((item) => !state.executedCallIds.has(item.callId));
-  if (next.length === 0) return;
+  const messages = findAssistantMessages().slice(-8).reverse();
+  for (const message of messages) {
+    const detection = await detectPendingBlocksFromMessage(message);
+    if (!detection) {
+      continue;
+    }
 
-  const batchId = next.length > 1 ? await createBatchId(messageId, next) : undefined;
-  if (batchId && state.executedBatchIds.has(batchId)) return;
-  if (isSamePending(next, batchId)) return;
-
-  state.pending = next;
-  state.pendingMessageId = messageId;
-  state.pendingBatchId = batchId;
-  state.pendingRequestId = requestId;
-  syncRoundGuard(requestId);
-  state.progress = undefined;
-  state.retryableBatch = undefined;
-  state.lastError = undefined;
-  state.status = getDetectedStatus();
-  addLogEntry('info', batchId ? `Detected batch with ${next.length} tool calls.` : `Detected tool call: ${next[0]?.block.tool ?? 'unknown'}`);
-  renderPanel();
-  void maybeAutoRunPending();
+    const { next, messageId, batchId } = detection;
+    state.pending = next;
+    state.pendingMessageId = messageId;
+    state.pendingBatchId = batchId;
+    state.pendingRequestId = requestId;
+    syncRoundGuard(requestId);
+    state.progress = undefined;
+    state.retryableBatch = undefined;
+    state.lastError = undefined;
+    state.status = getDetectedStatus();
+    addLogEntry('info', batchId ? `Detected batch with ${next.length} tool calls.` : `Detected tool call: ${next[0]?.block.tool ?? 'unknown'}`);
+    renderPanel();
+    void maybeAutoRunPending();
+    return;
+  }
 }
 
 async function runPending(): Promise<void> {
@@ -409,20 +402,41 @@ async function deliverLastResult(
     if (!state.lastError) {
       state.lastError = 'Chat input not found. Copied the result to clipboard instead.';
     }
+    addLogEntry('warn', 'Could not find chat input. Result copied to clipboard fallback.');
     return readyStatus;
   }
+
+  addLogEntry('success', kind === 'batch'
+    ? 'Inserted batch result into ChatGPT composer.'
+    : 'Inserted result into ChatGPT composer.');
 
   if (!state.autoSendResult) {
     return insertedStatus;
   }
 
+  const expectedComposerText = state.lastResult;
   const sent = await sendCurrentChatInput();
+  const confirmed = sent ? await waitForSubmittedComposer(expectedComposerText) : false;
   if (!sent && !state.lastError) {
     state.lastError = kind === 'batch'
       ? 'Batch result inserted, but the send button was not found.'
       : 'Tool result inserted, but the send button was not found.';
   }
-  return sent ? sentStatus : insertedStatus;
+  if (sent && confirmed) {
+    addLogEntry('success', kind === 'batch'
+      ? 'Sent batch result back to ChatGPT.'
+      : 'Sent result back to ChatGPT.');
+  } else {
+    if (sent && !confirmed && !state.lastError) {
+      state.lastError = kind === 'batch'
+        ? 'Batch result was inserted and the send button was clicked, but ChatGPT did not submit the composer.'
+        : 'Tool result was inserted and the send button was clicked, but ChatGPT did not submit the composer.';
+    }
+    addLogEntry('warn', state.lastError ?? (kind === 'batch'
+      ? 'Batch result inserted, but the send button was not found.'
+      : 'Tool result inserted, but the send button was not found.'));
+  }
+  return sent && confirmed ? sentStatus : insertedStatus;
 }
 
 async function refreshToolCatalog(): Promise<void> {
@@ -499,6 +513,59 @@ function installRequestHookDiagnostics(): void {
     addLogEntry('warn', `Conversation request matched ChatGPT, but the body shape was not patched (${detail.transport ?? 'request'}).`);
     renderPanel();
   });
+}
+
+async function detectPendingBlocksFromMessage(message: HTMLElement): Promise<{
+  next: typeof state.pending;
+  messageId: string;
+  batchId?: string;
+} | null> {
+  const messageText = extractVisibleText(message);
+  const messageId = getMessageIdentity(message, messageText);
+  const renderedParsed = await parseRenderedMcpBlocks(message);
+  const parsed = renderedParsed.blocks.length > 0 ? renderedParsed : await parseMcpBlocks(messageText);
+  const normalizedBlocks = await Promise.all(parsed.blocks.map(async (item) => ({
+    ...item,
+    callId: await sha256Normalized(`${messageId}\n\n${item.raw}`)
+  })));
+  const next = normalizedBlocks.filter((item) => !state.executedCallIds.has(item.callId));
+  if (next.length === 0) {
+    return null;
+  }
+
+  const batchId = next.length > 1 ? await createBatchId(messageId, next) : undefined;
+  if (batchId && state.executedBatchIds.has(batchId)) {
+    return null;
+  }
+  if (isSamePending(next, batchId)) {
+    return null;
+  }
+
+  return { next, messageId, batchId };
+}
+
+async function waitForSubmittedComposer(expectedText: string): Promise<boolean> {
+  const deadline = Date.now() + 3_000;
+  const expected = normalizeForSubmissionCheck(expectedText);
+  while (Date.now() < deadline) {
+    const current = normalizeForSubmissionCheck(readCurrentChatInputText());
+    if (!current) {
+      return true;
+    }
+    if (current !== expected) {
+      return true;
+    }
+    await wait(100);
+  }
+  return false;
+}
+
+function normalizeForSubmissionCheck(value: string): string {
+  return value.replace(/\u00a0/g, ' ').trim();
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function startBridge(): void {
