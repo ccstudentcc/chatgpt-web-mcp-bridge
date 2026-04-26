@@ -25,6 +25,7 @@
 - A userscript-local `Continue on error` toggle now defaults to off; when enabled, a batch keeps executing later tools after one tool call fails.
 - Structured failure results now follow the same insert/send automation path as successful tool results.
 - `search_files` now preserves its case-insensitive path-substring semantics while using `rg` for candidate prefilter when available and falling back to the Node walker if `rg` is missing or fails.
+- `read_file` now blocks only high-confidence secret material and otherwise returns redacted content for lower-confidence assignment-style patterns such as `token = ...` or `api_key = ...`, avoiding full-file rejection during code review.
 - Single-tool failures now clear the pending item after result generation, preventing later gateway refreshes from re-running the same failed call implicitly.
 - `mcp_list` now returns the full live gateway catalog including `mcp_list` itself, so its totals align with `/tools` and the injected MCP prompt.
 - Gateway `/health` now exposes `maxToolRounds`, and the userscript now enforces that automatic tool-round guard per detected user request while leaving manual `Run` / `Run All` available.
@@ -48,6 +49,8 @@
 - `pnpm --filter @cwmb/gateway test` succeeded again with 7 passing files and 14 passing tests after adding `mcp_list` self-catalog and `/health` coverage.
 - `pnpm --filter @cwmb/userscript test` succeeded again with 8 passing files and 31 passing tests after adding `maxToolRounds` round-guard coverage.
 - `pnpm --filter @cwmb/gateway test` now succeeds with 8 passing files and 21 passing tests, including `write_file` coverage plus `search_files` coverage for `rg` success, `rg` failure fallback, and result alignment with the Node walker.
+- `pnpm --filter @cwmb/shared test` now covers the split between blocking secrets and redaction-only assignment patterns.
+- `pnpm --filter @cwmb/gateway test` now succeeds with 9 passing files and 23 passing tests, including `read_file` coverage for redacted placeholder assignments versus blocked high-confidence secrets.
 - `pnpm --filter @cwmb/userscript test` now covers manual-only gating for high-risk or confirmation-required tools.
 - `pnpm -r lint` succeeded.
 - `pnpm -r test` succeeded across protocol, shared, gateway, and userscript.
