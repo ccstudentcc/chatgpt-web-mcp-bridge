@@ -2,33 +2,30 @@
 
 ## Goal
 
-Implement userscript capability awareness from `/tools` so the panel only offers executable actions that the current gateway actually exposes.
+Close the remaining implementation-side v0.1 PRD gaps so the repository reaches a code-complete stop line for the documented browser-to-gateway flow.
 
 ## In Scope
 
-- Fetch the token-protected `/tools` catalog from the userscript.
-- Store the current tool catalog in userscript state.
-- Assess pending single-tool and batch requests against the live catalog before showing `Run` or `Run All`.
-- Explain disabled, unsupported, and catalog-unavailable states in the panel.
-- Show risk information derived from the current tool catalog.
-- Add focused tests for capability assessment.
+- Keep the userscript aligned with the PRD around capability gating, batch execution, retry, and result insertion behavior.
+- Expose the remaining required userscript configuration knobs: token, Gateway base URL, and auto-insert behavior.
+- Ensure the repository-level lint, test, and build entrypoints all pass.
+- Refresh README and task-control docs to reflect the actual stop line after the implementation work.
 
 ## Out of Scope
 
-- Changing gateway routes or tool descriptors.
-- Adding browser E2E automation or visual redesign work.
-- Persisting tool catalogs across reloads.
+- Windows + Chrome live acceptance in a real browser session.
+- P1 or later features such as `write_file_proposal`, `run_pwsh`, `apply_proposal`, or dynamic `/settings`.
+- Chrome extension migration or stdio MCP adapter work.
 
 ## Constraints
 
-- Keep the gateway as the source of truth for enabled and disabled tools.
-- Keep single-tool and batch execution logic intact when capability checks pass.
-- Fail conservatively when the catalog is unavailable: no executable button.
-- Keep capability logic in pure helpers so it is easy to unit test.
+- Preserve the v0.1 conservative posture: read-only tools only, no auto-send, no automatic multi-round loops.
+- Treat the PRD as the authority for product semantics and keep `AGENTS.md` focused on execution rules.
+- Keep verification reproducible from the repo root.
 
 ## Acceptance Criteria
 
-- The userscript fetches `/tools` and uses it to drive executable UI state.
-- Disabled or unsupported tools never show `Run` / `Run All`.
-- Pending requests show risk information from the live catalog.
-- Focused tests cover enabled, disabled, unsupported, and catalog-unavailable assessments.
+- Userscript configuration exposes token, Gateway base URL, and auto-insert behavior.
+- Userscript execution remains gated by live `/tools` capabilities and supports same-reply batch handling.
+- Root `pnpm -r lint`, `pnpm -r test`, and `pnpm -r build` all succeed.
+- Remaining work, if any, is limited to live manual acceptance rather than missing code-level v0.1 functionality.

@@ -32,6 +32,7 @@ export interface BridgeState {
   status: BridgeStatus;
   token: string;
   baseUrl: string;
+  autoInsertResult: boolean;
   tools: ToolDescriptor[];
   toolCatalogLoaded: boolean;
   pending: ParsedMcpBlock[];
@@ -49,6 +50,7 @@ export const state: BridgeState = {
   status: 'idle',
   token: GM_getValue('cwmb_token', ''),
   baseUrl: GM_getValue('cwmb_base_url', 'http://127.0.0.1:8024'),
+  autoInsertResult: GM_getValue('cwmb_auto_insert_result', 'true') === 'true',
   tools: [],
   toolCatalogLoaded: false,
   pending: [],
@@ -59,4 +61,14 @@ export const state: BridgeState = {
 export function saveToken(token: string): void {
   state.token = token;
   GM_setValue('cwmb_token', token);
+}
+
+export function saveBaseUrl(baseUrl: string): void {
+  state.baseUrl = baseUrl;
+  GM_setValue('cwmb_base_url', baseUrl);
+}
+
+export function saveAutoInsertResult(enabled: boolean): void {
+  state.autoInsertResult = enabled;
+  GM_setValue('cwmb_auto_insert_result', enabled ? 'true' : 'false');
 }

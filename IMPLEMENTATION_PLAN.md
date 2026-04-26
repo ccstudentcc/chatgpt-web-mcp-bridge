@@ -1,24 +1,23 @@
 # Implementation Plan
 
-## Stage 1: Capability-Gap Review
+## Stage 1: Remaining v0.1 Gap Review
 
 Status: completed
 
-- Re-read the PRD sections around `/tools`, disabled tools, and userscript execution gating.
-- Confirm the gap: gateway already returned tool descriptors, but userscript still allowed execution without consuming the catalog.
-- Keep the scope in `apps/userscript` and treat gateway descriptors as the authoritative capability source.
+- Re-read the PRD stop line and compare it against the current gateway and userscript code.
+- Confirm the remaining code-side gaps were userscript configuration coverage and repository-level validation health.
+- Distinguish code-complete work from live manual acceptance work.
 
-## Stage 2: Userscript Capability Awareness
+## Stage 2: Final Userscript And Validation Work
 
 Status: completed
 
-- Add `/tools` fetching to the userscript gateway client.
-- Store the live tool catalog in userscript state.
-- Add a pure capability-assessment helper for enabled, disabled, unsupported, and catalog-unavailable tool states.
-- Use that assessment in the panel so run actions only appear when the current request is executable.
-- Surface risk information from the tool catalog in the panel.
+- Add live `/tools` capability gating to the userscript panel.
+- Add userscript settings coverage for Gateway base URL and auto-insert behavior.
+- Add manual `Insert result` handling for `result_ready` and `batch_result_ready`.
+- Add the minimum shared-package test coverage needed for root test health.
 
-## Stage 3: Verification
+## Stage 3: Verification And Close-Out
 
 Status: completed
 
@@ -26,8 +25,11 @@ Status: completed
 - Run `pnpm --filter @cwmb/userscript lint`.
 - Run `pnpm --filter @cwmb/userscript test`.
 - Run `pnpm --filter @cwmb/userscript build`.
+- Run `pnpm -r lint`.
+- Run `pnpm -r test`.
+- Run `pnpm -r build`.
 
 ## Risks
 
-- Capability awareness now depends on the `/tools` fetch path, so missing or stale tokens block execution earlier and more visibly.
-- The panel currently renders one summary reason for blocked execution; future UX work may want per-item details beyond the inline labels.
+- The remaining v0.1 gap is now primarily live acceptance risk: ChatGPT DOM drift, real browser behavior, and Windows-specific manual validation.
+- The userscript still degrades conservatively when `/tools` cannot be fetched, which is correct for safety but may feel strict in transient token or network-error states.

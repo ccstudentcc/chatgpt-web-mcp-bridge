@@ -79,7 +79,11 @@ pnpm dev:userscript
 
 Install `apps/userscript/dist/chatgpt-mcp-bridge.user.js` in Tampermonkey.
 
-Open ChatGPT Web. In the bridge panel, set the token from the local token file.
+Open ChatGPT Web. In the bridge panel:
+
+- set the token from the local token file,
+- adjust `Gateway base URL` if the gateway is not on the default `http://127.0.0.1:8024`,
+- leave `Auto insert` on for the default flow, or turn it off if you want results to stay in `Insert result` / `Copy result` mode until you confirm them manually.
 
 ## Try your first tool call
 
@@ -103,9 +107,11 @@ ChatGPT outputs mcp block
 → userscript detects it
 → you click Run
 → gateway reads README.md under workspaceRoot
-→ userscript inserts tool_result into the input box
+→ userscript inserts tool_result into the input box by default
 → you manually send it
 ```
+
+If `Auto insert` is off, the panel keeps the result in `Insert result` / `Copy result` mode until you choose to insert it.
 
 ## Supported v0.1 tools
 
@@ -119,18 +125,3 @@ ChatGPT outputs mcp block
 - v0.2: Chrome Extension, `write_file_proposal`, diff confirmation UI
 - v0.3: restricted `run_pwsh` with strong confirmation
 - v0.4: real MCP stdio adapter with gateway permission mapping
-
-## GitHub repository setup
-
-If this repository was generated locally first:
-
-```pwsh
-git init
-git add .
-git commit -m "Initial v0.1 scaffold"
-git branch -M main
-git remote add origin https://github.com/ccstudentcc/chatgpt-web-mcp-bridge.git
-git push -u origin main
-```
-
-Create the GitHub repository as public before pushing.

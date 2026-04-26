@@ -5338,7 +5338,7 @@ interface InsertableToolBatchResult {
 | `detected_batch` | 同一条 assistant 回复中检测到多个待执行工具 | Run All / Copy first JSON / Ignore batch |
 | `executing` | 正在执行工具 | Cancel display only，v0.1 可不真正取消请求 |
 | `batch_executing` | 正在串行执行 batch | 仅显示当前进度，v0.1 不要求真实取消 |
-| `batch_stopped_on_failure` | batch 因某个工具失败而提前停止 | Copy result / Retry whole batch |
+| `batch_stopped_on_failure` | batch 因某个工具失败而提前停止 | Insert result / Copy result / Retry whole batch |
 | `result_ready` | 工具结果已返回 | Insert / Copy result |
 | `batch_result_ready` | 批量工具结果已汇总完成 | Insert / Copy result |
 | `inserted` | 已插入输入框 | 提示用户手动发送 |
@@ -5346,6 +5346,13 @@ interface InsertableToolBatchResult {
 | `failed` | 执行失败 | Copy error / Retry |
 
 v0.1 不需要复杂设置页，但 token、Gateway base URL、autoInsertResult 至少需要可配置。
+
+当 `autoInsertResult=false` 时：
+
+- 工具执行成功后进入 `result_ready` 或 `batch_result_ready`，不自动写入输入框。
+- 如果 batch 因失败提前停止，则保持 `batch_stopped_on_failure`，同时仍可手动 `Insert result` 或 `Copy result`。
+- 浮层必须提供 `Insert result` 和 `Copy result`。
+- 用户手动点击 `Insert result` 后，状态再转为 `inserted` 或 `batch_inserted`。
 
 batch 模式下还必须满足：
 
