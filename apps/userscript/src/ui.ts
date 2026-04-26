@@ -33,17 +33,19 @@ export function renderPanel(): void {
     root.id = 'cwmb-panel';
     root.style.cssText = [
       'position: fixed',
-      'right: 16px',
-      'bottom: 16px',
+      'right: 12px',
+      'bottom: 12px',
       'z-index: 2147483647',
-      'width: 280px',
-      'padding: 12px',
-      'border: 1px solid #d0d0d0',
-      'border-radius: 10px',
-      'background: rgba(255,255,255,0.96)',
-      'color: #222',
-      'font: 13px/1.4 system-ui, sans-serif',
-      'box-shadow: 0 6px 24px rgba(0,0,0,0.14)'
+      'width: min(360px, calc(100vw - 24px))',
+      'max-height: min(78vh, 760px)',
+      'overflow: auto',
+      'border-radius: 18px',
+      'background: linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(2,6,23,0.96) 100%)',
+      'color: #e2e8f0',
+      'font: 13px/1.45 "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif',
+      'box-shadow: 0 18px 48px rgba(2,6,23,0.45), 0 0 0 1px rgba(148,163,184,0.16)',
+      'backdrop-filter: blur(18px)',
+      'scrollbar-width: thin'
     ].join(';');
     document.body.appendChild(root);
   }
@@ -76,36 +78,296 @@ export function renderPanel(): void {
     : '';
   const canRunPending = state.pending.length > 0 && capability.runnable;
   const canRetryBatch = hasRetryableBatch && capability.runnable;
-  const capabilityHint = capability.blockedReason ? `<div style="color:#a40000">${escapeHtml(capability.blockedReason)}</div>` : '';
-  const riskLine = capability.highestRisk ? `<div>Risk: ${escapeHtml(capability.highestRisk)}</div>` : '';
-  const progress = state.progress ? `<div>Progress: Running ${state.progress.current}/${state.progress.total}: <code>${escapeHtml(state.progress.tool)}</code></div>` : '';
+  const capabilityHint = capability.blockedReason ? `<div class="cwmb-callout cwmb-callout-danger">${escapeHtml(capability.blockedReason)}</div>` : '';
+  const progress = state.progress ? `<div class="cwmb-callout cwmb-callout-info">Running ${state.progress.current}/${state.progress.total}: <code>${escapeHtml(state.progress.tool)}</code></div>` : '';
   const catalogSummary = summarizeToolCatalog(state.tools);
   const toolCatalogPrompt = buildToolCatalogPrompt(state.tools);
+  const statusTone = getStatusTone(state.status);
+  const statusLabel = getStatusLabel(state.status);
+  const tokenLabel = state.trustedLocalMode ? 'Trusted local' : state.token ? 'Token set' : 'Token missing';
+  const detectedLine = pending
+    ? (isBatch
+      ? `<div class="cwmb-detected-line">Detected <strong>${state.pending.length}</strong> tool calls in one reply</div>${pendingList}`
+      : `<div class="cwmb-detected-line">Detected <code>${escapeHtml(pending.block.tool)}</code></div>`)
+    : !pending && hasRetryableBatch
+      ? `<div class="cwmb-detected-line">Retryable batch with <strong>${visibleBatch.length}</strong> tools</div>${pendingList}`
+      : '<div class="cwmb-empty-state">No pending tool calls in the current chat.</div>';
+
   root.innerHTML = `
-    <strong>ChatGPT MCP Bridge</strong>
-    <div>Status: ${escapeHtml(state.status)}</div>
-    <div>Gateway: ${escapeHtml(state.baseUrl)}</div>
-    <div>Token: ${state.trustedLocalMode ? 'off (trusted local mode)' : state.token ? 'set' : 'missing'}</div>
-    <div>Auto execute: ${state.autoExecuteEnabled ? 'on' : 'off'}</div>
-    <div>Auto insert: ${state.autoInsertResult ? 'on' : 'off'}</div>
-    <div>Auto send: ${state.autoSendResult ? 'on' : 'off'}</div>
-    <div>Catalog: ${state.toolCatalogLoaded ? `${catalogSummary.enabled} enabled / ${catalogSummary.total} total` : 'unavailable'}</div>
-    ${pending ? `<div>${isBatch ? `Detected batch: ${state.pending.length} tools` : `Detected: <code>${escapeHtml(pending.block.tool)}</code>`}</div>` : ''}
-    ${!pending && hasRetryableBatch ? `<div>Retryable batch: ${visibleBatch.length} tools</div>` : ''}
-    ${riskLine}
-    ${pendingList}
-    ${progress}
-    ${capabilityHint}
-    ${state.toolCatalogLoaded ? '<div style="color:#555">Tool hints are injected into outgoing ChatGPT requests. Catalog buttons are fallback only.</div>' : ''}
-    ${state.lastError ? `<div style="color:#a40000">${escapeHtml(state.lastError)}</div>` : ''}
-    <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-      ${state.trustedLocalMode ? '' : '<button data-cwmb="token">Set token</button>'}
-      <button data-cwmb="base-url">Set gateway URL</button>
-      ${state.toolCatalogLoaded ? '<button data-cwmb="insert-catalog">Insert MCP list</button><button data-cwmb="copy-catalog">Copy MCP list</button>' : ''}
-      ${pending ? `${!state.autoExecuteEnabled && canRunPending ? `<button data-cwmb="run">${isBatch ? 'Run All' : 'Run'}</button>` : ''}<button data-cwmb="ignore">${isBatch ? 'Ignore batch' : 'Ignore'}</button><button data-cwmb="copy-json">${isBatch ? 'Copy first JSON' : 'Copy JSON'}</button>` : ''}
-      ${!pending && canRetryBatch ? '<button data-cwmb="retry-batch">Retry whole batch</button>' : ''}
-      ${canInsertResult ? '<button data-cwmb="insert-result">Insert result</button>' : ''}
-      ${state.lastResult ? '<button data-cwmb="copy-result">Copy result</button>' : ''}
+    <style>
+      #cwmb-panel, #cwmb-panel * { box-sizing: border-box; }
+      #cwmb-panel::-webkit-scrollbar { width: 8px; }
+      #cwmb-panel::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.25); border-radius: 999px; }
+      #cwmb-panel .cwmb-shell {
+        position: relative;
+        padding: 14px;
+        border-radius: 18px;
+      }
+      #cwmb-panel .cwmb-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 18px;
+        padding: 1px;
+        background: linear-gradient(180deg, rgba(148,163,184,0.22), rgba(30,41,59,0.08));
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+      }
+      #cwmb-panel .cwmb-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      #cwmb-panel .cwmb-title-wrap {
+        min-width: 0;
+      }
+      #cwmb-panel .cwmb-kicker {
+        color: #38bdf8;
+        font: 600 11px/1 "JetBrains Mono", "Cascadia Code", monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+      }
+      #cwmb-panel .cwmb-title {
+        margin: 0;
+        color: #f8fafc;
+        font-size: 18px;
+        font-weight: 600;
+        line-height: 1.15;
+      }
+      #cwmb-panel .cwmb-subtitle {
+        margin-top: 4px;
+        color: #94a3b8;
+        font-size: 12px;
+      }
+      #cwmb-panel .cwmb-badge {
+        flex: 0 0 auto;
+        border-radius: 999px;
+        padding: 8px 12px;
+        font: 600 11px/1 "JetBrains Mono", "Cascadia Code", monospace;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        border: 1px solid transparent;
+      }
+      #cwmb-panel .cwmb-badge-ok { background: rgba(34,197,94,0.16); color: #86efac; border-color: rgba(34,197,94,0.28); }
+      #cwmb-panel .cwmb-badge-warn { background: rgba(245,158,11,0.14); color: #fcd34d; border-color: rgba(245,158,11,0.24); }
+      #cwmb-panel .cwmb-badge-danger { background: rgba(239,68,68,0.15); color: #fca5a5; border-color: rgba(239,68,68,0.26); }
+      #cwmb-panel .cwmb-badge-info { background: rgba(56,189,248,0.14); color: #7dd3fc; border-color: rgba(56,189,248,0.24); }
+      #cwmb-panel .cwmb-section {
+        margin-top: 12px;
+        padding: 12px;
+        border-radius: 14px;
+        background: rgba(15,23,42,0.58);
+        border: 1px solid rgba(51,65,85,0.8);
+      }
+      #cwmb-panel .cwmb-section-label {
+        margin: 0 0 10px;
+        color: #cbd5e1;
+        font: 600 11px/1 "JetBrains Mono", "Cascadia Code", monospace;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      #cwmb-panel .cwmb-stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+      #cwmb-panel .cwmb-stat {
+        padding: 10px;
+        border-radius: 12px;
+        background: rgba(30,41,59,0.72);
+        border: 1px solid rgba(71,85,105,0.66);
+      }
+      #cwmb-panel .cwmb-stat-label {
+        color: #94a3b8;
+        font-size: 11px;
+        margin-bottom: 6px;
+      }
+      #cwmb-panel .cwmb-stat-value {
+        color: #f8fafc;
+        font: 600 13px/1.25 "JetBrains Mono", "Cascadia Code", monospace;
+        word-break: break-word;
+      }
+      #cwmb-panel .cwmb-flag-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      #cwmb-panel .cwmb-flag {
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(30,41,59,0.72);
+        border: 1px solid rgba(71,85,105,0.66);
+        color: #cbd5e1;
+        font-size: 12px;
+      }
+      #cwmb-panel .cwmb-flag strong {
+        color: #f8fafc;
+        font-weight: 600;
+      }
+      #cwmb-panel .cwmb-detected-line,
+      #cwmb-panel .cwmb-empty-state {
+        color: #cbd5e1;
+      }
+      #cwmb-panel .cwmb-empty-state {
+        color: #94a3b8;
+      }
+      #cwmb-panel .cwmb-detected-line code,
+      #cwmb-panel code {
+        font-family: "JetBrains Mono", "Cascadia Code", monospace;
+        font-size: 12px;
+        color: #e2e8f0;
+      }
+      #cwmb-panel .cwmb-pending-list {
+        margin: 10px 0 0;
+        padding-left: 18px;
+        color: #cbd5e1;
+      }
+      #cwmb-panel .cwmb-pending-list li + li {
+        margin-top: 8px;
+      }
+      #cwmb-panel .cwmb-pending-meta {
+        color: #64748b;
+        font-size: 11px;
+      }
+      #cwmb-panel .cwmb-callout {
+        margin-top: 10px;
+        padding: 10px 11px;
+        border-radius: 12px;
+        font-size: 12px;
+        border: 1px solid transparent;
+      }
+      #cwmb-panel .cwmb-callout-info { background: rgba(14,116,144,0.14); border-color: rgba(14,116,144,0.35); color: #bae6fd; }
+      #cwmb-panel .cwmb-callout-danger { background: rgba(127,29,29,0.24); border-color: rgba(220,38,38,0.34); color: #fecaca; }
+      #cwmb-panel .cwmb-callout-muted { background: rgba(30,41,59,0.72); border-color: rgba(71,85,105,0.66); color: #94a3b8; }
+      #cwmb-panel .cwmb-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      #cwmb-panel button[data-cwmb] {
+        appearance: none;
+        border: 1px solid rgba(71,85,105,0.9);
+        background: rgba(30,41,59,0.86);
+        color: #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 11px;
+        min-height: 34px;
+        font: 600 12px/1 "IBM Plex Sans", "Segoe UI", sans-serif;
+        cursor: pointer;
+        transition: background 180ms ease, border-color 180ms ease, transform 180ms ease, color 180ms ease;
+      }
+      #cwmb-panel button[data-cwmb]:hover {
+        background: rgba(51,65,85,0.95);
+        border-color: rgba(100,116,139,0.95);
+        transform: translateY(-1px);
+      }
+      #cwmb-panel button[data-cwmb]:focus-visible {
+        outline: 2px solid #38bdf8;
+        outline-offset: 2px;
+      }
+      #cwmb-panel .cwmb-btn-primary {
+        background: linear-gradient(180deg, rgba(34,197,94,0.22), rgba(22,163,74,0.18));
+        border-color: rgba(34,197,94,0.45);
+        color: #dcfce7;
+      }
+      #cwmb-panel .cwmb-btn-primary:hover {
+        background: linear-gradient(180deg, rgba(34,197,94,0.3), rgba(22,163,74,0.24));
+        border-color: rgba(74,222,128,0.55);
+      }
+      #cwmb-panel .cwmb-btn-danger {
+        background: rgba(127,29,29,0.24);
+        border-color: rgba(220,38,38,0.34);
+        color: #fecaca;
+      }
+      #cwmb-panel .cwmb-btn-danger:hover {
+        background: rgba(153,27,27,0.3);
+        border-color: rgba(248,113,113,0.42);
+      }
+      #cwmb-panel .cwmb-btn-ghost {
+        background: transparent;
+        color: #94a3b8;
+      }
+      #cwmb-panel .cwmb-actions + .cwmb-actions {
+        margin-top: 8px;
+      }
+      @media (max-width: 480px) {
+        #cwmb-panel { right: 8px !important; bottom: 8px !important; width: min(100vw - 16px, 360px) !important; }
+        #cwmb-panel .cwmb-stats { grid-template-columns: 1fr; }
+        #cwmb-panel button[data-cwmb] { flex: 1 1 calc(50% - 4px); justify-content: center; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #cwmb-panel button[data-cwmb] { transition: none; }
+      }
+    </style>
+    <div class="cwmb-shell">
+      <div class="cwmb-header">
+        <div class="cwmb-title-wrap">
+          <div class="cwmb-kicker">Local Bridge</div>
+          <h2 class="cwmb-title">ChatGPT MCP Bridge</h2>
+          <div class="cwmb-subtitle">Security-first tool relay for ChatGPT Web</div>
+        </div>
+        <div class="cwmb-badge ${statusTone}">${statusLabel}</div>
+      </div>
+
+      <div class="cwmb-section">
+        <div class="cwmb-section-label">Runtime</div>
+        <div class="cwmb-stats">
+          <div class="cwmb-stat">
+            <div class="cwmb-stat-label">Gateway</div>
+            <div class="cwmb-stat-value">${escapeHtml(state.baseUrl)}</div>
+          </div>
+          <div class="cwmb-stat">
+            <div class="cwmb-stat-label">Catalog</div>
+            <div class="cwmb-stat-value">${state.toolCatalogLoaded ? `${catalogSummary.enabled} / ${catalogSummary.total}` : 'Unavailable'}</div>
+          </div>
+          <div class="cwmb-stat">
+            <div class="cwmb-stat-label">Auth</div>
+            <div class="cwmb-stat-value">${escapeHtml(tokenLabel)}</div>
+          </div>
+          <div class="cwmb-stat">
+            <div class="cwmb-stat-label">Risk</div>
+            <div class="cwmb-stat-value">${escapeHtml(capability.highestRisk ?? 'Low')}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cwmb-section">
+        <div class="cwmb-section-label">Automation</div>
+        <div class="cwmb-flag-row">
+          <div class="cwmb-flag"><strong>Execute</strong> ${state.autoExecuteEnabled ? 'on' : 'off'}</div>
+          <div class="cwmb-flag"><strong>Insert</strong> ${state.autoInsertResult ? 'on' : 'off'}</div>
+          <div class="cwmb-flag"><strong>Send</strong> ${state.autoSendResult ? 'on' : 'off'}</div>
+        </div>
+        ${state.toolCatalogLoaded ? '<div class="cwmb-callout cwmb-callout-muted">Live tool hints are injected into outgoing ChatGPT requests. Insert/Copy MCP list is fallback only.</div>' : ''}
+      </div>
+
+      <div class="cwmb-section">
+        <div class="cwmb-section-label">Detection</div>
+        ${detectedLine}
+        ${progress}
+        ${capabilityHint}
+        ${state.lastError ? `<div class="cwmb-callout cwmb-callout-danger">${escapeHtml(state.lastError)}</div>` : ''}
+      </div>
+
+      <div class="cwmb-section">
+        <div class="cwmb-section-label">Actions</div>
+        <div class="cwmb-actions">
+          ${state.trustedLocalMode ? '' : renderButton('token', 'Set token')}
+          ${renderButton('base-url', 'Gateway URL')}
+          ${state.toolCatalogLoaded ? `${renderButton('insert-catalog', 'Insert MCP list')}${renderButton('copy-catalog', 'Copy MCP list', 'ghost')}` : ''}
+        </div>
+        <div class="cwmb-actions">
+          ${pending ? `${!state.autoExecuteEnabled && canRunPending ? renderButton('run', isBatch ? 'Run all' : 'Run', 'primary') : ''}${renderButton('ignore', isBatch ? 'Ignore batch' : 'Ignore', 'danger')}${renderButton('copy-json', isBatch ? 'Copy first JSON' : 'Copy JSON', 'ghost')}` : ''}
+          ${!pending && canRetryBatch ? renderButton('retry-batch', 'Retry whole batch', 'primary') : ''}
+          ${canInsertResult ? renderButton('insert-result', 'Insert result', 'primary') : ''}
+          ${state.lastResult ? renderButton('copy-result', 'Copy result', 'ghost') : ''}
+        </div>
+      </div>
     </div>
   `;
 
@@ -135,4 +397,37 @@ export function renderPanel(): void {
 
 function escapeHtml(input: string): string {
   return input.replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char] ?? char));
+}
+
+function renderButton(action: string, label: string, tone: 'default' | 'primary' | 'danger' | 'ghost' = 'default'): string {
+  const toneClass = tone === 'default' ? '' : ` cwmb-btn-${tone}`;
+  return `<button class="${toneClass.trim()}" data-cwmb="${action}">${escapeHtml(label)}</button>`;
+}
+
+function getStatusTone(status: string): string {
+  if (status === 'sent' || status === 'batch_sent' || status === 'idle') return 'cwmb-badge-ok';
+  if (status === 'failed' || status === 'unauthorized' || status === 'disconnected') return 'cwmb-badge-danger';
+  if (status === 'detected' || status === 'detected_batch' || status === 'batch_stopped_on_failure') return 'cwmb-badge-warn';
+  return 'cwmb-badge-info';
+}
+
+function getStatusLabel(status: string): string {
+  switch (status) {
+    case 'detected_batch':
+      return 'Batch queued';
+    case 'batch_executing':
+      return 'Batch running';
+    case 'batch_result_ready':
+      return 'Batch ready';
+    case 'batch_inserted':
+      return 'Batch inserted';
+    case 'batch_sent':
+      return 'Batch sent';
+    case 'batch_stopped_on_failure':
+      return 'Batch stopped';
+    case 'result_ready':
+      return 'Result ready';
+    default:
+      return status.replace(/_/g, ' ');
+  }
 }
