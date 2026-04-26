@@ -12,6 +12,7 @@
 - In trusted local mode, the panel now reports `Token: off (trusted local mode)` and hides the token setup button instead of prompting for a pairing token that the default flow no longer needs.
 - Updating the token or Gateway base URL in the panel now re-syncs gateway health and `/tools` capabilities immediately, so executable actions do not stay hidden until the next poll.
 - The userscript now parses rendered ChatGPT code blocks from the real DOM instead of relying only on fenced markdown text, so automatic execution can start from actual ChatGPT replies where triple backticks are no longer visible.
+- The rendered-code parser now tolerates ChatGPT code blocks whose visible text includes the `mcp` label or extra wrapper text before the JSON body, reducing regressions where a visible `mcp` block stayed undetected.
 - The userscript now scans the current page once at startup, so an MCP block that is already rendered before the observer attaches still becomes runnable without waiting for a later DOM mutation.
 - Single-tool deduplication is now scoped to the current assistant message identity instead of only the raw JSON body, so the same MCP request can appear again in a new conversation without being suppressed as already executed.
 - Result insertion now prefers the visible `#prompt-textarea` / contenteditable composer over hidden fallback textareas and waits briefly for the real send button state before declaring auto-send failure.

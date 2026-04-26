@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseMcpBlocks, parseMcpCandidateStrings } from './parser.js';
+import { parseMcpBlocks, parseMcpCandidateStrings, parseRenderedMcpBlocks } from './parser.js';
 
 describe('parseMcpBlocks', () => {
   it('parses a valid mcp block', async () => {
@@ -32,5 +32,17 @@ describe('parseMcpBlocks', () => {
     const result = await parseMcpBlocks('```mcp\n{"tool":\n```');
     expect(result.blocks).toHaveLength(0);
     expect(result.errors.length).toBeGreaterThan(0);
+  });
+
+  it('parses rendered candidates even when the block label is mixed into text content', async () => {
+    const fakeContainer = {
+      querySelectorAll: () => [
+        { textContent: 'mcp\n{\n  "tool": "list_directory",\n  "args": {\n    "path": ".",\n    "maxDepth": 2\n  }\n}' }
+      ]
+    } as unknown as ParentNode;
+
+    const result = await parseRenderedMcpBlocks(fakeContainer);
+    expect(result.blocks).toHaveLength(1);
+    expect(result.blocks[0]?.block.tool).toBe('list_directory');
   });
 });
