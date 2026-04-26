@@ -69,6 +69,7 @@ function makeConfig(workspaceRoot: string): GatewayConfig {
     port: 8024,
     workspaceRoot,
     shell: 'pwsh',
+    trustedLocalMode: true,
     allowPwsh: false,
     autoExecuteLowRisk: false,
     autoInsertResult: true,

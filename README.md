@@ -9,7 +9,7 @@ A safe local tool bridge that lets ChatGPT Web request read-only project context
 Default behavior is intentionally conservative:
 
 - Only listens on `127.0.0.1`.
-- Requires a pairing token for every endpoint except `/health`.
+- Uses trusted local mode by default, so localhost requests do not need a pairing token.
 - Limits all file operations to `workspaceRoot`.
 - Blocks `.env`, SSH keys, browser profile data, Git credentials, and other sensitive paths.
 - Auto-executes enabled v0.1 read-only tools after detection.
@@ -37,7 +37,9 @@ pnpm build
 
 ## Configure workspaceRoot
 
-Create `%USERPROFILE%\.chatgpt-web-mcp-bridge\config.json`:
+On first gateway startup, `%USERPROFILE%\.chatgpt-web-mcp-bridge\config.json` is created automatically. If it is missing or leaves `workspaceRoot` empty, the gateway uses the current startup directory as the initial `workspaceRoot`.
+
+You can still edit the file explicitly:
 
 ```json
 {
@@ -45,6 +47,7 @@ Create `%USERPROFILE%\.chatgpt-web-mcp-bridge\config.json`:
   "port": 8024,
   "workspaceRoot": "C:/Users/chenpeng/projects/current",
   "shell": "pwsh",
+  "trustedLocalMode": true,
   "autoExecuteLowRisk": true,
   "autoInsertResult": true,
   "autoSendResult": true
@@ -63,11 +66,7 @@ Check health:
 Invoke-RestMethod http://127.0.0.1:8024/health
 ```
 
-The first startup creates a pairing token at:
-
-```text
-%USERPROFILE%\.chatgpt-web-mcp-bridge\token
-```
+If you later want explicit pairing-token auth again, set `"trustedLocalMode": false` and restart the gateway.
 
 ## Install userscript
 
@@ -81,11 +80,10 @@ Install `apps/userscript/dist/chatgpt-mcp-bridge.user.js` in Tampermonkey.
 
 Open ChatGPT Web. In the bridge panel:
 
-- set the token from the local token file,
 - adjust `Gateway base URL` if the gateway is not on the default `http://127.0.0.1:8024`,
 - verify `Auto execute`, `Auto insert`, and `Auto send` are all on for the fully automatic flow.
 
-When you change the token or Gateway base URL in the panel, the userscript refreshes gateway status and `/tools` capabilities immediately.
+When you change the Gateway base URL in the panel, the userscript refreshes gateway status and `/tools` capabilities immediately.
 
 ## Try your first tool call
 

@@ -27,7 +27,7 @@ Shift the documented v0.1 browser-to-gateway flow to an unattended default for e
 
 ## Acceptance Criteria
 
-- Userscript configuration/runtime reflects token, Gateway base URL, auto-execute, auto-insert, and auto-send behavior.
+- Userscript configuration/runtime reflects trusted local mode, Gateway base URL, auto-execute, auto-insert, and auto-send behavior.
 - Userscript execution remains gated by live `/tools` capabilities, auto-runs enabled tools, and supports same-reply batch handling.
 - Root `pnpm -r lint`, `pnpm -r test`, and `pnpm -r build` all succeed.
 - Remaining work, if any, is limited to live manual acceptance rather than missing code-level v0.1 functionality.

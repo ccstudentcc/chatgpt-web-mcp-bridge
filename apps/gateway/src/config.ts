@@ -8,6 +8,7 @@ export interface GatewayConfig {
   port: number;
   workspaceRoot: string;
   shell: 'pwsh' | 'powershell.exe';
+  trustedLocalMode: boolean;
   allowPwsh: boolean;
   autoExecuteLowRisk: boolean;
   autoInsertResult: boolean;
@@ -23,11 +24,17 @@ export interface GatewayConfig {
 export const appHome = path.join(os.homedir(), '.chatgpt-web-mcp-bridge');
 export const configPath = path.join(appHome, 'config.json');
 
+interface LoadConfigOptions {
+  appHomeOverride?: string;
+  cwdOverride?: string;
+}
+
 const defaultConfig: GatewayConfig = {
   host: DEFAULT_GATEWAY_HOST,
   port: DEFAULT_GATEWAY_PORT,
   workspaceRoot: '',
   shell: 'pwsh',
+  trustedLocalMode: true,
   allowPwsh: false,
   autoExecuteLowRisk: true,
   autoInsertResult: true,
@@ -62,26 +69,42 @@ const defaultConfig: GatewayConfig = {
   ]
 };
 
-export async function loadConfig(): Promise<GatewayConfig> {
+export async function loadConfig(options: LoadConfigOptions = {}): Promise<GatewayConfig> {
+  const resolvedAppHome = options.appHomeOverride ?? appHome;
+  const resolvedConfigPath = path.join(resolvedAppHome, 'config.json');
+  await fs.mkdir(resolvedAppHome, { recursive: true });
+
   let fileConfig: Partial<GatewayConfig> = {};
+  let shouldPersistConfig = false;
 
   try {
-    const raw = await fs.readFile(configPath, 'utf8');
+    const raw = await fs.readFile(resolvedConfigPath, 'utf8');
     fileConfig = JSON.parse(raw) as Partial<GatewayConfig>;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
       throw err;
     }
+    shouldPersistConfig = true;
   }
 
+  const inferredWorkspaceRoot = inferWorkspaceRoot(options.cwdOverride ?? process.cwd());
   const envConfig: Partial<GatewayConfig> = {
     workspaceRoot: process.env.CWMB_WORKSPACE_ROOT,
     port: process.env.CWMB_PORT ? Number(process.env.CWMB_PORT) : undefined
   };
 
   const merged = { ...defaultConfig, ...fileConfig, ...removeUndefined(envConfig) };
+  if (!merged.workspaceRoot && inferredWorkspaceRoot) {
+    merged.workspaceRoot = inferredWorkspaceRoot;
+    shouldPersistConfig = true;
+  }
+
   if (merged.host !== '127.0.0.1') {
     throw new Error('For v0.1, gateway host must remain 127.0.0.1.');
+  }
+
+  if (shouldPersistConfig) {
+    await fs.writeFile(resolvedConfigPath, `${JSON.stringify(merged, null, 2)}\n`, 'utf8');
   }
 
   return merged;
@@ -89,4 +112,16 @@ export async function loadConfig(): Promise<GatewayConfig> {
 
 function removeUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
   return Object.fromEntries(Object.entries(obj).filter(([, value]) => value !== undefined)) as Partial<T>;
+}
+
+function inferWorkspaceRoot(cwd: string): string {
+  const resolved = path.resolve(cwd);
+  const resolvedHome = path.resolve(os.homedir());
+  const filesystemRoot = path.parse(resolved).root;
+
+  if (resolved === resolvedHome || resolved === filesystemRoot) {
+    return '';
+  }
+
+  return resolved;
 }

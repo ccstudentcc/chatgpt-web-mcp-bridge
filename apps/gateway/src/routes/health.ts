@@ -10,6 +10,7 @@ export async function registerHealthRoute(server: FastifyInstance, config: Gatew
     host: config.host,
     port: config.port,
     workspaceRoot: config.workspaceRoot,
+    trustedLocalMode: config.trustedLocalMode,
     autoExecuteLowRisk: config.autoExecuteLowRisk,
     autoInsertResult: config.autoInsertResult,
     autoSendResult: config.autoSendResult,

@@ -7,13 +7,13 @@ import { assertAuthorized } from '../security/token.js';
 import { createToolRegistry } from '../tools/index.js';
 import { failure } from '../utils/errors.js';
 
-export async function registerCallToolRoute(server: FastifyInstance, config: GatewayConfig, token: string, logger: Logger): Promise<void> {
+export async function registerCallToolRoute(server: FastifyInstance, config: GatewayConfig, token: string | undefined, logger: Logger): Promise<void> {
   server.post('/call-tool', async (request) => {
     const started = Date.now();
     let toolName = 'unknown';
     let callId: string | undefined;
     try {
-      assertAuthorized(request.headers, token);
+      assertAuthorized(request.headers, { expectedToken: token, trustedLocalMode: config.trustedLocalMode });
       const parsed = ToolCallRequestSchema.safeParse(request.body);
       if (!parsed.success) throw new AppError('INVALID_ARGS', 'Invalid tool call request.', parsed.error.flatten());
       const req = parsed.data;

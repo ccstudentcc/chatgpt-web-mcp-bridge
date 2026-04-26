@@ -36,7 +36,7 @@ export function assessPendingTools(
   if (!catalogLoaded) {
     return {
       runnable: false,
-      blockedReason: 'Tool catalog unavailable. Set token and refresh gateway capabilities.',
+      blockedReason: 'Tool catalog unavailable. Refresh gateway capabilities.',
       items: blocks.map((block) => ({
         block,
         state: 'catalog_unavailable',

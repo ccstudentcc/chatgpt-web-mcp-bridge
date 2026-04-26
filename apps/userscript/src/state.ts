@@ -34,6 +34,7 @@ export interface BridgeState {
   status: BridgeStatus;
   token: string;
   baseUrl: string;
+  trustedLocalMode: boolean;
   autoExecuteEnabled: boolean;
   autoInsertResult: boolean;
   autoSendResult: boolean;
@@ -54,6 +55,7 @@ export const state: BridgeState = {
   status: 'idle',
   token: GM_getValue('cwmb_token', ''),
   baseUrl: GM_getValue('cwmb_base_url', 'http://127.0.0.1:8024'),
+  trustedLocalMode: true,
   autoExecuteEnabled: true,
   autoInsertResult: true,
   autoSendResult: true,
@@ -75,10 +77,14 @@ export function saveBaseUrl(baseUrl: string): void {
 }
 
 export function applyAutomationSettings(settings: {
+  trustedLocalMode?: boolean;
   autoExecuteLowRisk?: boolean;
   autoInsertResult?: boolean;
   autoSendResult?: boolean;
 }): void {
+  if (typeof settings.trustedLocalMode === 'boolean') {
+    state.trustedLocalMode = settings.trustedLocalMode;
+  }
   if (typeof settings.autoExecuteLowRisk === 'boolean') {
     state.autoExecuteEnabled = settings.autoExecuteLowRisk;
   }

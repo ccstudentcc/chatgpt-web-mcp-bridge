@@ -9,6 +9,7 @@ export interface GatewayHealthResponse {
   port: number;
   workspaceRoot: string;
   shell: string;
+  trustedLocalMode?: boolean;
   autoExecuteLowRisk?: boolean;
   autoInsertResult?: boolean;
   autoSendResult?: boolean;

@@ -79,7 +79,7 @@ export function renderPanel(): void {
     <strong>ChatGPT MCP Bridge</strong>
     <div>Status: ${escapeHtml(state.status)}</div>
     <div>Gateway: ${escapeHtml(state.baseUrl)}</div>
-    <div>Token: ${state.token ? 'set' : 'missing'}</div>
+    <div>Token: ${state.trustedLocalMode ? 'off (trusted local mode)' : state.token ? 'set' : 'missing'}</div>
     <div>Auto execute: ${state.autoExecuteEnabled ? 'on' : 'off'}</div>
     <div>Auto insert: ${state.autoInsertResult ? 'on' : 'off'}</div>
     <div>Auto send: ${state.autoSendResult ? 'on' : 'off'}</div>
@@ -91,7 +91,7 @@ export function renderPanel(): void {
     ${capabilityHint}
     ${state.lastError ? `<div style="color:#a40000">${escapeHtml(state.lastError)}</div>` : ''}
     <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-      <button data-cwmb="token">Set token</button>
+      ${state.trustedLocalMode ? '' : '<button data-cwmb="token">Set token</button>'}
       <button data-cwmb="base-url">Set gateway URL</button>
       ${pending ? `${!state.autoExecuteEnabled && canRunPending ? `<button data-cwmb="run">${isBatch ? 'Run All' : 'Run'}</button>` : ''}<button data-cwmb="ignore">${isBatch ? 'Ignore batch' : 'Ignore'}</button><button data-cwmb="copy-json">${isBatch ? 'Copy first JSON' : 'Copy JSON'}</button>` : ''}
       ${!pending && canRetryBatch ? '<button data-cwmb="retry-batch">Retry whole batch</button>' : ''}

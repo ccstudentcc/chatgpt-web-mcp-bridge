@@ -25,7 +25,7 @@ async function refreshGatewayStatus(): Promise<void> {
       state.status = 'unauthorized';
       state.toolCatalogLoaded = false;
       state.tools = [];
-      state.lastError = err instanceof Error ? err.message : 'Invalid or missing pairing token.';
+      state.lastError = err instanceof Error ? err.message : 'Gateway authorization failed.';
     } else {
       state.status = 'disconnected';
       state.toolCatalogLoaded = false;

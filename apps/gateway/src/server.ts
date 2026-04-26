@@ -5,7 +5,7 @@ import { registerHealthRoute } from './routes/health.js';
 import { registerToolsRoute } from './routes/tools.js';
 import { registerCallToolRoute } from './routes/call-tool.js';
 
-export async function createServer(config: GatewayConfig, token: string, logger: Logger) {
+export async function createServer(config: GatewayConfig, token: string | undefined, logger: Logger) {
   const server = Fastify({ logger: false });
 
   server.addHook('onRequest', async (request) => {

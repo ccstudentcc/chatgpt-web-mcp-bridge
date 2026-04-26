@@ -1009,6 +1009,7 @@ v0.2 Chrome Extension 产品化
   "host": "127.0.0.1",
   "workspaceRoot": "C:/Users/chenpeng/projects/current",
   "shell": "pwsh",
+  "trustedLocalMode": true,
   "allowPwsh": false,
   "autoExecuteLowRisk": true,
   "autoInsertResult": true,
@@ -1281,10 +1282,11 @@ Add-Content file.txt
 | `port` | `8024` | Gateway 端口 |
 | `workspaceRoot` | 空 | 必填后才能执行工具 |
 | `shell` | `pwsh` | Windows Shell 口径 |
+| `trustedLocalMode` | `true` | 是否在可信本机模式下免 token 调用受保护接口 |
 | `allowPwsh` | `false` | 是否允许命令执行 |
 | `autoInsertResult` | `true` | 是否自动插入工具结果 |
-| `autoSendResult` | `false` | 是否自动发送工具结果 |
-| `autoExecuteLowRisk` | `false` | 是否自动执行低风险工具 |
+| `autoSendResult` | `true` | 是否自动发送工具结果 |
+| `autoExecuteLowRisk` | `true` | 是否自动执行低风险工具 |
 | `maxToolRounds` | `3` | 单轮最大工具调用次数 |
 | `maxFileSizeBytes` | `1048576` | 单文件读取上限 |
 | `blockedPaths` | 内置列表 | 敏感路径黑名单 |
@@ -1419,8 +1421,8 @@ Add-Content file.txt
 应对：
 
 - 只监听 `127.0.0.1`
-- 校验 Origin / token
-- 首次连接要求浏览器端 pairing token
+- 校验 Origin，并结合 trusted local mode / token 做鉴权
+- 默认 trusted local mode；只有关闭后才要求浏览器端 pairing token
 - 不允许公网访问
 
 ## 15.4 Shell 命令造成破坏
@@ -1517,7 +1519,7 @@ Add-Content file.txt
 | 自动执行 | 默认自动执行已启用的低风险工具 | 让只读工作流不再被 `Run` 按钮阻塞 |
 | 自动发送 | v0.1 自动发送只读工具结果 | 减少手工回填和发送步骤 |
 | `run_pwsh` | 放入 P1，不进入 v0.1 可执行范围 | Shell 风险高，需要确认 UI、日志和策略成熟后再开放 |
-| Pairing token | v0.1 必须实现 | 防止普通网页直接探测或调用本地 Gateway |
+| Trusted local mode + optional pairing token | v0.1 必须实现 | 既保留本机默认免配对体验，也保留对普通网页探测的基础防护 |
 | MCP adapter | P1/P2 之后再做 | 先用内置只读工具验证核心链路 |
 
 ### 18.2 剩余开放问题
@@ -2135,9 +2137,12 @@ const defaultConfig = {
   port: 8024,
   workspaceRoot: '',
   shell: 'pwsh',
+  trustedLocalMode: true,
   allowPwsh: false,
   maxFileSizeBytes: 1024 * 1024,
-  autoExecuteLowRisk: false,
+  autoExecuteLowRisk: true,
+  autoInsertResult: true,
+  autoSendResult: true,
   blockedPaths: [
     '.env',
     '.env.*',
@@ -2657,13 +2662,13 @@ POST /apply-proposal
 
 ---
 
-## A.14 Pairing Token 设计
+## A.14 Trusted Local Mode 与 Pairing Token
 
-为避免任意网页调用本地 Gateway，建议 v0.1 加轻量 pairing token。
+v0.1 默认启用 trusted local mode，仅允许来自本机 `127.0.0.1` 且 Origin 合法的请求访问 Gateway，因此默认不再要求 userscript 额外携带 pairing token。只有在用户主动关闭 trusted local mode 时，才退回 pairing token。
 
-## A.14.1 初始化
+## A.14.1 可选 token 模式初始化
 
-Gateway 首次启动生成 token：
+当 trusted local mode 被关闭时，Gateway 首次启动生成 token：
 
 ```text
 ~/.chatgpt-web-mcp-bridge/token
@@ -2677,7 +2682,7 @@ Pairing token: cwmb_xxxxxxxxxx
 
 Tampermonkey 设置中保存 token。
 
-## A.14.2 请求头
+## A.14.2 可选 token 模式请求头
 
 浏览器端请求 Gateway 时带：
 
@@ -2764,7 +2769,7 @@ Gateway 校验失败返回：
 | `PWSH_DISABLED` | pwsh 工具未启用 |
 | `COMMAND_BLOCKED` | 命令命中危险策略 |
 | `COMMAND_TIMEOUT` | 命令超时 |
-| `UNAUTHORIZED` | token 缺失或错误 |
+| `UNAUTHORIZED` | trusted local mode 关闭后 token 缺失或错误 |
 | `INTERNAL_ERROR` | 未知内部错误 |
 
 ---
@@ -2776,7 +2781,7 @@ Gateway 校验失败返回：
 1. 初始化 pnpm workspace。
 2. 实现 `packages/protocol` 类型和 schema。
 3. 实现 Gateway `/health`。
-4. 实现 pairing token。
+4. 实现 trusted local mode 与可选 pairing token。
 5. 实现 `read_file`。
 6. 实现 Tampermonkey 连接 `/health`。
 7. 实现 mcp block 解析。
@@ -2813,7 +2818,7 @@ ChatGPT 输出 read_file 工具调用
 - file size limit
 - binary file rejection
 - grep result truncation
-- token validation
+- trusted local mode bypass and token validation
 
 示例：
 
@@ -3262,11 +3267,11 @@ pwsh -NoProfile -Command "$PSVersionTable.PSVersion.ToString()"
 
 ---
 
-## B.4.4 Task 2.4：实现 Pairing Token
+## B.4.4 Task 2.4：实现 Trusted Local Mode 与可选 Pairing Token
 
 ### 目标
 
-增加基础鉴权，避免任意网页直接调用本地 Gateway。
+增加基础鉴权，默认走 trusted local mode，并在需要时退回 token 模式，避免任意网页直接调用本地 Gateway。
 
 ### 涉及文件
 
@@ -3278,14 +3283,15 @@ apps/gateway/src/config.ts
 
 ### 实现要点
 
-- 启动时读取或生成 token。
+- 默认启用 trusted local mode，本机合法来源请求可直接访问受保护接口。
+- trusted local mode 关闭时，启动时读取或生成 token。
 - token 存储在：
 
 ```text
 ~/.chatgpt-web-mcp-bridge/token
 ```
 
-- 除 `/health` 外，其他接口需要：
+- trusted local mode 关闭时，除 `/health` 外，其他接口需要：
 
 ```http
 X-CWMB-Token: <token>
@@ -3293,10 +3299,11 @@ X-CWMB-Token: <token>
 
 ### 验收标准
 
-- 无 token 调用 `/tools` 返回 `UNAUTHORIZED`。
-- token 错误返回 `UNAUTHORIZED`。
-- token 正确可以访问。
-- 启动日志打印 token 保存位置，不在普通 API 响应中暴露 token。
+- trusted local mode 打开时，无 token 调用 `/tools` 可以访问。
+- trusted local mode 关闭且无 token 调用 `/tools` 返回 `UNAUTHORIZED`。
+- trusted local mode 关闭且 token 错误返回 `UNAUTHORIZED`。
+- trusted local mode 关闭且 token 正确可以访问。
+- token 模式下启动日志打印 token 保存位置，不在普通 API 响应中暴露 token。
 
 ---
 
@@ -3616,15 +3623,17 @@ apps/userscript/src/chatgpt-mcp-bridge.user.ts
 ### 实现要点
 
 - 请求 `/health`。
-- Gateway 在线且 token 可用时，再请求 `/tools` 作为能力目录。
+- `/health` 返回在线状态、自动化开关和 trusted local mode 状态。
+- Gateway 在线且 trusted local mode 可用或 token 可用时，再请求 `/tools` 作为能力目录。
 - 显示 connected / disconnected 状态。
 - Gateway 不在线时不报未捕获异常。
 
 ### 验收标准
 
 - Gateway 启动时显示 connected。
-- token 正确时能同步当前工具目录。
-- token 缺失或错误时，`/tools` 同步失败会显示 unauthorized。
+- trusted local mode 打开时，无 token 也能同步当前工具目录。
+- trusted local mode 关闭且 token 正确时能同步当前工具目录。
+- trusted local mode 关闭且 token 缺失或错误时，`/tools` 同步失败会显示 unauthorized。
 - Gateway 未启动时显示 disconnected。
 - 页面不出现持续刷屏错误。
 
@@ -3705,6 +3714,7 @@ apps/userscript/src/state.ts
 ```text
 ChatGPT MCP Bridge
 Gateway: connected / disconnected
+Token: off (trusted local mode) / set / missing
 Detected: read_file
 Risk: low
 [Run] [Copy] [Ignore]
@@ -3747,14 +3757,14 @@ apps/userscript/src/state.ts
 ### 实现要点
 
 - 使用 `GM_xmlhttpRequest`。
-- 请求头带 `X-CWMB-Token`。
-- token 可通过 prompt 或脚本设置保存。
+- trusted local mode 关闭时，请求头带 `X-CWMB-Token`。
+- token 仅在 trusted local mode 关闭时通过 prompt 或脚本设置保存。
 - 处理超时、未授权、服务不可用。
 
 ### 验收标准
 
 - 检测到 enabled 的 `read_file` 后能自动执行。
-- token 错误时显示 unauthorized。
+- trusted local mode 关闭且 token 错误时显示 unauthorized。
 - Gateway 错误时显示错误信息。
 
 ---
@@ -3871,7 +3881,7 @@ apps/gateway/src/**/*.test.ts
 - list_directory
 - search_files
 - grep_files
-- token middleware
+- trusted local mode and token auth middleware
 
 ### 验收标准
 
@@ -3938,7 +3948,7 @@ README.md
 - 配置 workspaceRoot
 - 启动 Gateway
 - 安装 Tampermonkey 脚本
-- 设置 token
+- trusted local mode / 可选 token 说明
 - 第一次工具调用示例
 - 常见错误
 
@@ -4021,8 +4031,9 @@ Invoke-RestMethod http://127.0.0.1:8024/health
 
 期望：
 
-- token 正确时返回 README 内容
-- token 缺失时返回 `UNAUTHORIZED`
+- trusted local mode 打开时，无 token 返回 README 内容
+- trusted local mode 关闭且 token 正确时返回 README 内容
+- trusted local mode 关闭且 token 缺失时返回 `UNAUTHORIZED`
 
 ## B.10.3 E2E 3：ChatGPT 页面识别工具调用
 
@@ -4044,7 +4055,7 @@ Invoke-RestMethod http://127.0.0.1:8024/health
 期望：
 
 - 页面浮层检测到 `read_file`
-- 显示 Run 按钮
+- 默认自动进入执行流程；如果自动执行被关闭，则显示 Run 按钮
 
 ## B.10.4 E2E 4：工具结果回填
 
@@ -4056,7 +4067,7 @@ Invoke-RestMethod http://127.0.0.1:8024/health
 
 - Gateway 执行成功
 - 结果插入 ChatGPT 输入框
-- 不自动发送
+- 默认自动发送；如果自动发送被关闭，则停留在已插入状态等待手动发送
 
 ## B.10.5 E2E 5：安全拒绝
 
@@ -4087,7 +4098,6 @@ Invoke-RestMethod http://127.0.0.1:8024/health
 
 以下能力不作为 v0.1 完成条件：
 
-- 自动发送工具结果
 - 自动多轮工具循环
 - `run_pwsh` 真正启用
 - 写文件落盘
@@ -4106,7 +4116,7 @@ Invoke-RestMethod http://127.0.0.1:8024/health
 | P0 | workspace 初始化 | 没有它无法开发 |
 | P0 | protocol types/schema | 前后端协议基础 |
 | P0 | Gateway `/health` | 本地服务基础 |
-| P0 | token | 基础安全边界 |
+| P0 | trusted local mode + optional token | 基础安全边界 |
 | P0 | path-policy | 最关键安全逻辑 |
 | P0 | read_file | 第一条链路核心工具 |
 | P0 | userscript DOM 监听 | 网页侧核心 |
@@ -4131,7 +4141,7 @@ Invoke-RestMethod http://127.0.0.1:8024/health
 ```text
 1. pnpm workspace scaffold
 2. Gateway /health
-3. token middleware
+3. trusted local mode auth gate
 4. read_file with workspace policy
 5. userscript detects mcp block
 6. userscript calls read_file and inserts result
@@ -4174,7 +4184,7 @@ v0.1 可以标记完成的条件：
 
 - Windows + Chrome 环境下可以启动 Gateway。
 - Tampermonkey 脚本可以安装并在 ChatGPT 页面运行。
-- Gateway 有 pairing token。
+- Gateway 默认 trusted local mode 可用；关闭后有 pairing token 回退方案。
 - ChatGPT 输出 `mcp` block 后，脚本能识别。
 - 脚本检测到 enabled 的 `mcp` block 后，能自动调用本地 `read_file`。
 - 读取结果能插入 ChatGPT 输入框。
@@ -4272,8 +4282,8 @@ fetch http://127.0.0.1:8024/call-tool
 
 缓解：
 
-- Pairing token。
-- 除 `/health` 外接口要求 `X-CWMB-Token`。
+- trusted local mode 仅允许本机合法来源直连。
+- trusted local mode 关闭后，受保护接口要求 `X-CWMB-Token`。
 - 校验 Origin / Referer。
 - 只监听 `127.0.0.1`。
 - 不监听公网地址。
@@ -4422,9 +4432,13 @@ v0.1 允许对已启用的只读工具结果自动发送，但不改变 batch �
 
 如果未来支持局域网访问，必须增加独立配置项，并在启动时打印高风险警告。
 
-## C.5.2 Pairing Token
+## C.5.2 Trusted Local Mode 与可选 Pairing Token
 
-除 `/health` 外，所有接口必须要求：
+v0.1 默认启用 trusted local mode。受保护接口的鉴权要求如下：
+
+- `/health` 不要求 token。
+- trusted local mode 打开时，`/tools`、`/call-tool`、`/logs`、`/settings`、`/apply-proposal` 不要求 token，但仍要求本机监听和合法来源。
+- trusted local mode 关闭时，以上受保护接口都要求：
 
 ```http
 X-CWMB-Token: <token>
@@ -4432,9 +4446,9 @@ X-CWMB-Token: <token>
 
 Token 要求：
 
-- 首次启动自动生成。
+- trusted local mode 关闭后首次启动自动生成。
 - 至少 128 bit 随机性。
-- 存储在用户目录配置文件中。
+- 存储在独立 token 文件中。
 - 不出现在普通 API 响应中。
 - 不写入前端 bundle。
 
@@ -4452,8 +4466,8 @@ https://chat.openai.com
 Tampermonkey 的 `GM_xmlhttpRequest` 场景下 Origin 可能为空，因此策略需要兼容：
 
 - 如果有 Origin，则必须匹配允许列表。
-- 如果 Origin 为空，则依赖 token。
-- 不允许非 ChatGPT 域名且 token 缺失的请求。
+- 如果 Origin 为空，则依赖 trusted local mode 或 token。
+- 不允许非 ChatGPT 域名且 trusted local mode / token 校验失败的请求。
 
 ## C.5.4 CORS 策略
 
@@ -4465,6 +4479,8 @@ v0.1 可以不开放通用 CORS。
 Access-Control-Allow-Origin: https://chatgpt.com
 Access-Control-Allow-Headers: Content-Type, X-CWMB-Token
 ```
+
+如果 trusted local mode 打开且请求不需要 token，`X-CWMB-Token` 可以省略，但服务端仍应兼容该 header 以支持 token 模式回退。
 
 不允许：
 
@@ -4936,7 +4952,7 @@ Userscript 禁止读取：
 只允许：
 
 - 读取页面可见的 assistant 回复文本
-- 读取用户在脚本设置中手动保存的 Gateway token
+- 在 trusted local mode 关闭时，读取用户在脚本设置中手动保存的 Gateway token
 
 ## C.11.2 工具调用来源判断
 
@@ -5145,7 +5161,8 @@ fetch('http://127.0.0.1:8024/call-tool')
 
 期望：
 
-- 无 token 被拒绝。
+- 非允许 Origin 的请求被拒绝。
+- trusted local mode 关闭时，无 token 也被拒绝。
 - CORS 不开放 `*`。
 
 ---
@@ -5157,8 +5174,8 @@ fetch('http://127.0.0.1:8024/call-tool')
 | `host` | `127.0.0.1` | 避免公网暴露 |
 | `allowPwsh` | `false` | Shell 高风险 |
 | `allowWrite` | `false` | 写入需 proposal 流程 |
-| `autoExecuteLowRisk` | `false` | 防 prompt injection |
-| `autoSendResult` | `false` | 给用户最终审查机会 |
+| `autoExecuteLowRisk` | `true` | 已启用低风险只读工具默认自动执行，减少 `Run` 阻塞 |
+| `autoSendResult` | `true` | 只读工具默认自动回填并发送，减少手工步骤 |
 | `maxToolRounds` | `3` | 防无限循环 |
 | `maxFileSizeBytes` | `1048576` | 防大文件泄露/卡顿 |
 | `maxInsertedChars` | `60000` | 防输入框卡顿 |
@@ -5217,31 +5234,31 @@ v0.1 必须交付：
 
 - Tampermonkey userscript。
 - Local Gateway。
-- Pairing token。
+- trusted local mode 默认开启，pairing token 作为可选回退鉴权。
 - `read_file`、`list_directory`、`search_files`、`grep_files`。
 - workspaceRoot 路径限制。
 - 敏感路径阻断。
 - 基础调用日志。
 - README 快速开始。
+- 已启用只读工具结果默认自动发送，并保留关闭后的手动发送回退。
 
 v0.1 只允许预留、不允许默认启用：
 
 - `write_file_proposal`。
 - `run_pwsh`。
 - MCP stdio adapter。
-- 自动发送工具结果。
 - Chrome Extension 产品化 UI。
 
 ## D.2 Endpoint 最终口径
 
-| Endpoint | v0.1 | Token | 说明 |
+| Endpoint | v0.1 | Auth | 说明 |
 |---|---:|---:|---|
 | `GET /health` | 必须 | 否 | 只返回服务状态，不返回 token |
-| `GET /tools` | 必须 | 是 | 返回当前启用/禁用工具与风险级别 |
-| `POST /call-tool` | 必须 | 是 | 执行只读工具；禁用工具返回 `TOOL_DISABLED` |
-| `GET /logs` | 可选 | 是 | v0.1 可先只读最近日志摘要 |
-| `POST /settings` | 可选 | 是 | v0.1 可不做动态设置写入 |
-| `POST /apply-proposal` | P1 | 是 | 只由本地 UI 调用，不建议模型直接调用 |
+| `GET /tools` | 必须 | trusted local mode 或 token | 返回当前启用/禁用工具与风险级别 |
+| `POST /call-tool` | 必须 | trusted local mode 或 token | 执行只读工具；禁用工具返回 `TOOL_DISABLED` |
+| `GET /logs` | 可选 | trusted local mode 或 token | v0.1 可先只读最近日志摘要 |
+| `POST /settings` | 可选 | trusted local mode 或 token | v0.1 可不做动态设置写入 |
+| `POST /apply-proposal` | P1 | trusted local mode 或 token | 只由本地 UI 调用，不建议模型直接调用 |
 
 `/tools` 必须返回禁用工具，以便前端解释“能力存在但当前不可用”。禁用工具不得在 userscript 中显示为可执行按钮。
 
@@ -5257,7 +5274,11 @@ userscript 必须把 `/tools` 结果当作执行前置条件，而不是只在�
 Gateway 处理 `/call-tool` 时统一按以下顺序执行：
 
 ```text
-check token
+check listening host
+  ↓
+check Origin / Referer if present
+  ↓
+check trusted local mode or token
   ↓
 validate request schema
   ↓
@@ -5332,7 +5353,7 @@ interface InsertableToolBatchResult {
 | 状态 | UI 文案含义 | 可操作项 |
 |---|---|---|
 | `disconnected` | Gateway 未连接 | Retry / Copy setup hint |
-| `unauthorized` | token 缺失或错误 | Set token / Retry |
+| `unauthorized` | trusted local mode 关闭后 token 缺失或错误 | Set token / Retry |
 | `idle` | 未检测到工具调用 | 无 |
 | `detected` | 检测到待执行工具 | Copy JSON / Ignore |
 | `detected_batch` | 同一条 assistant 回复中检测到多个待执行工具 | Copy first JSON / Ignore batch |
@@ -5347,7 +5368,7 @@ interface InsertableToolBatchResult {
 | `batch_sent` | 批量结果已自动发送 | 等待下一轮 assistant 回复 |
 | `failed` | 执行失败 | Copy error / Retry |
 
-v0.1 不需要复杂设置页，但 token、Gateway base URL、autoInsertResult 至少需要可配置。
+v0.1 不需要复杂设置页，但 Gateway base URL、trusted local mode、autoInsertResult 至少需要可配置；token 仅在关闭 trusted local mode 时需要配置。
 
 当 `autoInsertResult=false` 时：
 
@@ -5370,7 +5391,7 @@ README 前部必须明确写出：
 - 只应在可信本机环境中运行。
 - 默认只读，默认自动执行，默认自动发送。
 - 不要把 workspaceRoot 指向整个用户目录或磁盘根目录。
-- 不要关闭 token。
+- 不要在未理解风险前关闭 trusted local mode 或把 Gateway 暴露到非本机环境。
 - 不要在未理解风险前启用 `run_pwsh`。
 
 ## D.7 v0.1 Release Checklist
@@ -5382,7 +5403,8 @@ README 前部必须明确写出：
 - `read_file('README.md')` 成功。
 - `read_file('../secret.txt')` 被拒绝。
 - `read_file('.env')` 被拒绝。
-- token 缺失访问 `/call-tool` 被拒绝。
+- trusted local mode 打开时，无 token 也能访问 `/call-tool`。
+- trusted local mode 关闭时，token 缺失访问 `/call-tool` 被拒绝。
 - Gateway 只监听 `127.0.0.1`。
 - 工具结果插入后默认自动发送；如果自动发送关闭，则退回手动发送。
 - 同一条 assistant 回复中的多 block 能自动串行执行并只回填一次批量结果。
@@ -5414,7 +5436,7 @@ README 前部必须明确写出：
 
 ### D.9.1 生成与存储
 
-v0.1 的 pairing token 由 Gateway 生成，不由 ChatGPT 或 userscript 生成。
+v0.1 默认使用 trusted local mode，不要求 token。只有在 trusted local mode 被关闭时，pairing token 才由 Gateway 生成，不由 ChatGPT 或 userscript 生成。
 
 生成规则：
 
@@ -5423,14 +5445,15 @@ v0.1 的 pairing token 由 Gateway 生成，不由 ChatGPT 或 userscript 生成
 - token 文件只保存 token 本体，不混入其他配置。
 - Gateway 启动日志只打印 token 文件位置和首次配对提示；开发模式可以打印 token，但 README 必须提醒用户不要截图或共享。
 
-Tampermonkey userscript 通过设置入口保存 token。v0.1 可使用 `GM_setValue` / `GM_getValue` 保存，不写入页面 DOM，不写入 ChatGPT 输入框。
+trusted local mode 关闭后，Tampermonkey userscript 通过设置入口保存 token。v0.1 可使用 `GM_setValue` / `GM_getValue` 保存，不写入页面 DOM，不写入 ChatGPT 输入框。
 
 ### D.9.2 校验范围
 
-Endpoint token 要求以 D.2 为准：
+Endpoint 鉴权要求以 D.2 为准：
 
 - `/health` 不要求 token，只返回服务状态，不返回 token。
-- `/tools`、`/call-tool`、`/logs`、`/settings`、`/apply-proposal` 均要求 token。
+- trusted local mode 打开时，`/tools`、`/call-tool`、`/logs`、`/settings`、`/apply-proposal` 不要求 token。
+- trusted local mode 关闭时，`/tools`、`/call-tool`、`/logs`、`/settings`、`/apply-proposal` 均要求 token。
 
 `/health` 允许无 token 的原因是便于 userscript 判断 Gateway 是否启动；它不得返回敏感配置、完整 workspace 绝对路径以外的高敏信息或 token。
 
@@ -5443,14 +5466,14 @@ check listening host
   ↓
 check Origin / Referer if present
   ↓
-check token for protected endpoints
+check trusted local mode or token for protected endpoints
   ↓
 validate request schema
   ↓
 enter tool logic
 ```
 
-如果 Origin 存在且不在允许列表中，即使 token 正确也应拒绝。Tampermonkey `GM_xmlhttpRequest` 场景下 Origin 可能为空，此时以 token 为主要凭证。
+如果 Origin 存在且不在允许列表中，即使 token 正确也应拒绝。Tampermonkey `GM_xmlhttpRequest` 场景下 Origin 可能为空，此时以 trusted local mode 或 token 作为主要凭证。
 
 ### D.9.4 重置与失效
 
@@ -5483,7 +5506,7 @@ Gateway 错误码以结构化 `code` 为准，前端不要依赖英文 `message`
 | code | 场景 | 前端建议 |
 |---|---|---|
 | `WORKSPACE_NOT_CONFIGURED` | 未配置 workspaceRoot | 提示用户配置 workspaceRoot |
-| `UNAUTHORIZED` | token 缺失、错误或已失效 | 提示设置 token |
+| `UNAUTHORIZED` | trusted local mode 关闭后 token 缺失、错误或已失效 | 提示检查 token 或 trusted local mode 配置 |
 | `ORIGIN_NOT_ALLOWED` | Origin / Referer 不在允许列表 | 提示请求来源被拒绝 |
 | `TOOL_NOT_FOUND` | 工具不存在 | 显示工具名和可用工具入口 |
 | `TOOL_DISABLED` | 工具存在但未启用 | 显示“能力存在但当前禁用” |
