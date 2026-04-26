@@ -64,3 +64,19 @@ export function buildToolCatalogPrompt(tools: ToolDescriptor[]): string {
   );
   return lines.join('\n');
 }
+
+export function buildInjectedToolPrompt(_tools: ToolDescriptor[]): string {
+  return [
+    'Local MCP bridge tools are available in this chat.',
+    'For workspaceRoot file tasks, prefer the Local MCP Bridge over unrelated built-in connectors such as GitHub or Gmail.',
+    'If you need the live tool catalog, call `mcp_list` first.',
+    'Use fenced `mcp` JSON blocks only.',
+    'Keep all file paths relative to workspaceRoot.',
+    'For multiple tool calls, emit multiple `mcp` blocks in execution order.',
+    'If a local action is unavailable, name the specific missing or disabled bridge tool.',
+    '',
+    '```mcp',
+    JSON.stringify({ tool: 'mcp_list', args: {} }, null, 2),
+    '```'
+  ].join('\n');
+}

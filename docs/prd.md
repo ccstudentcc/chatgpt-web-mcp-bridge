@@ -162,6 +162,9 @@ userscript 基于 `/tools` 动态生成一份 live catalog prompt，并在 ChatG
 - 如果请求体结构无法识别，允许退回面板复制/插入 catalog 的手动路径。
 - 注入 prompt 要明确声明：对 `workspaceRoot` 下的本地文件任务，应优先使用 Local MCP Bridge，而不是无关的 ChatGPT 内建连接器；如果本地工具被禁用，也应说明具体缺失项，而不是笼统声称“没有本地工具”。
 - 面板活动日志应能区分三类信号：会话请求已注入、会话请求早于 prompt 就到达、以及会话请求命中但 body shape 未被改写，方便排查“为什么模型没看到 catalog”。
+- 默认自动注入应使用最短可工作的 bootstrap prompt；完整 catalog 仅保留给 `Insert MCP list` / `Copy MCP list` 诊断路径。
+- 为避免注入文本出现在可分享对话内容里，请求层应优先尝试 synthetic `system` message 注入；只有当该路径不可用时，才退回 prepend user 文本的实验或兼容路径。
+- prepend-user 兼容路径不应作为主 UI 的日常切换项暴露；它只保留给调试或紧急回退。
 
 ### 6.4 `mcp_list`
 

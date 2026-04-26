@@ -57,4 +57,6 @@ Status: completed
 - Tool discovery now depends on `/tools` being available and current; if gateway capability refresh fails, the catalog prompt can become stale.
 - First-turn injection now bootstraps from the last successful catalog snapshot, but a truly first-ever session with no cache still depends on the initial `/tools` refresh winning the race.
 - Even with bootstrap in place, ChatGPT may still ignore or override prompt hints; request-hook diagnostics and stronger prompt wording reduce ambiguity, but real-page behavior remains the final authority.
+- Synthetic `system` message injection is still experimental: ChatGPT may accept it, ignore it, or later surface it differently than prepend-user injection, so HAR and share-page validation remain necessary.
+- Once synthetic `system` injection is validated on real ChatGPT traffic, prepend-user should be downgraded from an operator-facing control to a hidden compatibility fallback.
 - Trusted local mode intentionally removes token friction, so the remaining safety boundary depends more heavily on localhost-only binding, origin checks, and conservative default tool scope.

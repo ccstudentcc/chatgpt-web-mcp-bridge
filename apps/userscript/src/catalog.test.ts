@@ -1,6 +1,6 @@
 import type { ToolDescriptor } from '@cwmb/protocol';
 import { describe, expect, it } from 'vitest';
-import { buildToolCatalogPrompt, summarizeToolCatalog } from './catalog.js';
+import { buildInjectedToolPrompt, buildToolCatalogPrompt, summarizeToolCatalog } from './catalog.js';
 
 describe('summarizeToolCatalog', () => {
   it('counts enabled and disabled tools', () => {
@@ -27,6 +27,19 @@ describe('buildToolCatalogPrompt', () => {
     expect(prompt).toContain('do not put `a|b|c` into a literal `query` and expect alternation');
     expect(prompt).toContain('Currently disabled tools (do not call): run_pwsh');
     expect(prompt).toContain('instead of saying that no local bridge tools are available');
+  });
+});
+
+describe('buildInjectedToolPrompt', () => {
+  it('renders a short bootstrap prompt that points models at mcp_list first', () => {
+    const prompt = buildInjectedToolPrompt(createTools());
+
+    expect(prompt).toContain('Local MCP bridge tools are available in this chat.');
+    expect(prompt).toContain('prefer the Local MCP Bridge over unrelated built-in connectors');
+    expect(prompt).toContain('call `mcp_list` first');
+    expect(prompt).toContain('"tool": "mcp_list"');
+    expect(prompt).not.toContain('"tool": "read_file"');
+    expect(prompt).not.toContain('Currently disabled tools');
   });
 });
 

@@ -1,5 +1,6 @@
 import type { ToolDescriptor } from '@cwmb/protocol';
 import type { ParsedMcpBlock } from './parser.js';
+import type { RequestInjectionMode } from './request-hook.js';
 
 export type BridgeStatus =
   | 'disconnected'
@@ -71,6 +72,7 @@ export interface BridgeState {
   lastResult?: string;
   lastError?: string;
   logs: ActivityLogEntry[];
+  requestInjectionMode: RequestInjectionMode;
 }
 
 const autoExecuteStored = GM_getValue('cwmb_auto_execute', 'inherit');
@@ -89,6 +91,10 @@ function parseStoredNumber(stored: string): number | undefined {
   if (!stored) return undefined;
   const parsed = Number(stored);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function readStoredInjectionMode(stored: string): RequestInjectionMode {
+  return stored === 'prepend_user' ? 'prepend_user' : 'synthetic_system';
 }
 
 export const state: BridgeState = {
@@ -114,7 +120,8 @@ export const state: BridgeState = {
   autoRoundCount: 0,
   executedCallIds: new Set<string>(),
   executedBatchIds: new Set<string>(),
-  logs: []
+  logs: [],
+  requestInjectionMode: readStoredInjectionMode(GM_getValue('cwmb_request_injection_mode', 'synthetic_system'))
 };
 
 export function saveToken(token: string): void {
@@ -178,6 +185,13 @@ export function toggleAutoSend(): void {
 export function toggleContinueBatchOnError(): void {
   state.continueBatchOnError = !state.continueBatchOnError;
   GM_setValue('cwmb_continue_batch_on_error', String(state.continueBatchOnError));
+}
+
+export function cycleRequestInjectionMode(): void {
+  state.requestInjectionMode = state.requestInjectionMode === 'synthetic_system'
+    ? 'prepend_user'
+    : 'synthetic_system';
+  GM_setValue('cwmb_request_injection_mode', state.requestInjectionMode);
 }
 
 export function togglePanelCollapsed(): void {

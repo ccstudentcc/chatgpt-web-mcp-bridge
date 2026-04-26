@@ -4,14 +4,33 @@ const CHATGPT_CONVERSATION_PATHS = [
   '/backend-api/f/conversation'
 ] as const;
 
+const REQUEST_PROMPT_ATTRIBUTE = 'data-cwmb-request-prompt';
+const REQUEST_PROMPT_MESSAGE_TYPE = 'cwmb:update-request-prompt';
+const REQUEST_HOOK_STATUS_MESSAGE_TYPE = 'cwmb:request-hook-status';
+
+declare const unsafeWindow: (Window & typeof globalThis) | undefined;
+
+let directHookPrompt = '';
+let directHookMode: RequestInjectionMode = 'synthetic_system';
+
 export interface RequestBodyInjectionResult {
   bodyText: string;
   injected: boolean;
 }
 
 export type RequestHookStatus = 'injected' | 'missing_prompt' | 'matched_without_injection';
+export type RequestInjectionMode = 'prepend_user' | 'synthetic_system';
 
 export function installPageRequestHook(): void {
+  const pageWindow = getPageWindow();
+  if (pageWindow) {
+    installRequestHookOnTarget(pageWindow, () => ({
+      prompt: directHookPrompt || readPromptFromDom(),
+      mode: directHookMode || readModeFromDom()
+    }));
+    return;
+  }
+
   if (document.documentElement.dataset.cwmbRequestHookInstalled === 'true') {
     return;
   }
@@ -24,10 +43,17 @@ export function installPageRequestHook(): void {
   document.documentElement.dataset.cwmbRequestHookInstalled = 'true';
 }
 
-export function syncRequestPrompt(prompt: string): void {
-  window.dispatchEvent(new CustomEvent('cwmb:update-request-prompt', {
-    detail: { prompt }
-  }));
+export function syncRequestPrompt(prompt: string, mode: RequestInjectionMode): void {
+  directHookPrompt = prompt;
+  directHookMode = mode;
+  document.documentElement.setAttribute(REQUEST_PROMPT_ATTRIBUTE, prompt);
+  document.documentElement.setAttribute(`${REQUEST_PROMPT_ATTRIBUTE}-mode`, mode);
+  window.postMessage({
+    source: 'cwmb-userscript',
+    type: REQUEST_PROMPT_MESSAGE_TYPE,
+    prompt,
+    mode
+  }, window.location.origin);
 }
 
 export function isChatGptConversationRequest(url: string, method: string): boolean {
@@ -43,7 +69,11 @@ export function isChatGptConversationRequest(url: string, method: string): boole
   }
 }
 
-export function injectCatalogIntoRequestBody(bodyText: string, prompt: string): RequestBodyInjectionResult {
+export function injectCatalogIntoRequestBody(
+  bodyText: string,
+  prompt: string,
+  mode: RequestInjectionMode = 'prepend_user'
+): RequestBodyInjectionResult {
   if (!bodyText || !prompt.trim()) {
     return { bodyText, injected: false };
   }
@@ -59,13 +89,144 @@ export function injectCatalogIntoRequestBody(bodyText: string, prompt: string): 
     return { bodyText, injected: false };
   }
 
-  const injected = injectCatalogIntoPayload(payload as Record<string, unknown>, prompt);
+  const injected = injectCatalogIntoPayload(payload as Record<string, unknown>, prompt, mode);
   return injected
     ? { bodyText: JSON.stringify(payload), injected: true }
     : { bodyText, injected: false };
 }
 
-function injectCatalogIntoPayload(payload: Record<string, unknown>, prompt: string): boolean {
+function getPageWindow(): (Window & typeof globalThis) | undefined {
+  try {
+    return typeof unsafeWindow !== 'undefined' ? unsafeWindow : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function readPromptFromDom(): string {
+  return document.documentElement.getAttribute(REQUEST_PROMPT_ATTRIBUTE) || '';
+}
+
+function readModeFromDom(): RequestInjectionMode {
+  return document.documentElement.getAttribute(`${REQUEST_PROMPT_ATTRIBUTE}-mode`) === 'prepend_user'
+    ? 'prepend_user'
+    : 'synthetic_system';
+}
+
+function emitRequestHookStatus(status: RequestHookStatus, transport: 'fetch' | 'xhr', url: string): void {
+  window.postMessage({
+    source: 'cwmb-page-hook',
+    type: REQUEST_HOOK_STATUS_MESSAGE_TYPE,
+    status,
+    transport,
+    url
+  }, window.location.origin);
+}
+
+function installRequestHookOnTarget(
+  targetWindow: Window & typeof globalThis,
+  readInjectionState: () => { prompt: string; mode: RequestInjectionMode }
+): void {
+  if ((targetWindow as Window & { __cwmbRequestHookInstalled?: boolean }).__cwmbRequestHookInstalled) {
+    return;
+  }
+  (targetWindow as Window & { __cwmbRequestHookInstalled?: boolean }).__cwmbRequestHookInstalled = true;
+
+  const originalFetch = targetWindow.fetch;
+  if (typeof originalFetch === 'function') {
+    targetWindow.fetch = async function(input: RequestInfo | URL, init?: RequestInit) {
+      let method = init && typeof init.method === 'string' ? init.method : 'GET';
+      let url = typeof input === 'string' ? input : input instanceof targetWindow.Request ? input.url : String(input);
+      if (input instanceof targetWindow.Request) {
+        method = input.method || method;
+      }
+
+      const matched = isChatGptConversationRequest(url, method);
+      if (!matched) {
+        return originalFetch.apply(this, arguments as unknown as [input: RequestInfo | URL, init?: RequestInit]);
+      }
+
+      const { prompt, mode } = readInjectionState();
+      if (!prompt) {
+        emitRequestHookStatus('missing_prompt', 'fetch', url);
+        return originalFetch.apply(this, arguments as unknown as [input: RequestInfo | URL, init?: RequestInit]);
+      }
+
+      if (input instanceof targetWindow.Request) {
+        try {
+          const cloned = input.clone();
+          const bodyText = await cloned.text();
+          const next = injectCatalogIntoRequestBody(bodyText, prompt, mode);
+          if (next.injected) {
+            emitRequestHookStatus('injected', 'fetch', url);
+            const request = new targetWindow.Request(input, { body: next.bodyText });
+            return originalFetch.call(this, request);
+          }
+          emitRequestHookStatus('matched_without_injection', 'fetch', url);
+        } catch {
+          emitRequestHookStatus('matched_without_injection', 'fetch', url);
+        }
+        return originalFetch.apply(this, arguments as unknown as [input: RequestInfo | URL, init?: RequestInit]);
+      }
+
+      if (init && typeof init.body === 'string') {
+        const next = injectCatalogIntoRequestBody(init.body, prompt, mode);
+        if (next.injected) {
+          emitRequestHookStatus('injected', 'fetch', url);
+          init.body = next.bodyText;
+        } else {
+          emitRequestHookStatus('matched_without_injection', 'fetch', url);
+        }
+      } else {
+        emitRequestHookStatus('matched_without_injection', 'fetch', url);
+      }
+
+      return originalFetch.call(this, input, init);
+    };
+  }
+
+  const originalOpen = targetWindow.XMLHttpRequest.prototype.open;
+  const originalSend = targetWindow.XMLHttpRequest.prototype.send;
+  const requestMeta = new WeakMap<XMLHttpRequest, { method: string; url: string }>();
+
+  targetWindow.XMLHttpRequest.prototype.open = function(method: string, url: string | URL) {
+    requestMeta.set(this, { method: String(method || 'GET'), url: String(url || '') });
+    return originalOpen.apply(this, arguments as unknown as Parameters<XMLHttpRequest['open']>);
+  };
+
+  targetWindow.XMLHttpRequest.prototype.send = function(body?: XMLHttpRequestBodyInit | Document | null) {
+    const meta = requestMeta.get(this);
+    if (meta && isChatGptConversationRequest(meta.url, meta.method)) {
+      const { prompt, mode } = readInjectionState();
+      if (!prompt) {
+        emitRequestHookStatus('missing_prompt', 'xhr', meta.url);
+      } else if (typeof body === 'string') {
+        const next = injectCatalogIntoRequestBody(body, prompt, mode);
+        if (next.injected) {
+          emitRequestHookStatus('injected', 'xhr', meta.url);
+          body = next.bodyText;
+        } else {
+          emitRequestHookStatus('matched_without_injection', 'xhr', meta.url);
+        }
+      } else {
+        emitRequestHookStatus('matched_without_injection', 'xhr', meta.url);
+      }
+    }
+    return originalSend.call(this, body);
+  };
+}
+
+function injectCatalogIntoPayload(payload: Record<string, unknown>, prompt: string, mode: RequestInjectionMode): boolean {
+  if (mode === 'synthetic_system' && Array.isArray(payload.messages)) {
+    const systemInjection = tryInjectSyntheticSystemMessage(payload.messages, prompt);
+    if (systemInjection === 'inserted') {
+      return true;
+    }
+    if (systemInjection === 'present') {
+      return false;
+    }
+  }
+
   if (Array.isArray(payload.messages) && tryInjectIntoMessageList(payload.messages, prompt)) {
     return true;
   }
@@ -92,6 +253,107 @@ function tryInjectIntoMessageList(messages: unknown[], prompt: string): boolean 
   }
 
   return false;
+}
+
+function tryInjectSyntheticSystemMessage(messages: unknown[], prompt: string): 'inserted' | 'present' | 'failed' {
+  const promptMarker = extractPromptMarker(prompt);
+  if (messages.some((message) => messageContainsPrompt(message, prompt, promptMarker))) {
+    return 'present';
+  }
+
+  const firstUserIndex = messages.findIndex((message) => isUserMessage(message));
+  const reference = messages[firstUserIndex] ?? messages[0];
+  const syntheticMessage = createSyntheticSystemMessage(reference, prompt);
+  if (!syntheticMessage) {
+    return 'failed';
+  }
+
+  messages.splice(firstUserIndex >= 0 ? firstUserIndex : 0, 0, syntheticMessage);
+  return 'inserted';
+}
+
+function messageContainsPrompt(message: unknown, prompt: string, promptMarker: string): boolean {
+  if (!message || typeof message !== 'object') {
+    return false;
+  }
+
+  const record = message as Record<string, unknown>;
+  const content = record.content;
+  if (typeof content === 'string') {
+    return content.includes(prompt) || (promptMarker ? content.includes(promptMarker) : false);
+  }
+  if (Array.isArray(content)) {
+    return content.some((part) => part && typeof part === 'object'
+      && typeof (part as Record<string, unknown>).text === 'string'
+      && (((part as Record<string, unknown>).text as string).includes(prompt)
+        || (promptMarker ? ((part as Record<string, unknown>).text as string).includes(promptMarker) : false)));
+  }
+  if (content && typeof content === 'object') {
+    const contentRecord = content as Record<string, unknown>;
+    if (typeof contentRecord.text === 'string' && (contentRecord.text.includes(prompt) || (promptMarker ? contentRecord.text.includes(promptMarker) : false))) {
+      return true;
+    }
+    if (Array.isArray(contentRecord.parts)) {
+      return contentRecord.parts.some((part) => typeof part === 'string' && (part.includes(prompt) || (promptMarker ? part.includes(promptMarker) : false)));
+    }
+  }
+  return false;
+}
+
+function createSyntheticSystemMessage(reference: unknown, prompt: string): Record<string, unknown> {
+  if (reference && typeof reference === 'object') {
+    const record = reference as Record<string, unknown>;
+    if (typeof record.role === 'string') {
+      return {
+        role: 'system',
+        content: createSyntheticContent(record.content, prompt),
+        metadata: { cwmbSyntheticSystem: true }
+      };
+    }
+
+    if (record.author && typeof record.author === 'object') {
+      return {
+        author: { role: 'system' },
+        content: createSyntheticContent(record.content, prompt),
+        metadata: { cwmbSyntheticSystem: true }
+      };
+    }
+  }
+
+  return {
+    role: 'system',
+    content: prompt,
+    metadata: { cwmbSyntheticSystem: true }
+  };
+}
+
+function createSyntheticContent(content: unknown, prompt: string): unknown {
+  if (typeof content === 'string') {
+    return prompt;
+  }
+  if (Array.isArray(content)) {
+    return [{ type: 'text', text: prompt }];
+  }
+  if (content && typeof content === 'object') {
+    const record = content as Record<string, unknown>;
+    if (Array.isArray(record.parts)) {
+      return {
+        ...record,
+        parts: [prompt]
+      };
+    }
+    if (typeof record.text === 'string') {
+      return {
+        ...record,
+        text: prompt
+      };
+    }
+  }
+
+  return {
+    content_type: 'text',
+    parts: [prompt]
+  };
 }
 
 function isUserMessage(message: unknown): boolean {
@@ -244,15 +506,29 @@ function buildPageHookSource(): string {
     if (window.__cwmbRequestHookInstalled) return;
     window.__cwmbRequestHookInstalled = true;
     const CHATGPT_CONVERSATION_PATHS = ${JSON.stringify(CHATGPT_CONVERSATION_PATHS)};
+    const REQUEST_PROMPT_ATTRIBUTE = ${JSON.stringify(REQUEST_PROMPT_ATTRIBUTE)};
+    const REQUEST_PROMPT_MESSAGE_TYPE = ${JSON.stringify(REQUEST_PROMPT_MESSAGE_TYPE)};
+    const REQUEST_HOOK_STATUS_MESSAGE_TYPE = ${JSON.stringify(REQUEST_HOOK_STATUS_MESSAGE_TYPE)};
     let currentPrompt = '';
+    let currentMode = 'synthetic_system';
+    const readPromptFromDom = () => document.documentElement.getAttribute(REQUEST_PROMPT_ATTRIBUTE) || '';
+    const readModeFromDom = () => document.documentElement.getAttribute(REQUEST_PROMPT_ATTRIBUTE + '-mode') === 'prepend_user' ? 'prepend_user' : 'synthetic_system';
     const emitRequestHookStatus = (status, transport, url) => {
-      window.dispatchEvent(new CustomEvent('cwmb:request-hook-status', {
-        detail: { status, transport, url }
-      }));
+      window.postMessage({
+        source: 'cwmb-page-hook',
+        type: REQUEST_HOOK_STATUS_MESSAGE_TYPE,
+        status,
+        transport,
+        url
+      }, window.location.origin);
     };
     ${isChatGptConversationRequest.toString()}
     ${injectCatalogIntoRequestBody.toString()}
     ${injectCatalogIntoPayload.toString()}
+    ${tryInjectSyntheticSystemMessage.toString()}
+    ${messageContainsPrompt.toString()}
+    ${createSyntheticSystemMessage.toString()}
+    ${createSyntheticContent.toString()}
     ${tryInjectIntoMessageList.toString()}
     ${isUserMessage.toString()}
     ${tryInjectIntoMessage.toString()}
@@ -262,9 +538,15 @@ function buildPageHookSource(): string {
     ${tryInjectIntoRootFields.toString()}
     ${prependPrompt.toString()}
     ${extractPromptMarker.toString()}
-    window.addEventListener('cwmb:update-request-prompt', (event) => {
-      const detail = event && typeof event === 'object' && 'detail' in event ? event.detail : undefined;
-      currentPrompt = detail && typeof detail.prompt === 'string' ? detail.prompt : '';
+    currentPrompt = readPromptFromDom();
+    currentMode = readModeFromDom();
+    window.addEventListener('message', (event) => {
+      if (event.source !== window) return;
+      const data = event.data;
+      if (!data || typeof data !== 'object') return;
+      if (data.source !== 'cwmb-userscript' || data.type !== REQUEST_PROMPT_MESSAGE_TYPE) return;
+      currentPrompt = typeof data.prompt === 'string' ? data.prompt : '';
+      currentMode = data.mode === 'prepend_user' ? 'prepend_user' : 'synthetic_system';
     });
     const originalFetch = window.fetch;
     if (typeof originalFetch === 'function') {
@@ -286,7 +568,7 @@ function buildPageHookSource(): string {
           try {
             const cloned = input.clone();
             const bodyText = await cloned.text();
-            const next = injectCatalogIntoRequestBody(bodyText, currentPrompt);
+            const next = injectCatalogIntoRequestBody(bodyText, currentPrompt, currentMode);
             if (next.injected) {
               emitRequestHookStatus('injected', 'fetch', url);
               const request = new Request(input, { body: next.bodyText });
@@ -297,7 +579,7 @@ function buildPageHookSource(): string {
           return originalFetch.apply(this, arguments);
         }
         if (init && typeof init.body === 'string') {
-          const next = injectCatalogIntoRequestBody(init.body, currentPrompt);
+          const next = injectCatalogIntoRequestBody(init.body, currentPrompt, currentMode);
           if (next.injected) {
             emitRequestHookStatus('injected', 'fetch', url);
             init.body = next.bodyText;
@@ -323,7 +605,7 @@ function buildPageHookSource(): string {
         if (!currentPrompt) {
           emitRequestHookStatus('missing_prompt', 'xhr', meta.url);
         } else if (typeof body === 'string') {
-          const next = injectCatalogIntoRequestBody(body, currentPrompt);
+          const next = injectCatalogIntoRequestBody(body, currentPrompt, currentMode);
           if (next.injected) {
             emitRequestHookStatus('injected', 'xhr', meta.url);
             body = next.bodyText;

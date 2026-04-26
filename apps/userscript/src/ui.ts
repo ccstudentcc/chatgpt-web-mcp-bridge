@@ -74,6 +74,7 @@ export function renderPanel(): void {
   const statusTone = getStatusTone(state.status);
   const statusLabel = getStatusLabel(state.status);
   const tokenLabel = state.trustedLocalMode ? 'Trusted local' : state.token ? 'Token set' : 'Token missing';
+  const injectionModeLabel = state.requestInjectionMode === 'synthetic_system' ? 'Synthetic system' : 'Prepend user';
   const headerButtonLabel = state.panelCollapsed ? 'Expand' : 'Collapse';
   const latestLog = state.logs[state.logs.length - 1];
   const detectedLine = pending
@@ -136,6 +137,10 @@ export function renderPanel(): void {
               <div class="cwmb-stat-label">Risk</div>
               <div class="cwmb-stat-value">${escapeHtml(capability.highestRisk ?? 'Low')}</div>
             </div>
+            <div class="cwmb-stat">
+              <div class="cwmb-stat-label">Injection</div>
+              <div class="cwmb-stat-value">${escapeHtml(injectionModeLabel)}</div>
+            </div>
           </div>
         </div>
 
@@ -147,7 +152,7 @@ export function renderPanel(): void {
             ${renderToggle('toggle-send', 'Send', state.autoSendResult)}
             ${renderToggle('toggle-continue-batch', 'Continue on error', state.continueBatchOnError)}
           </div>
-          ${state.toolCatalogLoaded ? '<div class="cwmb-callout cwmb-callout-muted">Live tool hints are injected into outgoing ChatGPT requests. Insert/Copy MCP list is fallback only.</div>' : ''}
+          ${state.toolCatalogLoaded ? `<div class="cwmb-callout cwmb-callout-muted">Request injection is currently using <strong>${escapeHtml(injectionModeLabel)}</strong>. Insert/Copy MCP list remains fallback only.</div>` : ''}
         </div>
 
         <div class="cwmb-section">

@@ -20,9 +20,14 @@
 - The userscript now installs its request hook at `document-start`, then delays UI/DOM observers until `DOMContentLoaded`, so the first ChatGPT message request can still be patched without breaking panel startup.
 - The userscript now bootstraps the request-hook prompt from the last successful `/tools` snapshot before `DOMContentLoaded`, then warms it from a fresh gateway call in parallel so new-chat first turns do not depend solely on the current page's async panel sync.
 - The injected tool-catalog prompt now explicitly tells ChatGPT to prefer Local MCP Bridge tools for `workspaceRoot` file tasks over unrelated built-in connectors such as GitHub or Gmail, and to report specific disabled bridge tools instead of claiming local tools are unavailable.
+- Automatic request injection now uses a short bootstrap MCP prompt, while `Insert MCP list` / `Copy MCP list` still expose the full catalog for manual diagnostics.
+- The main panel now treats `Synthetic system` as the normal operator-facing mode; prepend-user remains in code only as a hidden fallback path instead of a visible mode switch.
 - Gateway startup now auto-creates `config.json` and backfills `workspaceRoot` from the current startup directory when the config is missing or incomplete.
 - The userscript panel is now a collapsible inspector-style surface with runtime badges, expandable batch/result payloads, and an in-panel activity log stream.
-- The panel activity log now records request-hook diagnostics for real ChatGPT conversation requests: injected, prompt-not-ready race, or matched-but-unpatched body.
+- The panel activity log now records request-hook diagnostics for real ChatGPT conversation requests: injected, prompt-not-ready race, or matched-but-unpatched body. The userscript listens for page-hook `postMessage` events and rerenders immediately when those diagnostics arrive, so the hook status is visible in-panel during the same turn.
+- HAR evidence from `tmp/chatgpt.com.har` showed a real `POST /backend-api/f/conversation` request without the injected prompt marker, which confirmed the hook path was correct but the Tampermonkey sandbox-to-page prompt bridge was not. Prompt sync and diagnostics now use `postMessage` plus a shared DOM attribute instead of cross-world custom window events.
+- HAR evidence from `tmp/chatgpt.com3.har` confirmed that prepend-user injection worked technically but leaked the injected prompt into persisted conversation content and share pages. A local request-injection mode switch now defaults to the synthetic `system` experiment so that hidden injection can be A/B tested without rebuilding the userscript.
+- HAR evidence from `tmp/chatgpt.com4.har` confirmed the synthetic `system` path was serialized as a separate system message while preserving the user's visible message body, so the visible prepend-user switch is no longer needed in the main UI.
 - The userscript panel is now draggable and remembers its last user-placed position instead of staying fixed in one corner.
 - The collapsed userscript panel now exposes the key immediate actions (`Run` / `Run all`, `Ignore`, `Retry batch`, `Insert result`) so pending tool handling no longer requires reopening the full inspector first.
 - `Auto execute`, `Auto insert`, and `Auto send` now behave as real userscript-local overrides instead of passive status display.
@@ -68,9 +73,10 @@
 - `pnpm --filter @cwmb/userscript test` now covers manual-only gating for high-risk or confirmation-required tools.
 - `pnpm --filter @cwmb/protocol build` succeeded again before the latest userscript verification pass.
 - `pnpm --filter @cwmb/userscript lint` succeeded again after adding stored catalog bootstrap support for first-turn request injection.
-- `pnpm --filter @cwmb/userscript test` now succeeds with 9 passing files and 35 passing tests, including stored tool-catalog bootstrap coverage.
+- `pnpm --filter @cwmb/userscript test` now succeeds with 9 passing files and 38 passing tests, including stored tool-catalog bootstrap coverage.
 - `pnpm --filter @cwmb/userscript build` succeeded again after the startup bootstrap change.
 - `pnpm --filter @cwmb/userscript test` now also covers the stronger catalog prompt wording for native-connector override guidance.
+- `pnpm --filter @cwmb/userscript test` now also covers the short injected bootstrap prompt and synthetic-system request injection mode.
 - `pnpm -r lint` succeeded.
 - `pnpm -r test` succeeded across protocol, shared, gateway, and userscript.
 - `pnpm -r build` succeeded across protocol, shared, gateway, and userscript.

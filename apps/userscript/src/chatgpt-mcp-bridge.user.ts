@@ -1,4 +1,4 @@
-import { buildToolCatalogPrompt } from './catalog.js';
+import { buildInjectedToolPrompt, buildToolCatalogPrompt } from './catalog.js';
 import { readStoredToolCatalog, writeStoredToolCatalog } from './catalog-cache.js';
 import { assessPendingTools } from './capabilities.js';
 import type { ToolCallFailure, ToolCallRequest } from '@cwmb/protocol';
@@ -48,14 +48,14 @@ async function refreshGatewayStatus(): Promise<void> {
       state.status = 'unauthorized';
       state.toolCatalogLoaded = false;
       state.tools = [];
-      syncRequestPrompt('');
+      syncRequestPrompt('', state.requestInjectionMode);
       state.lastError = err instanceof Error ? err.message : 'Gateway authorization failed.';
       addLogEntry('error', `Gateway unauthorized: ${state.lastError}`);
     } else {
       state.status = 'disconnected';
       state.toolCatalogLoaded = false;
       state.tools = [];
-      syncRequestPrompt('');
+      syncRequestPrompt('', state.requestInjectionMode);
       state.lastError = err instanceof Error ? err.message : 'Gateway disconnected';
       addLogEntry('error', `Gateway disconnected: ${state.lastError}`);
     }
@@ -429,9 +429,9 @@ async function refreshToolCatalog(): Promise<void> {
   const tools = await listTools();
   state.tools = tools;
   state.toolCatalogLoaded = true;
-  const prompt = buildToolCatalogPrompt(tools);
+  const prompt = buildInjectedToolPrompt(tools);
   writeStoredToolCatalog(tools);
-  syncRequestPrompt(prompt);
+  syncRequestPrompt(prompt, state.requestInjectionMode);
 }
 
 function bootstrapRequestPrompt(): void {
@@ -440,7 +440,7 @@ function bootstrapRequestPrompt(): void {
     return;
   }
 
-  syncRequestPrompt(buildToolCatalogPrompt(cachedTools));
+  syncRequestPrompt(buildInjectedToolPrompt(cachedTools), state.requestInjectionMode);
 }
 
 async function warmRequestPromptFromGateway(): Promise<void> {
@@ -451,19 +451,29 @@ async function warmRequestPromptFromGateway(): Promise<void> {
     }
 
     writeStoredToolCatalog(tools);
-    syncRequestPrompt(buildToolCatalogPrompt(tools));
+    syncRequestPrompt(buildInjectedToolPrompt(tools), state.requestInjectionMode);
   } catch {
     // Keep the cached bootstrap prompt until the regular UI-driven sync runs.
   }
 }
 
 function installRequestHookDiagnostics(): void {
-  window.addEventListener('cwmb:request-hook-status', (event: Event) => {
-    const detail = event instanceof CustomEvent ? event.detail as {
+  window.addEventListener('message', (event: MessageEvent) => {
+    const data = event.data as {
+      source?: string;
+      type?: string;
       status?: RequestHookStatus;
       transport?: string;
       url?: string;
-    } : undefined;
+    } | undefined;
+    if (!data || data.source !== 'cwmb-page-hook' || data.type !== 'cwmb:request-hook-status') {
+      return;
+    }
+    const detail = {
+      status: data.status,
+      transport: data.transport,
+      url: data.url
+    };
     if (!detail?.status) {
       return;
     }
@@ -476,15 +486,18 @@ function installRequestHookDiagnostics(): void {
 
     if (detail.status === 'injected') {
       addLogEntry('success', `Request hook injected MCP catalog via ${detail.transport ?? 'request'} conversation request.`);
+      renderPanel();
       return;
     }
 
     if (detail.status === 'missing_prompt') {
       addLogEntry('warn', `Conversation request reached the page hook before the MCP catalog prompt was ready (${detail.transport ?? 'request'}).`);
+      renderPanel();
       return;
     }
 
     addLogEntry('warn', `Conversation request matched ChatGPT, but the body shape was not patched (${detail.transport ?? 'request'}).`);
+    renderPanel();
   });
 }
 

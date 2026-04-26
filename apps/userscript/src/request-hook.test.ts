@@ -41,6 +41,28 @@ describe('injectCatalogIntoRequestBody', () => {
     expect(parsed.messages[0].content.parts[0]).toContain('Read README.md');
   });
 
+  it('can inject a synthetic system message instead of mutating the user text', () => {
+    const original = JSON.stringify({
+      messages: [
+        {
+          author: { role: 'user' },
+          content: {
+            content_type: 'text',
+            parts: ['Read README.md']
+          }
+        }
+      ]
+    });
+
+    const result = injectCatalogIntoRequestBody(original, prompt, 'synthetic_system');
+    expect(result.injected).toBe(true);
+
+    const parsed = JSON.parse(result.bodyText);
+    expect(parsed.messages[0].author.role).toBe('system');
+    expect(parsed.messages[0].content.parts[0]).toContain(prompt);
+    expect(parsed.messages[1].content.parts[0]).toBe('Read README.md');
+  });
+
   it('injects into typed text content arrays', () => {
     const original = JSON.stringify({
       messages: [
@@ -81,6 +103,25 @@ describe('injectCatalogIntoRequestBody', () => {
     });
 
     const result = injectCatalogIntoRequestBody(alreadyInjected, prompt);
+    expect(result.injected).toBe(false);
+    expect(result.bodyText).toBe(alreadyInjected);
+  });
+
+  it('does not duplicate an existing synthetic system prompt', () => {
+    const alreadyInjected = JSON.stringify({
+      messages: [
+        {
+          role: 'system',
+          content: prompt
+        },
+        {
+          role: 'user',
+          content: 'Read README.md'
+        }
+      ]
+    });
+
+    const result = injectCatalogIntoRequestBody(alreadyInjected, prompt, 'synthetic_system');
     expect(result.injected).toBe(false);
     expect(result.bodyText).toBe(alreadyInjected);
   });

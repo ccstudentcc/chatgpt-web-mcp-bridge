@@ -11,6 +11,7 @@ const banner = `// ==UserScript==
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_setClipboard
+// @grant        unsafeWindow
 // @connect      127.0.0.1
 // @connect      localhost
 // @run-at       document-start

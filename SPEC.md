@@ -11,6 +11,8 @@ Close the remaining v0.1 browser usability gaps around the userscript panel: kee
 - Let the userscript generate a current MCP catalog prompt from live `/tools` data, inject it into outgoing ChatGPT conversation requests by default, and keep insert/copy actions as fallback diagnostics.
 - Bootstrap the request-hook prompt from the last successful tool catalog snapshot so a new chat's first user turn does not wait on the current page's async gateway sync.
 - Make the injected catalog prompt explicit that local workspace file tasks should prefer the Local MCP Bridge over unrelated native connectors, and surface request-hook diagnostics in the panel log.
+- Add a local request-injection mode switch so synthetic `system` message insertion can be A/B tested against prepend-user injection without rebuilding the script each time.
+- After the experiment validates synthetic `system` injection, remove prepend-user switching from the main UI and keep it only as a hidden fallback path.
 - Fix result insertion so the userscript targets the visible `contenteditable` composer instead of hidden fallback textareas, then waits for the real send button state.
 - Make the panel collapsible and more inspector-like, with expandable batch/result details plus an activity log stream.
 - Ensure the `Execute`, `Insert`, and `Send` automation controls behave as true local overrides rather than passive status labels.
@@ -40,6 +42,8 @@ Close the remaining v0.1 browser usability gaps around the userscript panel: kee
 - Userscript injects the live MCP catalog prompt into outgoing ChatGPT conversation requests by default, while `Insert MCP list` / `Copy MCP list` remain fallback diagnostics.
 - After at least one successful gateway sync, a later page load can still inject the catalog into the first outgoing chat request before the fresh `/tools` refresh finishes.
 - The panel activity log distinguishes between successful request injection, prompt-not-ready races, and matched-but-unpatched request bodies so manual troubleshooting can identify why ChatGPT missed the catalog.
+- Automatic request injection now uses a short bootstrap prompt; the full tool catalog remains a manual diagnostics fallback.
+- The main UI should show the current injection mode as read-only runtime status, not expose prepend-user as a normal daily toggle.
 - Userscript result insertion targets the real visible composer and auto-send can find the current send button after insertion.
 - The userscript panel can collapse, shows activity logs, and exposes expandable batch/result details.
 - The `Execute`, `Insert`, and `Send` controls all change runtime behavior immediately for later detections/results.
