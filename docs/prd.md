@@ -528,6 +528,7 @@ v0.1 默认配置基线：
 - 错误信息
 - inspector 风格日志流
 - 可折叠 / 展开
+- 可拖动，并记住用户上次放置位置
 - batch / result 的可展开详情
 - `Insert MCP list`
 - `Copy MCP list`

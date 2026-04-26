@@ -1,9 +1,10 @@
 import { buildToolCatalogPrompt, summarizeToolCatalog } from './catalog.js';
 import { assessPendingTools, formatCapabilityLabel } from './capabilities.js';
 import { summarizePendingBlock } from './preview.js';
-import { saveBaseUrl, saveToken, state } from './state.js';
+import { saveBaseUrl, savePanelPosition, saveToken, state } from './state.js';
 
 let root: HTMLDivElement | null = null;
+let dragState: { pointerId: number; offsetX: number; offsetY: number } | null = null;
 let onRunHandler: (() => void) | null = null;
 let onIgnoreHandler: (() => void) | null = null;
 let onRetryHandler: (() => void) | null = null;
@@ -98,7 +99,7 @@ export function renderPanel(): void {
       <style>${panelStyles()}</style>
       <div class="cwmb-shell">
         <div class="cwmb-header">
-          <div class="cwmb-title-wrap">
+          <div class="cwmb-title-wrap" data-cwmb="drag-handle">
             <div class="cwmb-kicker">Local Bridge</div>
             <h2 class="cwmb-title">ChatGPT MCP Bridge</h2>
             <div class="cwmb-subtitle">Security-first tool relay for ChatGPT Web</div>
@@ -208,6 +209,7 @@ function ensureRoot(): void {
 }
 
 function bindHandlers(toolCatalogPrompt: string, pending: typeof state.pending[0] | undefined): void {
+  applyPanelPosition();
   root?.querySelector('[data-cwmb="token"]')?.addEventListener('click', () => {
     const token = prompt('Pairing token', state.token);
     if (token !== null) saveToken(token.trim());
@@ -235,6 +237,79 @@ function bindHandlers(toolCatalogPrompt: string, pending: typeof state.pending[0
   root?.querySelector('[data-cwmb="toggle-send"]')?.addEventListener('click', () => onToggleSendHandler?.());
   root?.querySelector('[data-cwmb="toggle-continue-batch"]')?.addEventListener('click', () => onToggleContinueBatchHandler?.());
   root?.querySelector('[data-cwmb="toggle-collapsed"]')?.addEventListener('click', () => onToggleCollapsedHandler?.());
+  root?.querySelector('[data-cwmb="drag-handle"]')?.addEventListener('pointerdown', (event) => {
+    startDrag(event as PointerEvent);
+  });
+}
+
+function applyPanelPosition(): void {
+  if (!root) return;
+  const defaultOffset = 12;
+  if (!state.panelPosition) {
+    root.style.right = `${defaultOffset}px`;
+    root.style.top = `${defaultOffset}px`;
+    root.style.left = 'auto';
+    return;
+  }
+
+  const clamped = clampPanelPosition(state.panelPosition.left, state.panelPosition.top);
+  root.style.left = `${clamped.left}px`;
+  root.style.top = `${clamped.top}px`;
+  root.style.right = 'auto';
+  if (clamped.left !== state.panelPosition.left || clamped.top !== state.panelPosition.top) {
+    savePanelPosition(clamped);
+  }
+}
+
+function startDrag(event: PointerEvent): void {
+  if (!root || event.button !== 0) return;
+  const target = event.target;
+  if (target instanceof HTMLElement && target.closest('button, input, textarea, select, summary, a')) {
+    return;
+  }
+
+  const rect = root.getBoundingClientRect();
+  dragState = {
+    pointerId: event.pointerId,
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top
+  };
+  event.preventDefault();
+  document.addEventListener('pointermove', onDragMove);
+  document.addEventListener('pointerup', stopDrag);
+  document.addEventListener('pointercancel', stopDrag);
+}
+
+function onDragMove(event: PointerEvent): void {
+  if (!root || !dragState || event.pointerId !== dragState.pointerId) return;
+  const clamped = clampPanelPosition(
+    event.clientX - dragState.offsetX,
+    event.clientY - dragState.offsetY
+  );
+  root.style.left = `${clamped.left}px`;
+  root.style.top = `${clamped.top}px`;
+  root.style.right = 'auto';
+  savePanelPosition(clamped);
+}
+
+function stopDrag(event: PointerEvent): void {
+  if (!dragState || event.pointerId !== dragState.pointerId) return;
+  dragState = null;
+  document.removeEventListener('pointermove', onDragMove);
+  document.removeEventListener('pointerup', stopDrag);
+  document.removeEventListener('pointercancel', stopDrag);
+}
+
+function clampPanelPosition(left: number, top: number): { left: number; top: number } {
+  const margin = 8;
+  const width = root?.offsetWidth ?? 420;
+  const height = root?.offsetHeight ?? 320;
+  const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+  const maxTop = Math.max(margin, window.innerHeight - height - margin);
+  return {
+    left: Math.min(Math.max(margin, left), maxLeft),
+    top: Math.min(Math.max(margin, top), maxTop)
+  };
 }
 
 function renderPendingList(blocks: typeof state.pending, capability: ReturnType<typeof assessPendingTools>): string {
@@ -280,7 +355,7 @@ function renderCollapsedPanel(
     <style>${collapsedStyles()}</style>
     <div class="cwmb-shell">
       <div class="cwmb-header">
-        <div>
+        <div data-cwmb="drag-handle">
           <div class="cwmb-kicker">Local Bridge</div>
           <h2 class="cwmb-title">ChatGPT MCP Bridge</h2>
           <div class="cwmb-subtitle">${escapeHtml(statusLabel)} • ${escapeHtml(summary)}</div>
@@ -326,7 +401,13 @@ function panelStyles(): string {
       gap: 12px;
     }
     #cwmb-panel .cwmb-header { margin-bottom: 12px; }
-    #cwmb-panel .cwmb-title-wrap { min-width: 0; }
+    #cwmb-panel .cwmb-title-wrap {
+      min-width: 0;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+    }
+    #cwmb-panel .cwmb-title-wrap:active { cursor: grabbing; }
     #cwmb-panel .cwmb-kicker {
       color: #38bdf8;
       font: 600 11px/1 "JetBrains Mono", "Cascadia Code", monospace;
@@ -617,7 +698,7 @@ function panelStyles(): string {
     #cwmb-panel .cwmb-collapse-btn { color: #cbd5e1; }
     #cwmb-panel .cwmb-actions + .cwmb-actions { margin-top: 8px; }
     @media (max-width: 480px) {
-      #cwmb-panel { right: 8px !important; top: 8px !important; width: min(100vw - 16px, 360px) !important; }
+      #cwmb-panel { width: min(100vw - 16px, 360px) !important; }
       #cwmb-panel .cwmb-stats,
       #cwmb-panel .cwmb-toggle-grid { grid-template-columns: 1fr; }
       #cwmb-panel button[data-cwmb] { flex: 1 1 calc(50% - 4px); justify-content: center; }
@@ -655,6 +736,12 @@ function collapsedStyles(): string {
       justify-content: space-between;
       gap: 8px;
     }
+    #cwmb-panel [data-cwmb="drag-handle"] {
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+    }
+    #cwmb-panel [data-cwmb="drag-handle"]:active { cursor: grabbing; }
     #cwmb-panel .cwmb-kicker {
       color: #38bdf8;
       font: 600 11px/1 "JetBrains Mono", "Cascadia Code", monospace;

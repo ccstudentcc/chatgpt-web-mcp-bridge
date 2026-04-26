@@ -36,6 +36,11 @@ export interface ActivityLogEntry {
   message: string;
 }
 
+export interface PanelPosition {
+  left: number;
+  top: number;
+}
+
 export interface BridgeState {
   status: BridgeStatus;
   token: string;
@@ -50,6 +55,7 @@ export interface BridgeState {
   autoSendResult: boolean;
   continueBatchOnError: boolean;
   panelCollapsed: boolean;
+  panelPosition?: PanelPosition;
   tools: ToolDescriptor[];
   toolCatalogLoaded: boolean;
   pending: ParsedMcpBlock[];
@@ -70,11 +76,19 @@ export interface BridgeState {
 const autoExecuteStored = GM_getValue('cwmb_auto_execute', 'inherit');
 const autoInsertStored = GM_getValue('cwmb_auto_insert', 'inherit');
 const autoSendStored = GM_getValue('cwmb_auto_send', 'inherit');
+const panelLeftStored = parseStoredNumber(GM_getValue('cwmb_panel_left', ''));
+const panelTopStored = parseStoredNumber(GM_getValue('cwmb_panel_top', ''));
 
 function readStoredToggle(stored: string, fallback: boolean): boolean {
   if (stored === 'true') return true;
   if (stored === 'false') return false;
   return fallback;
+}
+
+function parseStoredNumber(stored: string): number | undefined {
+  if (!stored) return undefined;
+  const parsed = Number(stored);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 export const state: BridgeState = {
@@ -91,6 +105,9 @@ export const state: BridgeState = {
   autoSendResult: readStoredToggle(autoSendStored, true),
   continueBatchOnError: GM_getValue('cwmb_continue_batch_on_error', 'false') === 'true',
   panelCollapsed: GM_getValue('cwmb_panel_collapsed', 'false') === 'true',
+  panelPosition: typeof panelLeftStored === 'number' && typeof panelTopStored === 'number'
+    ? { left: panelLeftStored, top: panelTopStored }
+    : undefined,
   tools: [],
   toolCatalogLoaded: false,
   pending: [],
@@ -166,6 +183,12 @@ export function toggleContinueBatchOnError(): void {
 export function togglePanelCollapsed(): void {
   state.panelCollapsed = !state.panelCollapsed;
   GM_setValue('cwmb_panel_collapsed', String(state.panelCollapsed));
+}
+
+export function savePanelPosition(position: PanelPosition): void {
+  state.panelPosition = position;
+  GM_setValue('cwmb_panel_left', String(position.left));
+  GM_setValue('cwmb_panel_top', String(position.top));
 }
 
 export function addLogEntry(level: ActivityLogEntry['level'], message: string): void {
