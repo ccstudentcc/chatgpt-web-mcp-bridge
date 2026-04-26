@@ -2,6 +2,7 @@
 
 ## Current Truth
 
+- `docs/prd.md` has been rewritten into a shorter v0.1 baseline that now treats ChatGPT Web only, trusted local mode, `mcp_list`, and the three independent automation switches as the authoritative product truth.
 - The repository now appears code-complete for the documented v0.1 browser-to-gateway flow.
 - Gateway tool descriptors now include example arguments, and a new low-risk `mcp_list` tool can return the current gateway catalog to ChatGPT itself.
 - The userscript panel can now insert or copy a live MCP catalog prompt built from `/tools`, so ChatGPT can be taught the current tool surface inside the conversation instead of relying on hard-coded examples.
