@@ -1,4 +1,4 @@
-import type { ZodSchema } from 'zod';
+import type { ZodType, ZodTypeDef } from 'zod';
 import type { RiskLevel, ToolDescriptor } from '@cwmb/protocol';
 import type { GatewayConfig } from '../config.js';
 import type { Logger } from '../logger.js';
@@ -16,7 +16,7 @@ export interface ToolContext {
 
 export interface LocalTool<TArgs = unknown, TResult = unknown> extends ToolDescriptor {
   risk: RiskLevel;
-  argsSchema: ZodSchema<TArgs>;
+  argsSchema: ZodType<TArgs, ZodTypeDef, unknown>;
   run(args: TArgs, ctx: ToolContext): Promise<TResult>;
 }
 

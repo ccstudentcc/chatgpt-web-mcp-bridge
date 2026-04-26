@@ -6,7 +6,14 @@ export async function health(): Promise<unknown> {
 }
 
 export async function callTool(req: ToolCallRequest): Promise<ToolCallResponse> {
-  return gmJson('POST', `${state.baseUrl}/call-tool`, req, { [TOKEN_HEADER]: state.token }) as Promise<ToolCallResponse>;
+  const response = await gmJson('POST', `${state.baseUrl}/call-tool`, req, { [TOKEN_HEADER]: state.token }) as ToolCallResponse;
+  if (isToolFailure(response)) {
+    const error = new Error(response.error.message);
+    Object.assign(error, { code: response.error.code, details: response.error.details });
+    throw error;
+  }
+
+  return response;
 }
 
 function gmJson(method: string, url: string, body?: unknown, headers: Record<string, string> = {}): Promise<unknown> {
@@ -28,4 +35,8 @@ function gmJson(method: string, url: string, body?: unknown, headers: Record<str
       ontimeout: () => reject(new Error('Gateway request timed out'))
     });
   });
+}
+
+function isToolFailure(response: ToolCallResponse): response is Extract<ToolCallResponse, { ok: false }> {
+  return response.ok === false;
 }

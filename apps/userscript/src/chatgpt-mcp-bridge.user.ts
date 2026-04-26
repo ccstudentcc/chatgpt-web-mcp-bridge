@@ -54,7 +54,8 @@ async function runFirstPending(): Promise<void> {
     const inserted = insertIntoChatInput(state.lastResult);
     state.status = inserted ? 'inserted' : 'result_ready';
   } catch (err) {
-    state.status = 'failed';
+    const errorCode = err && typeof err === 'object' && 'code' in err ? String((err as { code: unknown }).code) : '';
+    state.status = errorCode === 'UNAUTHORIZED' ? 'unauthorized' : 'failed';
     state.lastError = err instanceof Error ? err.message : 'Tool call failed';
   }
   renderPanel();

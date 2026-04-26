@@ -32,7 +32,10 @@ export async function registerCallToolRoute(server: FastifyInstance, config: Gat
       const safeResult = truncated.truncated
         ? { truncated: true, originalSizeChars: truncated.originalSizeChars, preview: truncated.text }
         : result;
-      const warnings = truncated.truncated ? [`Result truncated from ${truncated.originalSizeChars} chars.`] : [];
+      const toolWarnings = extractWarnings(result);
+      const warnings = truncated.truncated
+        ? [...toolWarnings, `Result truncated from ${truncated.originalSizeChars} chars.`]
+        : toolWarnings;
       const durationMs = Date.now() - started;
       await logger.write({ ts: new Date().toISOString(), callId, tool: req.tool, risk: tool.risk, argsSummary: summarizeArgs(req.args), ok: true, durationMs, warnings });
       return { ok: true, tool: req.tool, result: safeResult, warnings, durationMs };
@@ -52,4 +55,13 @@ function summarizeArgs(args: Record<string, unknown>): Record<string, unknown> {
     else summary[key] = value;
   }
   return summary;
+}
+
+function extractWarnings(result: unknown): string[] {
+  if (!result || typeof result !== 'object' || !('warnings' in result)) {
+    return [];
+  }
+
+  const maybeWarnings = (result as { warnings?: unknown }).warnings;
+  return Array.isArray(maybeWarnings) ? maybeWarnings.filter((item): item is string => typeof item === 'string') : [];
 }
