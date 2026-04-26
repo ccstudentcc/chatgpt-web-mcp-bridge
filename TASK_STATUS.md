@@ -26,6 +26,8 @@
 - Single-tool failures now clear the pending item after result generation, preventing later gateway refreshes from re-running the same failed call implicitly.
 - `mcp_list` now returns the full live gateway catalog including `mcp_list` itself, so its totals align with `/tools` and the injected MCP prompt.
 - Gateway `/health` now exposes `maxToolRounds`, and the userscript now enforces that automatic tool-round guard per detected user request while leaving manual `Run` / `Run All` available.
+- The gateway now ships an optional high-risk `write_file` tool behind `allowWrite=true`; it remains disabled by default and stays outside the automatic execution path even when enabled.
+- Userscript automatic execution is now limited to enabled low-risk tools that do not require confirmation, so high-risk manual tools no longer ride the auto-run path by accident.
 - Repository-level `lint`, `test`, and `build` entrypoints now pass across the workspace.
 
 ## Latest Verified Evidence
@@ -43,6 +45,8 @@
 - `pnpm --filter @cwmb/userscript build` succeeded again after the panel rewrite.
 - `pnpm --filter @cwmb/gateway test` succeeded again with 7 passing files and 14 passing tests after adding `mcp_list` self-catalog and `/health` coverage.
 - `pnpm --filter @cwmb/userscript test` succeeded again with 8 passing files and 31 passing tests after adding `maxToolRounds` round-guard coverage.
+- `pnpm --filter @cwmb/gateway test` now succeeds with `write_file` coverage for allow/deny/create/blocked-path cases.
+- `pnpm --filter @cwmb/userscript test` now covers manual-only gating for high-risk or confirmation-required tools.
 - `pnpm -r lint` succeeded.
 - `pnpm -r test` succeeded across protocol, shared, gateway, and userscript.
 - `pnpm -r build` succeeded across protocol, shared, gateway, and userscript.
@@ -57,4 +61,4 @@
 - This repo still lacks browser-driven end-to-end automation, so the final v0.1 claim depends on manual live acceptance rather than only unit and build checks.
 - Because ChatGPT Web can change its request payload shape, the new invisible injection path is best-effort and should degrade to the panel's manual catalog actions when the outgoing JSON shape drifts.
 - The new automation controls are userscript-local overrides today; there is still no gateway `/settings` API for persisting them centrally.
-- Optional or later-scope PRD items remain intentionally out of scope: dynamic `/settings`, `/logs` endpoint work, `write_file_proposal`, `run_pwsh`, `apply_proposal`, and Chrome extension migration.
+- Optional or later-scope PRD items remain intentionally out of scope: dynamic `/settings`, `/logs` endpoint work, `write_file_proposal`, `run_pwsh`, `apply_proposal`, and Chrome extension migration; `write_file` exists only as a gated local self-hosting escape hatch, not as a default v0.1 workflow.

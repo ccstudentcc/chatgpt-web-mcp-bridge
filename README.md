@@ -17,8 +17,8 @@ Default behavior is intentionally conservative:
 - Blocks `.env`, SSH keys, browser profile data, Git credentials, and other sensitive paths.
 - Auto-executes enabled v0.1 read-only tools after detection.
 - Auto-inserts and auto-sends tool results to ChatGPT by default.
+- Keeps `write_file` disabled by default; enabling it requires `allowWrite=true`, and it still stays manual-only because it is high risk.
 - Does not enable `run_pwsh` in v0.1.
-- Does not write files in v0.1.
 
 Do not point `workspaceRoot` at your whole user directory or disk root.
 
@@ -51,6 +51,7 @@ You can still edit the file explicitly:
   "workspaceRoot": "C:/Users/your-name/projects/current",
   "shell": "pwsh",
   "trustedLocalMode": true,
+  "allowWrite": false,
   "autoExecuteLowRisk": true,
   "autoInsertResult": true,
   "autoSendResult": true,
@@ -121,6 +122,30 @@ ChatGPT outputs mcp block
 
 If `Auto insert` is off, the panel keeps the result in `Insert result` / `Copy result` mode until you choose to insert it manually.
 
+## Optional gated write tool
+
+For local self-hosting workflows, the gateway also ships an optional high-risk `write_file` tool.
+
+- Keep `"allowWrite": false` unless you explicitly want local file writes.
+- `write_file` stays disabled until you set `"allowWrite": true` and restart the gateway.
+- Even when enabled, `write_file` remains manual-only on the ChatGPT side because it is high risk and requires confirmation.
+- `write_file` still uses `workspaceRoot` and the same blocked-path policy, so `.env`, key material, and paths outside the workspace are rejected.
+
+Example:
+
+````markdown
+```mcp
+{
+  "tool": "write_file",
+  "args": {
+    "path": "docs/example.md",
+    "content": "# Updated content",
+    "mode": "replace"
+  }
+}
+```
+````
+
 ## Batch tool calls
 
 One assistant reply can contain multiple `mcp` blocks. The userscript will:
@@ -181,11 +206,15 @@ Useful manual acceptance checks:
 
 `mcp_list` returns the same live gateway catalog that ChatGPT sees, including `mcp_list` itself, so total/enabled counts stay aligned with `/tools` and the injected prompt.
 
+Default enabled:
 - `mcp_list`
 - `read_file`
 - `list_directory`
 - `search_files`
 - `grep_files`
+
+Optional gated:
+- `write_file` (`allowWrite=true`, high risk, manual-only)
 
 ## Roadmap
 

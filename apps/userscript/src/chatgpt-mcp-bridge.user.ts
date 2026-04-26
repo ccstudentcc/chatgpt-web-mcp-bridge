@@ -356,7 +356,7 @@ async function maybeAutoRunPending(): Promise<void> {
   const requestId = state.pendingRequestId ?? getCurrentRequestIdentity();
   syncRoundGuard(requestId);
   const capability = assessPendingTools(state.pending, state.tools, state.toolCatalogLoaded);
-  if (!capability.runnable) return;
+  if (!capability.autoRunnable) return;
 
   if (!canAutoRunForRequest(
     {

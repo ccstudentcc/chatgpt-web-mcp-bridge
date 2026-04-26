@@ -39,6 +39,7 @@ Status: completed
 
 - Make `mcp_list` return the exact live catalog, including `mcp_list` itself, so totals stay aligned with `/tools` and the injected prompt.
 - Expose `maxToolRounds` through `/health` and enforce it in the userscript's automatic execution loop without blocking manual continuation.
+- Add a gated high-risk `write_file` tool for local self-hosting, and tighten userscript auto-execution so only low-risk non-confirmation tools can run automatically.
 - Run `pnpm --filter @cwmb/protocol build`.
 - Run `pnpm --filter @cwmb/gateway lint`.
 - Run `pnpm --filter @cwmb/gateway test`.

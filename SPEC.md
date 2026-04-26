@@ -12,6 +12,7 @@ Close the remaining v0.1 browser usability gaps around the userscript panel: kee
 - Fix result insertion so the userscript targets the visible `contenteditable` composer instead of hidden fallback textareas, then waits for the real send button state.
 - Make the panel collapsible and more inspector-like, with expandable batch/result details plus an activity log stream.
 - Ensure the `Execute`, `Insert`, and `Send` automation controls behave as true local overrides rather than passive status labels.
+- Add a gated high-risk `write_file` tool that stays disabled until `allowWrite=true` and remains manual-only even when enabled.
 - Add a userscript-local `Continue on error` toggle for batch execution, defaulting to fail-stop.
 - Enforce `maxToolRounds` for automatic tool execution without blocking manual `Run` / `Run All`.
 - Make structured failure results follow the same insert/send automation path as success results.
@@ -33,6 +34,7 @@ Close the remaining v0.1 browser usability gaps around the userscript panel: kee
 ## Acceptance Criteria
 
 - Gateway `/tools` and `mcp_list` expose the same current tool metadata with runnable state and example arguments, including `mcp_list` itself.
+- `write_file` is present as a high-risk tool, stays disabled by default, becomes enabled only with `allowWrite=true`, and remains outside the automatic execution path.
 - Userscript injects the live MCP catalog prompt into outgoing ChatGPT conversation requests by default, while `Insert MCP list` / `Copy MCP list` remain fallback diagnostics.
 - Userscript result insertion targets the real visible composer and auto-send can find the current send button after insertion.
 - The userscript panel can collapse, shows activity logs, and exposes expandable batch/result details.

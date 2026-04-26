@@ -47,6 +47,7 @@ function createConfig(): GatewayConfig {
     shell: 'pwsh',
     trustedLocalMode: true,
     allowPwsh: false,
+    allowWrite: false,
     autoExecuteLowRisk: true,
     autoInsertResult: true,
     autoSendResult: true,

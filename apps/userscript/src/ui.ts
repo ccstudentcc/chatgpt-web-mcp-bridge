@@ -54,6 +54,9 @@ export function renderPanel(): void {
   const hasRetryableBatch = Boolean(state.retryableBatch);
   const activeBlocks = state.pending.length > 0 ? state.pending : visibleBatch;
   const capability = assessPendingTools(activeBlocks, state.tools, state.toolCatalogLoaded);
+  const manualRunReason = state.autoExecuteEnabled && capability.runnable && !capability.autoRunnable
+    ? capability.autoBlockedReason
+    : '';
   const canInsertResult =
     Boolean(state.lastResult) &&
     (state.status === 'result_ready'
@@ -63,6 +66,7 @@ export function renderPanel(): void {
   const canRunPending = state.pending.length > 0 && capability.runnable;
   const canRetryBatch = hasRetryableBatch && capability.runnable;
   const capabilityHint = capability.blockedReason ? `<div class="cwmb-callout cwmb-callout-danger">${escapeHtml(capability.blockedReason)}</div>` : '';
+  const manualRunHint = manualRunReason ? `<div class="cwmb-callout cwmb-callout-info">${escapeHtml(manualRunReason)}</div>` : '';
   const progress = state.progress ? `<div class="cwmb-callout cwmb-callout-info">Running ${state.progress.current}/${state.progress.total}: <code>${escapeHtml(state.progress.tool)}</code></div>` : '';
   const catalogSummary = summarizeToolCatalog(state.tools);
   const toolCatalogPrompt = buildToolCatalogPrompt(state.tools);
@@ -143,6 +147,7 @@ export function renderPanel(): void {
           ${detectedLine}
           ${progress}
           ${capabilityHint}
+          ${manualRunHint}
           ${state.lastError ? `<div class="cwmb-callout cwmb-callout-danger">${escapeHtml(state.lastError)}</div>` : ''}
           <details class="cwmb-disclosure">
             <summary>Batch / pending details</summary>
@@ -162,7 +167,7 @@ export function renderPanel(): void {
             ${state.toolCatalogLoaded ? `${renderButton('insert-catalog', 'Insert MCP list')}${renderButton('copy-catalog', 'Copy MCP list', 'ghost')}` : ''}
           </div>
           <div class="cwmb-actions">
-            ${pending ? `${!state.autoExecuteEnabled && canRunPending ? renderButton('run', isBatch ? 'Run all' : 'Run', 'primary') : ''}${renderButton('ignore', isBatch ? 'Ignore batch' : 'Ignore', 'danger')}${renderButton('copy-json', isBatch ? 'Copy first JSON' : 'Copy JSON', 'ghost')}` : ''}
+            ${pending ? `${((!state.autoExecuteEnabled && canRunPending) || (state.autoExecuteEnabled && canRunPending && !capability.autoRunnable)) ? renderButton('run', isBatch ? 'Run all' : 'Run', 'primary') : ''}${renderButton('ignore', isBatch ? 'Ignore batch' : 'Ignore', 'danger')}${renderButton('copy-json', isBatch ? 'Copy first JSON' : 'Copy JSON', 'ghost')}` : ''}
             ${!pending && canRetryBatch ? renderButton('retry-batch', 'Retry whole batch', 'primary') : ''}
             ${canInsertResult ? renderButton('insert-result', 'Insert result', 'primary') : ''}
             ${state.lastResult ? renderButton('copy-result', 'Copy result', 'ghost') : ''}

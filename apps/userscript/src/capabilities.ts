@@ -12,8 +12,10 @@ export interface PendingCapabilityItem {
 
 export interface PendingCapabilityAssessment {
   runnable: boolean;
+  autoRunnable: boolean;
   highestRisk?: RiskLevel;
   blockedReason?: string;
+  autoBlockedReason?: string;
   items: PendingCapabilityItem[];
 }
 
@@ -30,12 +32,13 @@ export function assessPendingTools(
   catalogLoaded: boolean
 ): PendingCapabilityAssessment {
   if (blocks.length === 0) {
-    return { runnable: false, items: [] };
+    return { runnable: false, autoRunnable: false, items: [] };
   }
 
   if (!catalogLoaded) {
     return {
       runnable: false,
+      autoRunnable: false,
       blockedReason: 'Tool catalog unavailable. Refresh gateway capabilities.',
       items: blocks.map((block) => ({
         block,
@@ -74,9 +77,11 @@ export function assessPendingTools(
 
   const blocked = items.find((item) => item.state !== 'enabled');
   const enabledDescriptors = items.flatMap((item) => (item.descriptor ? [item.descriptor] : []));
+  const autoBlocked = enabledDescriptors.find((descriptor) => descriptor.risk !== 'low' || descriptor.requiresConfirmation);
 
   return {
     runnable: !blocked,
+    autoRunnable: !blocked && !autoBlocked,
     highestRisk: enabledDescriptors.reduce<RiskLevel | undefined>((current, descriptor) => {
       if (!current || riskWeight[descriptor.risk] > riskWeight[current]) {
         return descriptor.risk;
@@ -84,6 +89,9 @@ export function assessPendingTools(
       return current;
     }, undefined),
     blockedReason: blocked?.reason,
+    autoBlockedReason: autoBlocked
+      ? 'High-risk or confirmation-required tools must be run manually.'
+      : undefined,
     items
   };
 }

@@ -13,11 +13,12 @@ describe('mcp_list tool', () => {
 
     expect(result.tools.some((item) => item.name === 'mcp_list')).toBe(true);
     expect(result.tools.some((item) => item.name === 'read_file')).toBe(true);
+    expect(result.tools.some((item) => item.name === 'write_file')).toBe(true);
     expect(result.tools.some((item) => item.name === 'run_pwsh')).toBe(true);
     expect(result.tools.find((item) => item.name === 'read_file')?.exampleArgs).toEqual({ path: 'README.md' });
-    expect(result.total).toBe(7);
+    expect(result.total).toBe(8);
     expect(result.enabled).toBe(5);
-    expect(result.disabled).toBe(2);
+    expect(result.disabled).toBe(3);
   });
 });
 
@@ -29,6 +30,7 @@ function createConfig(): GatewayConfig {
     shell: 'pwsh',
     trustedLocalMode: true,
     allowPwsh: false,
+    allowWrite: false,
     autoExecuteLowRisk: true,
     autoInsertResult: true,
     autoSendResult: true,

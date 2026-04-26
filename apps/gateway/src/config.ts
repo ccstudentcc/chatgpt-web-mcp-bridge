@@ -10,6 +10,7 @@ export interface GatewayConfig {
   shell: 'pwsh' | 'powershell.exe';
   trustedLocalMode: boolean;
   allowPwsh: boolean;
+  allowWrite: boolean;
   autoExecuteLowRisk: boolean;
   autoInsertResult: boolean;
   autoSendResult: boolean;
@@ -36,6 +37,7 @@ const defaultConfig: GatewayConfig = {
   shell: 'pwsh',
   trustedLocalMode: true,
   allowPwsh: false,
+  allowWrite: false,
   autoExecuteLowRisk: true,
   autoInsertResult: true,
   autoSendResult: true,

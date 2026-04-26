@@ -12,7 +12,7 @@
 
 ## 1. 一句话定义
 
-ChatGPT Web MCP Bridge 让 ChatGPT 网页端通过结构化 `mcp` JSON block 请求本地只读工具，在本机 `127.0.0.1` Gateway、`workspaceRoot`、敏感路径阻断、日志和能力开关约束下获取项目上下文。
+ChatGPT Web MCP Bridge 让 ChatGPT 网页端通过结构化 `mcp` JSON block 请求本地工具，在本机 `127.0.0.1` Gateway、`workspaceRoot`、敏感路径阻断、日志和能力开关约束下获取项目上下文；默认只读，必要时可显式开启受限写入。
 
 它不是通用网页 AI 平台，不追求一开始支持所有站点，也不是为了让网页 AI 任意操控电脑。
 
@@ -27,6 +27,7 @@ ChatGPT Web MCP Bridge 让 ChatGPT 网页端通过结构化 `mcp` JSON block 请
 - 默认只开放低风险只读工具。
 - 把 Windows + Chrome + `pwsh` 作为第一公民处理。
 - 把安全边界写清楚，并作为产品卖点。
+- 允许本地开发者在显式开启 `allowWrite=true` 后使用受限高风险 `write_file` 完成自举迭代，但它不属于默认自动执行面。
 
 ### 2.2 产品卖点
 
@@ -69,7 +70,7 @@ ChatGPT Web MCP Bridge 让 ChatGPT 网页端通过结构化 `mcp` JSON block 请
 
 #### 场景 D：后续扩展
 
-未来可以增加 `write_file_proposal`、受限 `run_pwsh`，但不进入 v0.1 默认执行面。
+未来可以增加 `write_file_proposal`、受限 `run_pwsh` 的更完整确认流，但不进入 v0.1 默认自动执行面。
 
 ---
 
@@ -84,6 +85,7 @@ v0.1 只为 ChatGPT Web 适配。DOM 选择器、结果回填、发送按钮检�
 - 默认只开放低风险只读工具。
 - 默认 trusted local mode 开启，但仍只监听本机。
 - 默认三个自动化开关都开启，但自动化仅作用于 enabled 的低风险工具。
+- `write_file` 即使显式启用，也必须保持 high risk、requiresConfirmation=true、手动执行。
 - 高风险工具即使未来实现，也不得进入自动执行链路。
 
 ### 4.3 Live Truth Over Static Truth
@@ -294,6 +296,7 @@ v0.1 定义三个独立开关：
 即使开启自动化，也不得自动执行：
 
 - `run_pwsh`
+- `write_file`
 - `write_file_proposal`
 - 任意写文件工具
 - 任意删除/清空/系统级工具
@@ -316,6 +319,7 @@ v0.1 定义三个独立开关：
 
 | 工具 | 风险 | 默认启用 | 自动执行资格 | 说明 |
 |---|---|---:|---:|---|
+| `write_file` | high | 否 | 否 | 临时自举能力；需 `allowWrite=true`，仅支持 `replace` / `create` 文本写入 |
 | `write_file_proposal` | medium | 否 | 否 | P1 能力，先生成 proposal |
 | `run_pwsh` | high | 否 | 否 | P1 能力，必须确认 |
 
@@ -473,6 +477,7 @@ v0.1 默认配置基线：
   "workspaceRoot": "",
   "shell": "pwsh",
   "trustedLocalMode": true,
+  "allowWrite": false,
   "allowPwsh": false,
   "autoExecuteLowRisk": true,
   "autoInsertResult": true,
