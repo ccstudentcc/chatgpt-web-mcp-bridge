@@ -5,6 +5,7 @@
 - The repository now appears code-complete for the documented v0.1 browser-to-gateway flow.
 - The userscript exposes token, Gateway base URL, and auto-insert configuration, gates execution on live `/tools` capabilities, and supports same-reply batch execution with retry.
 - Updating the token or Gateway base URL in the panel now re-syncs gateway health and `/tools` capabilities immediately, so executable actions do not stay hidden until the next poll.
+- The userscript now parses rendered ChatGPT code blocks from the real DOM instead of relying only on fenced markdown text, so `Run` can appear on actual ChatGPT replies where triple backticks are no longer visible.
 - Repository-level `lint`, `test`, and `build` entrypoints now pass across the workspace.
 
 ## Latest Verified Evidence

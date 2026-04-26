@@ -5,7 +5,7 @@ import { createBatchId, executeBatch } from './batch.js';
 import { callTool, health, listTools } from './gateway-client.js';
 import { extractVisibleText, findLatestAssistantMessage, onChatMutation } from './dom.js';
 import { formatBatchToolResult, formatToolResult, insertIntoChatInput } from './inserter.js';
-import { parseMcpBlocks } from './parser.js';
+import { parseMcpBlocks, parseRenderedMcpBlocks } from './parser.js';
 import { renderPanel, setUiHandlers } from './ui.js';
 import { type StoredBatch, state } from './state.js';
 
@@ -39,7 +39,8 @@ async function scanLatestAssistantMessage(): Promise<void> {
   const message = findLatestAssistantMessage();
   if (!message) return;
   const messageText = extractVisibleText(message);
-  const parsed = await parseMcpBlocks(messageText);
+  const renderedParsed = await parseRenderedMcpBlocks(message);
+  const parsed = renderedParsed.blocks.length > 0 ? renderedParsed : await parseMcpBlocks(messageText);
   const next = parsed.blocks.filter((item) => !state.executedCallIds.has(item.callId));
   if (next.length === 0) return;
 

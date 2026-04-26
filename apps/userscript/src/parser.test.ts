@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { parseMcpBlocks } from './parser.js';
+import { parseMcpBlocks, parseMcpCandidateStrings } from './parser.js';
 
 describe('parseMcpBlocks', () => {
   it('parses a valid mcp block', async () => {
     const result = await parseMcpBlocks('```mcp\n{"tool":"read_file","args":{"path":"README.md"}}\n```');
     expect(result.blocks).toHaveLength(1);
     expect(result.blocks[0]?.block.tool).toBe('read_file');
+  });
+
+  it('parses rendered code-block json candidates without markdown fences', async () => {
+    const result = await parseMcpCandidateStrings(['{"tool":"read_file","args":{"path":"README.md"}}']);
+    expect(result.blocks).toHaveLength(1);
+    expect(result.blocks[0]?.block.args.path).toBe('README.md');
   });
 
   it('preserves block order when multiple mcp blocks appear in the same reply', async () => {

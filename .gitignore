@@ -7,3 +7,4 @@ tmp/
 .env.*
 !.env.example
 .chatgpt-web-mcp-bridge/
+.codex
