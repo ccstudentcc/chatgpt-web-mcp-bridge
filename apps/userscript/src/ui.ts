@@ -1,6 +1,6 @@
 import { assessPendingTools, formatCapabilityLabel } from './capabilities.js';
 import { summarizePendingBlock } from './preview.js';
-import { saveAutoInsertResult, saveBaseUrl, saveToken, state } from './state.js';
+import { saveBaseUrl, saveToken, state } from './state.js';
 
 let root: HTMLDivElement | null = null;
 let onRunHandler: (() => void) | null = null;
@@ -80,7 +80,9 @@ export function renderPanel(): void {
     <div>Status: ${escapeHtml(state.status)}</div>
     <div>Gateway: ${escapeHtml(state.baseUrl)}</div>
     <div>Token: ${state.token ? 'set' : 'missing'}</div>
+    <div>Auto execute: ${state.autoExecuteEnabled ? 'on' : 'off'}</div>
     <div>Auto insert: ${state.autoInsertResult ? 'on' : 'off'}</div>
+    <div>Auto send: ${state.autoSendResult ? 'on' : 'off'}</div>
     ${pending ? `<div>${isBatch ? `Detected batch: ${state.pending.length} tools` : `Detected: <code>${escapeHtml(pending.block.tool)}</code>`}</div>` : ''}
     ${!pending && hasRetryableBatch ? `<div>Retryable batch: ${visibleBatch.length} tools</div>` : ''}
     ${riskLine}
@@ -91,8 +93,7 @@ export function renderPanel(): void {
     <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
       <button data-cwmb="token">Set token</button>
       <button data-cwmb="base-url">Set gateway URL</button>
-      <button data-cwmb="toggle-auto-insert">${state.autoInsertResult ? 'Disable auto insert' : 'Enable auto insert'}</button>
-      ${pending ? `${canRunPending ? `<button data-cwmb="run">${isBatch ? 'Run All' : 'Run'}</button>` : ''}<button data-cwmb="ignore">${isBatch ? 'Ignore batch' : 'Ignore'}</button><button data-cwmb="copy-json">${isBatch ? 'Copy first JSON' : 'Copy JSON'}</button>` : ''}
+      ${pending ? `${!state.autoExecuteEnabled && canRunPending ? `<button data-cwmb="run">${isBatch ? 'Run All' : 'Run'}</button>` : ''}<button data-cwmb="ignore">${isBatch ? 'Ignore batch' : 'Ignore'}</button><button data-cwmb="copy-json">${isBatch ? 'Copy first JSON' : 'Copy JSON'}</button>` : ''}
       ${!pending && canRetryBatch ? '<button data-cwmb="retry-batch">Retry whole batch</button>' : ''}
       ${canInsertResult ? '<button data-cwmb="insert-result">Insert result</button>' : ''}
       ${state.lastResult ? '<button data-cwmb="copy-result">Copy result</button>' : ''}
@@ -112,10 +113,6 @@ export function renderPanel(): void {
     }
     renderPanel();
     onConfigChangedHandler?.();
-  });
-  root.querySelector('[data-cwmb="toggle-auto-insert"]')?.addEventListener('click', () => {
-    saveAutoInsertResult(!state.autoInsertResult);
-    renderPanel();
   });
   root.querySelector('[data-cwmb="run"]')?.addEventListener('click', () => onRunHandler?.());
   root.querySelector('[data-cwmb="ignore"]')?.addEventListener('click', () => onIgnoreHandler?.());

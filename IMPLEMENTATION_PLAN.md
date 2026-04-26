@@ -1,21 +1,21 @@
 # Implementation Plan
 
-## Stage 1: Remaining v0.1 Gap Review
+## Stage 1: Automation Pivot Review
 
 Status: completed
 
-- Re-read the PRD stop line and compare it against the current gateway and userscript code.
-- Confirm the remaining code-side gaps were userscript configuration coverage and repository-level validation health.
-- Distinguish code-complete work from live manual acceptance work.
+- Re-read the PRD/UI flow and identify the manual-control assumptions that keep `Run` and manual send in the path.
+- Confirm the requested pivot: enabled v0.1 tools should auto-execute, auto-insert, and auto-send.
+- Keep batch failure semantics and live capability gating intact while changing the default execution posture.
 
-## Stage 2: Final Userscript And Validation Work
+## Stage 2: Gateway + Userscript Automation Flow
 
 Status: completed
 
-- Add live `/tools` capability gating to the userscript panel.
-- Add userscript settings coverage for Gateway base URL and auto-insert behavior.
-- Add manual `Insert result` handling for `result_ready` and `batch_result_ready`.
-- Add the minimum shared-package test coverage needed for root test health.
+- Expose automation flags through gateway health.
+- Make the userscript consume those flags and auto-run detected pending tools when they are runnable.
+- Auto-insert and auto-send successful single-tool and batch results, while keeping failure-stop + retry behavior.
+- Remove `Run` / `Run All` from the default happy path and keep them only as fallback when auto-execute is off.
 
 ## Stage 3: Verification And Close-Out
 
@@ -31,5 +31,5 @@ Status: completed
 
 ## Risks
 
-- The remaining v0.1 gap is now primarily live acceptance risk: ChatGPT DOM drift, real browser behavior, and Windows-specific manual validation.
-- The userscript still degrades conservatively when `/tools` cannot be fetched, which is correct for safety but may feel strict in transient token or network-error states.
+- The largest remaining risk is real-page send-button drift: auto-send depends on ChatGPT DOM selectors remaining stable enough to click the submit control.
+- Auto-execution now amplifies the impact of false-positive parsing, so DOM parsing and call deduplication correctness matter more than before.

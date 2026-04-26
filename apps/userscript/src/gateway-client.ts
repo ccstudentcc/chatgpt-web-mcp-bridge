@@ -1,8 +1,21 @@
 import { TOKEN_HEADER, type ToolCallRequest, type ToolCallResponse, type ToolDescriptor } from '@cwmb/protocol';
 import { state } from './state.js';
 
-export async function health(): Promise<unknown> {
-  return gmJson('GET', `${state.baseUrl}/health`);
+export interface GatewayHealthResponse {
+  ok: boolean;
+  version: string;
+  platform: string;
+  host: string;
+  port: number;
+  workspaceRoot: string;
+  shell: string;
+  autoExecuteLowRisk?: boolean;
+  autoInsertResult?: boolean;
+  autoSendResult?: boolean;
+}
+
+export async function health(): Promise<GatewayHealthResponse> {
+  return gmJson('GET', `${state.baseUrl}/health`) as Promise<GatewayHealthResponse>;
 }
 
 export async function listTools(): Promise<ToolDescriptor[]> {

@@ -14,6 +14,8 @@ export type BridgeStatus =
   | 'batch_result_ready'
   | 'inserted'
   | 'batch_inserted'
+  | 'sent'
+  | 'batch_sent'
   | 'failed';
 
 export interface ExecutionProgress {
@@ -32,7 +34,9 @@ export interface BridgeState {
   status: BridgeStatus;
   token: string;
   baseUrl: string;
+  autoExecuteEnabled: boolean;
   autoInsertResult: boolean;
+  autoSendResult: boolean;
   tools: ToolDescriptor[];
   toolCatalogLoaded: boolean;
   pending: ParsedMcpBlock[];
@@ -50,7 +54,9 @@ export const state: BridgeState = {
   status: 'idle',
   token: GM_getValue('cwmb_token', ''),
   baseUrl: GM_getValue('cwmb_base_url', 'http://127.0.0.1:8024'),
-  autoInsertResult: GM_getValue('cwmb_auto_insert_result', 'true') === 'true',
+  autoExecuteEnabled: true,
+  autoInsertResult: true,
+  autoSendResult: true,
   tools: [],
   toolCatalogLoaded: false,
   pending: [],
@@ -68,7 +74,18 @@ export function saveBaseUrl(baseUrl: string): void {
   GM_setValue('cwmb_base_url', baseUrl);
 }
 
-export function saveAutoInsertResult(enabled: boolean): void {
-  state.autoInsertResult = enabled;
-  GM_setValue('cwmb_auto_insert_result', enabled ? 'true' : 'false');
+export function applyAutomationSettings(settings: {
+  autoExecuteLowRisk?: boolean;
+  autoInsertResult?: boolean;
+  autoSendResult?: boolean;
+}): void {
+  if (typeof settings.autoExecuteLowRisk === 'boolean') {
+    state.autoExecuteEnabled = settings.autoExecuteLowRisk;
+  }
+  if (typeof settings.autoInsertResult === 'boolean') {
+    state.autoInsertResult = settings.autoInsertResult;
+  }
+  if (typeof settings.autoSendResult === 'boolean') {
+    state.autoSendResult = settings.autoSendResult;
+  }
 }

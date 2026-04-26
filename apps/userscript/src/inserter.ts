@@ -22,6 +22,30 @@ export function insertIntoChatInput(value: string): boolean {
   return false;
 }
 
+export function sendCurrentChatInput(): boolean {
+  const selectors = [
+    'button[data-testid="send-button"]',
+    'button[aria-label="Send prompt"]',
+    'button[aria-label="Send message"]',
+    'button[aria-label="发送消息"]',
+    'button[aria-label="发送"]',
+    'form button[aria-label*="Send"]',
+    'form button[aria-label*="发送"]'
+  ];
+
+  for (const selector of selectors) {
+    const button = document.querySelector(selector) as HTMLButtonElement | null;
+    if (!button || button.disabled || button.getAttribute('aria-disabled') === 'true') {
+      continue;
+    }
+
+    button.click();
+    return true;
+  }
+
+  return false;
+}
+
 export function formatToolResult(tool: string, response: unknown): string {
   const lines = [`Tool result for \`${tool}\`:`];
   const summary = buildTruncationSummary(tool, response);

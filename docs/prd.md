@@ -68,7 +68,7 @@ v0.1 不追求以下能力：
 - 不读取浏览器 Cookie、Token、LocalStorage 敏感数据
 - 不读取全盘文件
 - 不默认开放任意 Shell 命令
-- 不默认自动发送工具结果
+- 默认自动发送已执行的 v0.1 只读工具结果
 - 不默认支持删除、清空、重置、格式化等破坏性操作
 - 不追求跨所有网页 AI 平台通用，v0.1 优先适配 ChatGPT 网页端
 - 不承诺 ChatGPT 网页 UI 更新后无需维护
@@ -257,13 +257,11 @@ detecting
   ↓
 parsed
   ↓
-waiting_confirmation
-  ↓
 executing
   ↓
-result_ready
+inserted
   ↓
-inserted / failed
+sent / failed
 ```
 
 ### 验收标准
@@ -277,21 +275,21 @@ inserted / failed
 
 ### 执行边界
 
-v0.1 不做自动多轮 agent loop。浏览器端可以自动检测工具调用，但默认只把工具调用放入待执行队列，由用户点击 Run 后才调用 Gateway。
+v0.1 不做自动多轮 agent loop。浏览器端自动检测工具调用后，只要当前工具在 `/tools` 中可执行，就自动调用 Gateway；不会等待用户再点 `Run`。
 
 同一轮 assistant 回复中如果出现多个 `mcp` block，v0.1 统一处理为待执行队列：
 
-- 默认只高亮第一个待执行 block。
-- 用户可以逐个点击执行。
+- 默认自动执行当前 assistant 回复中的第一个可执行 block。
+- 如果自动执行被关闭，才退回手动点击执行。
 - 不并发执行多个工具调用。
 - 不因为第一个工具成功而自动执行下一个工具。
 - 同一 callId 在当前页面会话中只允许执行一次。
 
 同一条 assistant 回复中如果出现两个或以上合法 `mcp` block，v0.1 还必须定义明确的 batch 路径：
 
-- 浮层进入 batch 模式，主操作改为 `Run All`。
+- 浮层进入 batch 模式并自动开始串行执行。
 - batch 内 block 顺序按 assistant 回复中的出现顺序固定。
-- `Run All` 触发后按顺序串行执行，任意时刻最多只允许一个 in-flight 工具调用。
+- batch 按顺序串行执行，任意时刻最多只允许一个 in-flight 工具调用。
 - 任一 block 失败后立即停止后续执行，不再继续调用剩余 block。
 - 已成功项先缓存在本地 batch accumulator 中，不逐条插入输入框。
 - 整个 batch 结束后只回填一次批量结果，且必须同时包含已完成、失败、未执行三类项。
@@ -312,16 +310,16 @@ batchId = sha256(messageIdentity + normalizedRawMcpBlocksInOrder)
 
 ### 工具循环规则
 
-工具结果插入输入框后，系统不会自动点击发送按钮。用户手动发送结果后，如果 ChatGPT 再次输出新的 `mcp` block，才进入下一轮检测。
+工具结果插入输入框后，系统默认会自动点击发送按钮。用户如果关闭自动发送，则在结果插入后手动发送；只有 ChatGPT 再次输出新的 `mcp` block，才进入下一轮检测。
 
 `maxToolRounds` 只限制同一用户任务上下文中的工具调用轮次上限，不代表允许无人值守连续执行。达到上限后，userscript 应提示用户需要手动确认是否继续。
 
 对 batch 路径补充以下规则：
 
-- userscript 只有在当前 assistant 回复稳定、且完整解析出全部合法 block 后，才允许显示 `Run All`。
+- userscript 只有在当前 assistant 回复稳定、且完整解析出全部合法 block 后，才允许启动 batch 自动执行。
 - batch 执行过程中不允许提前把局部结果插入输入框。
 - batch 因失败而提前停止时，剩余未执行 block 必须统一标记为 `skipped`，原因固定为 `SKIPPED_AFTER_BATCH_FAILURE`。
-- batch 结束后只生成一次可插入内容；用户手动发送该批量结果后，下一轮 assistant 回复才进入新的检测周期。
+- batch 结束后只生成一次可插入内容；结果自动发送或用户手动发送后，下一轮 assistant 回复才进入新的检测周期。
 
 ### 禁止行为
 
@@ -459,9 +457,9 @@ POST /settings
 v0.1 默认：
 
 - 自动插入：开启
-- 自动发送：关闭
+- 自动发送：开启
 
-用户需要确认后手动发送。
+只有在用户关闭自动发送时，才需要手动发送。
 
 ### 回填格式
 
@@ -905,8 +903,8 @@ Chrome/User Data/
 ```json
 {
   "autoInsertResult": true,
-  "autoSendResult": false,
-  "autoExecuteLowRisk": false,
+  "autoSendResult": true,
+  "autoExecuteLowRisk": true,
   "allowPwsh": false,
   "maxToolRounds": 3
 }
@@ -1012,7 +1010,9 @@ v0.2 Chrome Extension 产品化
   "workspaceRoot": "C:/Users/chenpeng/projects/current",
   "shell": "pwsh",
   "allowPwsh": false,
-  "autoExecuteLowRisk": false,
+  "autoExecuteLowRisk": true,
+  "autoInsertResult": true,
+  "autoSendResult": true,
   "maxFileSizeBytes": 1048576,
   "blockedPaths": [
     ".env*",
@@ -1083,8 +1083,8 @@ v0.1 可以解析同一条 assistant 回复中的多个 `mcp` block，但执行�
 
 - 多 block 仅表示同一条 assistant 回复里同时给出了多个工具调用，不代表允许无人值守地跨多轮连续调用工具。
 - 当合法 block 数量为 1 时，沿用单工具执行和单条 `tool_result` 回填。
-- 当合法 block 数量大于等于 2 时，userscript 进入 batch 模式，显示 `Run All` 作为主入口。
-- `Run All` 后按 block 原始顺序串行执行，不并发、不乱序、不自动重试。
+- 当合法 block 数量大于等于 2 时，userscript 进入 batch 模式并自动开始串行执行。
+- batch 按 block 原始顺序串行执行，不并发、不乱序、不自动重试。
 - 任一 block 失败后立即停止后续执行，并把未执行项标记为 `skipped`。
 - 整个 batch 结束后只回填一次批量结果，不在中间插入部分成功项。
 
@@ -1115,7 +1115,7 @@ v0.1 可以解析同一条 assistant 回复中的多个 `mcp` block，但执行�
 
 ### 10.3.2 Batch 结果
 
-同一条 assistant 回复中的多个 block 通过 `Run All` 执行后，必须统一回填 `tool_result_batch`：
+同一条 assistant 回复中的多个 block 自动串行执行后，必须统一回填 `tool_result_batch`：
 
 ````markdown
 ```tool_result_batch
@@ -1366,7 +1366,7 @@ Add-Content file.txt
 4. 读取 workspace 内 README
 5. 返回工具结果
 6. 插入 ChatGPT 输入框
-7. 默认不自动发送
+7. 默认自动发送
 
 ## 14.2 Windows 验收
 
@@ -1514,8 +1514,8 @@ Add-Content file.txt
 | 浏览器端形态 | 先做 Tampermonkey，后做 Chrome Extension | 先验证 ChatGPT DOM、localhost 调用和结果回填，再产品化 |
 | ChatGPT 域名 | 同时兼容 `chatgpt.com` 与 `chat.openai.com` | 两个域名仍可能被用户访问，脚本成本较低 |
 | 工具协议 | 只支持 fenced `mcp` JSON block | 解析、校验、审计更稳定，不兼容自由文本简写 |
-| 自动执行 | 默认不自动执行低风险工具 | 防止 prompt injection 触发本地读取 |
-| 自动发送 | v0.1 不实现自动发送 | 保留用户最终确认点 |
+| 自动执行 | 默认自动执行已启用的低风险工具 | 让只读工作流不再被 `Run` 按钮阻塞 |
+| 自动发送 | v0.1 自动发送只读工具结果 | 减少手工回填和发送步骤 |
 | `run_pwsh` | 放入 P1，不进入 v0.1 可执行范围 | Shell 风险高，需要确认 UI、日志和策略成熟后再开放 |
 | Pairing token | v0.1 必须实现 | 防止普通网页直接探测或调用本地 Gateway |
 | MCP adapter | P1/P2 之后再做 | 先用内置只读工具验证核心链路 |
@@ -1534,7 +1534,7 @@ Add-Content file.txt
 
 - v0.1 使用 Tampermonkey 快速验证
 - v0.1 只做只读工具
-- v0.1 不自动发送工具结果
+- v0.1 自动发送只读工具结果
 - v0.1 不开放 `run_pwsh`
 - v0.1 不直接写文件
 - v0.1 严格限制 workspaceRoot
@@ -1589,10 +1589,10 @@ Gateway returns structured result
   ↓
 Script inserts tool_result into ChatGPT input box
   ↓
-User manually sends result back to ChatGPT
+Script auto-sends result back to ChatGPT
 ```
 
-默认不自动发送，避免模型输出一个工具调用后形成无确认的循环。
+默认自动发送，但仍限制为只读工具结果，且不把 tool result 中的 `mcp` block 继续当作新的可执行请求。
 
 ---
 
@@ -2010,9 +2010,9 @@ Tool finished: read_file
 ### 默认行为
 
 - 检测到工具调用后显示浮层。
-- 低风险工具是否自动执行由配置决定，默认不自动执行。
+- 低风险工具默认自动执行，必要时可通过配置关闭。
 - 执行成功后自动插入结果，默认开启。
-- 插入后不自动发送。
+- 插入后自动发送。
 
 ---
 
@@ -2793,10 +2793,10 @@ v0.1 完成标准：
 
 ```text
 ChatGPT 输出 read_file 工具调用
-→ 用户点击 Run
+→ userscript 自动执行
 → Gateway 读取 workspace 内文件
 → 结果自动插入 ChatGPT 输入框
-→ 用户手动发送
+→ userscript 自动发送
 ```
 
 ---
@@ -3714,19 +3714,19 @@ Batch mode example:
 1. read_file README.md
 2. grep_files post.json.tags
 3. list_directory docs
-[Run All] [Copy first JSON] [Ignore batch]
+[Auto batch] [Copy first JSON] [Ignore batch]
 ```
 
 ### 验收标准
 
 - 浮层不遮挡主要输入区域。
 - 可显示当前工具名。
-- 点击 Run 能触发工具调用。
+- 检测到 enabled 工具后能自动触发工具调用。
 - 点击 Ignore 后不再提示同一 callId。
-- 同一条 assistant 回复中存在多个合法 block 时，浮层进入 batch 模式并显示 `Run All`。
+- 同一条 assistant 回复中存在多个合法 block 时，浮层进入 batch 模式并自动开始串行执行。
 - batch 模式下能显示当前进度，例如 `Running 2/3: grep_files`。
 - batch 因失败停止时，浮层明确提示后续调用已停止。
-- 如果检测到的工具在 `/tools` 中为 disabled 或根本不在目录中，浮层必须显示原因且不显示 `Run` / `Run All`。
+- 如果检测到的工具在 `/tools` 中为 disabled 或根本不在目录中，浮层必须显示原因且不自动执行。
 - 浮层应显示当前待执行工具或 batch 的 risk 信息，risk 以 `/tools` 返回为准。
 
 ---
@@ -3753,7 +3753,7 @@ apps/userscript/src/state.ts
 
 ### 验收标准
 
-- 点击 Run 后能执行 `read_file`。
+- 检测到 enabled 的 `read_file` 后能自动执行。
 - token 错误时显示 unauthorized。
 - Gateway 错误时显示错误信息。
 
@@ -3814,7 +3814,7 @@ Please continue based on the batch tool results above.
 ### 验收标准
 
 - 执行成功后结果能进入输入框。
-- 默认不自动发送。
+- 默认自动发送。
 - 插入失败时可以复制结果。
 - batch 执行过程中输入框不会提前插入局部结果。
 - batch 全部完成或停止后，只插入一次批量结果。
@@ -3948,7 +3948,7 @@ README.md
 
 ```text
 ChatGPT 输出 read_file block
-→ 点击 Run
+→ 自动执行
 → 读取 README
 → 工具结果插入输入框
 ```
@@ -4050,7 +4050,7 @@ Invoke-RestMethod http://127.0.0.1:8024/health
 
 步骤：
 
-点击 Run。
+等待自动执行触发。
 
 期望：
 
@@ -4176,11 +4176,11 @@ v0.1 可以标记完成的条件：
 - Tampermonkey 脚本可以安装并在 ChatGPT 页面运行。
 - Gateway 有 pairing token。
 - ChatGPT 输出 `mcp` block 后，脚本能识别。
-- 用户点击 Run 后，能调用本地 `read_file`。
+- 脚本检测到 enabled 的 `mcp` block 后，能自动调用本地 `read_file`。
 - 读取结果能插入 ChatGPT 输入框。
 - workspace 外路径会被拒绝。
 - `.env` 会被拒绝。
-- 默认不会自动发送。
+- 默认会自动发送只读工具结果。
 - 默认不会执行 Shell。
 - README 能指导用户跑通最小示例。
 
@@ -4194,8 +4194,8 @@ v0.1 可以标记完成的条件：
 本项目的核心风险不是“工具调用失败”，而是“网页端模型输出被误当成本地授权操作”。因此安全策略需要默认保守：
 
 - 默认只允许只读工具。
-- 默认不自动执行工具。
-- 默认不自动发送工具结果。
+- 默认自动执行已启用的只读工具。
+- 默认自动发送只读工具结果。
 - 默认不启用 `run_pwsh`。
 - 默认不允许直接写文件。
 - 所有路径都必须限制在 workspaceRoot 内。
@@ -4254,7 +4254,7 @@ Gateway 执行本地操作
 
 缓解：
 
-- 默认不自动执行。
+- 默认只自动执行已启用的只读工具。
 - 高风险工具必须确认。
 - 只处理 assistant 最新回复。
 - 每轮最大工具次数限制。
@@ -4325,7 +4325,7 @@ pnpm test; Remove-Item -Recurse .
 
 | 风险等级 | 定义 | 默认行为 |
 |---|---|---|
-| low | 只读、限制在 workspace 内、不会泄漏敏感路径 | 可手动执行；是否自动执行由配置决定，默认否 |
+| low | 只读、限制在 workspace 内、不会泄漏敏感路径 | 默认自动执行 |
 | medium | 可能改变文件，但有 diff / proposal 保护 | 必须确认 |
 | high | 执行命令、调用外部网络、可能产生副作用 | 默认禁用，启用后每次确认 |
 | critical | 删除、清空、系统级破坏、读取高敏数据 | 永远拒绝或必须通过独立手动流程 |
@@ -4334,10 +4334,10 @@ pnpm test; Remove-Item -Recurse .
 
 | 工具 | 风险 | 默认启用 | 自动执行 | 说明 |
 |---|---|---:|---:|---|
-| `read_file` | low | 是 | 否 | 只读，但受路径和大小限制 |
-| `list_directory` | low | 是 | 否 | 只读，但隐藏敏感目录 |
-| `search_files` | low | 是 | 否 | 只读，只返回路径 |
-| `grep_files` | low | 是 | 否 | 只读，但可能返回敏感内容，需要黑名单 |
+| `read_file` | low | 是 | 是 | 只读，但受路径和大小限制 |
+| `list_directory` | low | 是 | 是 | 只读，但隐藏敏感目录 |
+| `search_files` | low | 是 | 是 | 只读，只返回路径 |
+| `grep_files` | low | 是 | 是 | 只读，但可能返回敏感内容，需要黑名单 |
 | `write_file_proposal` | medium | P1 | 否 | 只生成 diff，确认后才写 |
 | `apply_proposal` | high | P1 | 否 | 本地 UI 操作，不建议模型直接调用 |
 | `run_pwsh` | high | 否 | 否 | 启用后仍需每次确认 |
@@ -4353,9 +4353,9 @@ pnpm test; Remove-Item -Recurse .
 ```json
 {
   "autoDetectToolCalls": true,
-  "autoExecuteLowRisk": false,
+  "autoExecuteLowRisk": true,
   "autoInsertResult": true,
-  "autoSendResult": false,
+  "autoSendResult": true,
   "allowPwsh": false,
   "allowWrite": false,
   "maxToolRounds": 3
@@ -4365,9 +4365,9 @@ pnpm test; Remove-Item -Recurse .
 解释：
 
 - 可以自动检测工具调用。
-- 不自动执行，即使是低风险工具。
-- 可以自动插入执行结果。
-- 不自动发送结果。
+- 自动执行 enabled 的低风险工具。
+- 自动插入执行结果。
+- 自动发送结果。
 - 不启用 Shell。
 - 不启用直接写入。
 
@@ -4391,7 +4391,7 @@ pnpm test; Remove-Item -Recurse .
 
 ## C.4.3 自动发送限制
 
-`autoSendResult` 默认关闭。
+`autoSendResult` 默认开启。
 
 如果用户开启，仍需限制：
 
@@ -4400,7 +4400,7 @@ pnpm test; Remove-Item -Recurse .
 - 不能和 `run_pwsh` 联动自动发送。
 - 不能和写文件工具联动自动发送。
 
-建议 v0.1 完全不实现自动发送，只预留配置项。
+v0.1 允许对已启用的只读工具结果自动发送，但不改变 batch 失败即停和高风险工具默认禁用的边界。
 
 ---
 
@@ -4943,7 +4943,7 @@ Userscript 禁止读取：
 只处理：
 
 - 最新 assistant 回复中的 `mcp` block
-- 用户点击 Run 的待执行工具
+- 当前 assistant 回复中仍处于待执行状态的工具
 
 不处理：
 
@@ -4962,7 +4962,7 @@ const executedCallIds = new Set<string>();
 
 同一 callId 不重复执行。
 
-页面刷新后可允许重新执行，但需要重新点击 Run。
+页面刷新后可允许重新执行，但需要重新检测到该 assistant 回复中的待执行工具。
 
 ## C.11.4 UI 防误触
 
@@ -4988,15 +4988,15 @@ Auto
 
 ## C.12 工具结果回填安全
 
-## C.12.1 默认不自动发送
+## C.12.1 默认自动发送
 
-工具结果插入输入框后，用户需要手动点击发送。
+工具结果插入输入框后，系统默认自动发送；只有用户关闭自动发送时，才需要手动点击发送。
 
 原因：
 
-- 给用户最后一次审查机会。
-- 防止模型连续工具循环。
-- 防止敏感内容未经确认进入 ChatGPT 会话。
+- 减少工具调用闭环中的手工步骤。
+- 保持只读工具的对话流连贯。
+- 仍通过只读工具范围、风险分级、去重和 batch 失败即停来抑制失控循环。
 
 ## C.12.2 内容截断
 
@@ -5193,7 +5193,7 @@ fetch('http://127.0.0.1:8024/call-tool')
 推荐安全基线：
 
 ```text
-v0.1：只读工具 + 手动执行 + 自动插入 + 不自动发送
+v0.1：只读工具 + 自动执行 + 自动插入 + 自动发送
 v0.2：diff 写入 + 用户确认
 v0.3：受限 pwsh + 强确认 + 白名单命令
 v0.4：MCP adapter + 工具权限映射
@@ -5247,10 +5247,10 @@ v0.1 只允许预留、不允许默认启用：
 
 userscript 必须把 `/tools` 结果当作执行前置条件，而不是只在调用 `/call-tool` 后被动吃错误：
 
-- tool 在 `/tools` 中存在且 `enabled=true` 时，才显示 `Run` / `Run All`。
-- tool 在 `/tools` 中存在但 `enabled=false` 时，显示“能力存在但当前不可用”的解释，不显示执行按钮。
-- tool 不在 `/tools` 目录中时，按 unsupported 处理，不显示执行按钮。
-- `/tools` 目录暂时不可用时，前端应保守降级为不可执行，而不是继续放出执行按钮。
+- tool 在 `/tools` 中存在且 `enabled=true` 时，才允许自动执行。
+- tool 在 `/tools` 中存在但 `enabled=false` 时，显示“能力存在但当前不可用”的解释，不自动执行。
+- tool 不在 `/tools` 目录中时，按 unsupported 处理，不自动执行。
+- `/tools` 目录暂时不可用时，前端应保守降级为不可执行，而不是继续放出自动执行能力。
 
 ## D.3 工具调用执行前检查顺序
 
@@ -5334,15 +5334,17 @@ interface InsertableToolBatchResult {
 | `disconnected` | Gateway 未连接 | Retry / Copy setup hint |
 | `unauthorized` | token 缺失或错误 | Set token / Retry |
 | `idle` | 未检测到工具调用 | 无 |
-| `detected` | 检测到待执行工具 | Run / Copy JSON / Ignore |
-| `detected_batch` | 同一条 assistant 回复中检测到多个待执行工具 | Run All / Copy first JSON / Ignore batch |
+| `detected` | 检测到待执行工具 | Copy JSON / Ignore |
+| `detected_batch` | 同一条 assistant 回复中检测到多个待执行工具 | Copy first JSON / Ignore batch |
 | `executing` | 正在执行工具 | Cancel display only，v0.1 可不真正取消请求 |
 | `batch_executing` | 正在串行执行 batch | 仅显示当前进度，v0.1 不要求真实取消 |
 | `batch_stopped_on_failure` | batch 因某个工具失败而提前停止 | Insert result / Copy result / Retry whole batch |
 | `result_ready` | 工具结果已返回 | Insert / Copy result |
 | `batch_result_ready` | 批量工具结果已汇总完成 | Insert / Copy result |
-| `inserted` | 已插入输入框 | 提示用户手动发送 |
-| `batch_inserted` | 批量结果已插入输入框 | 提示用户手动发送 |
+| `inserted` | 已插入输入框 | 仅在自动发送关闭或发送失败时等待用户手动发送 |
+| `batch_inserted` | 批量结果已插入输入框 | 仅在自动发送关闭或发送失败时等待用户手动发送 |
+| `sent` | 结果已自动发送 | 等待下一轮 assistant 回复 |
+| `batch_sent` | 批量结果已自动发送 | 等待下一轮 assistant 回复 |
 | `failed` | 执行失败 | Copy error / Retry |
 
 v0.1 不需要复杂设置页，但 token、Gateway base URL、autoInsertResult 至少需要可配置。
@@ -5366,7 +5368,7 @@ README 前部必须明确写出：
 
 - 这是非官方本地工具桥，不是 ChatGPT 官方 MCP Client。
 - 只应在可信本机环境中运行。
-- 默认只读，默认不自动执行，默认不自动发送。
+- 默认只读，默认自动执行，默认自动发送。
 - 不要把 workspaceRoot 指向整个用户目录或磁盘根目录。
 - 不要关闭 token。
 - 不要在未理解风险前启用 `run_pwsh`。
@@ -5382,8 +5384,8 @@ README 前部必须明确写出：
 - `read_file('.env')` 被拒绝。
 - token 缺失访问 `/call-tool` 被拒绝。
 - Gateway 只监听 `127.0.0.1`。
-- 工具结果插入后不会自动发送。
-- 同一条 assistant 回复中的多 block 能通过一次 `Run All` 串行执行并只回填一次批量结果。
+- 工具结果插入后默认自动发送；如果自动发送关闭，则退回手动发送。
+- 同一条 assistant 回复中的多 block 能自动串行执行并只回填一次批量结果。
 - batch 第 N 项失败时，第 N+1 项及后续项不会执行，且会在批量结果中标记为 `skipped`。
 - 日志不包含完整文件内容。
 - README 中的第一条示例可复现。
@@ -5694,17 +5696,15 @@ v0.1 不要求自动上报，只需要本地可见，便于页面更新后排查
 
 ---
 
-## D.14 P0 手动执行口径
-
-P0 只读工具虽然默认启用，但默认不自动执行。
+## D.14 P0 自动执行口径
 
 最终口径：
 
 - `read_file`、`list_directory`、`search_files`、`grep_files` 可以出现在 `/tools` 启用列表中。
-- userscript 检测到 low-risk 工具后，默认展示待执行状态。
-- 用户点击 Run 后才调用 `/call-tool`。
-- `autoExecuteLowRisk=true` 是可选高级配置，不作为 v0.1 验收前提。
-- v0.1 README 的主流程必须按“检测到 → 点击 Run → 插入结果 → 用户手动发送”描述。
+- userscript 检测到 enabled 的 low-risk 工具后，默认立即调用 `/call-tool`。
+- 结果默认自动插入并自动发送；如果自动发送关闭，则退回插入后等待用户发送。
+- `autoExecuteLowRisk=true`、`autoInsertResult=true`、`autoSendResult=true` 共同构成 v0.1 的默认 happy path。
+- v0.1 README 的主流程必须按“检测到 → 自动执行 → 自动插入 → 自动发送”描述。
 
 这样可以同时保留低风险工具的可用性和对 prompt injection 的默认防护。
 

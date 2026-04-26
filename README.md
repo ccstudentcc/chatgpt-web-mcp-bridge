@@ -12,8 +12,8 @@ Default behavior is intentionally conservative:
 - Requires a pairing token for every endpoint except `/health`.
 - Limits all file operations to `workspaceRoot`.
 - Blocks `.env`, SSH keys, browser profile data, Git credentials, and other sensitive paths.
-- Does not auto-execute detected tools by default.
-- Does not auto-send tool results to ChatGPT.
+- Auto-executes enabled v0.1 read-only tools after detection.
+- Auto-inserts and auto-sends tool results to ChatGPT by default.
 - Does not enable `run_pwsh` in v0.1.
 - Does not write files in v0.1.
 
@@ -45,9 +45,9 @@ Create `%USERPROFILE%\.chatgpt-web-mcp-bridge\config.json`:
   "port": 8024,
   "workspaceRoot": "C:/Users/chenpeng/projects/current",
   "shell": "pwsh",
-  "autoExecuteLowRisk": false,
+  "autoExecuteLowRisk": true,
   "autoInsertResult": true,
-  "autoSendResult": false
+  "autoSendResult": true
 }
 ```
 
@@ -83,7 +83,7 @@ Open ChatGPT Web. In the bridge panel:
 
 - set the token from the local token file,
 - adjust `Gateway base URL` if the gateway is not on the default `http://127.0.0.1:8024`,
-- leave `Auto insert` on for the default flow, or turn it off if you want results to stay in `Insert result` / `Copy result` mode until you confirm them manually.
+- verify `Auto execute`, `Auto insert`, and `Auto send` are all on for the fully automatic flow.
 
 When you change the token or Gateway base URL in the panel, the userscript refreshes gateway status and `/tools` capabilities immediately.
 
@@ -107,13 +107,13 @@ Expected flow:
 ```text
 ChatGPT outputs mcp block
 → userscript detects it
-→ you click Run
+→ userscript auto-runs the enabled tool
 → gateway reads README.md under workspaceRoot
-→ userscript inserts tool_result into the input box by default
-→ you manually send it
+→ userscript inserts tool_result into the input box
+→ userscript auto-sends it back to ChatGPT
 ```
 
-If `Auto insert` is off, the panel keeps the result in `Insert result` / `Copy result` mode until you choose to insert it.
+If `Auto insert` is off, the panel keeps the result in `Insert result` / `Copy result` mode until you choose to insert it manually.
 
 ## Supported v0.1 tools
 

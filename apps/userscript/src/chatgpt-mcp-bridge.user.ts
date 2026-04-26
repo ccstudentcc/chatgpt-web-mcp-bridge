@@ -4,14 +4,16 @@ import type { BatchFailureItem, BatchResultItem } from './batch.js';
 import { createBatchId, executeBatch } from './batch.js';
 import { callTool, health, listTools } from './gateway-client.js';
 import { extractVisibleText, findLatestAssistantMessage, onChatMutation } from './dom.js';
-import { formatBatchToolResult, formatToolResult, insertIntoChatInput } from './inserter.js';
+import { sha256Normalized } from './hash.js';
+import { formatBatchToolResult, formatToolResult, insertIntoChatInput, sendCurrentChatInput } from './inserter.js';
 import { parseMcpBlocks, parseRenderedMcpBlocks } from './parser.js';
 import { renderPanel, setUiHandlers } from './ui.js';
-import { type StoredBatch, state } from './state.js';
+import { applyAutomationSettings, type BridgeStatus, type StoredBatch, state } from './state.js';
 
 async function refreshGatewayStatus(): Promise<void> {
   try {
-    await health();
+    const gatewayHealth = await health();
+    applyAutomationSettings(gatewayHealth);
     await refreshToolCatalog();
     if (state.status === 'disconnected' || state.status === 'unauthorized' || state.status === 'idle' || state.status === 'detected' || state.status === 'detected_batch') {
       state.status = getDetectedStatus();
@@ -32,6 +34,7 @@ async function refreshGatewayStatus(): Promise<void> {
     }
   }
   renderPanel();
+  void maybeAutoRunPending();
 }
 
 async function scanLatestAssistantMessage(): Promise<void> {
@@ -39,12 +42,16 @@ async function scanLatestAssistantMessage(): Promise<void> {
   const message = findLatestAssistantMessage();
   if (!message) return;
   const messageText = extractVisibleText(message);
+  const messageId = getMessageIdentity(message, messageText);
   const renderedParsed = await parseRenderedMcpBlocks(message);
   const parsed = renderedParsed.blocks.length > 0 ? renderedParsed : await parseMcpBlocks(messageText);
-  const next = parsed.blocks.filter((item) => !state.executedCallIds.has(item.callId));
+  const normalizedBlocks = await Promise.all(parsed.blocks.map(async (item) => ({
+    ...item,
+    callId: await sha256Normalized(`${messageId}\n\n${item.raw}`)
+  })));
+  const next = normalizedBlocks.filter((item) => !state.executedCallIds.has(item.callId));
   if (next.length === 0) return;
 
-  const messageId = getMessageIdentity(message, messageText);
   const batchId = next.length > 1 ? await createBatchId(messageId, next) : undefined;
   if (batchId && state.executedBatchIds.has(batchId)) return;
   if (isSamePending(next, batchId)) return;
@@ -57,6 +64,7 @@ async function scanLatestAssistantMessage(): Promise<void> {
   state.lastError = undefined;
   state.status = getDetectedStatus();
   renderPanel();
+  void maybeAutoRunPending();
 }
 
 async function runPending(): Promise<void> {
@@ -95,12 +103,7 @@ async function runPending(): Promise<void> {
     state.progress = undefined;
     state.retryableBatch = undefined;
     state.lastResult = formatToolResult(pending.block.tool, response);
-    if (state.autoInsertResult) {
-      const inserted = insertIntoChatInput(state.lastResult);
-      state.status = inserted ? 'inserted' : 'result_ready';
-    } else {
-      state.status = 'result_ready';
-    }
+    state.status = deliverLastResult('single', 'result_ready', 'inserted', 'sent');
   } catch (err) {
     const errorCode = err && typeof err === 'object' && 'code' in err ? String((err as { code: unknown }).code) : '';
     state.status = errorCode === 'UNAUTHORIZED' ? 'unauthorized' : 'failed';
@@ -168,17 +171,12 @@ async function runStoredBatch(batch: StoredBatch): Promise<void> {
       batchId,
       messageId
     };
-    state.status = 'batch_stopped_on_failure';
     state.lastError = buildBatchFailureMessage(response.items);
+    state.status = deliverLastResult('batch', 'batch_stopped_on_failure', 'batch_inserted', 'batch_sent');
   } else {
     state.retryableBatch = undefined;
     state.lastError = undefined;
-    if (state.autoInsertResult) {
-      const inserted = insertIntoChatInput(state.lastResult);
-      state.status = inserted ? 'batch_inserted' : 'batch_result_ready';
-    } else {
-      state.status = 'batch_result_ready';
-    }
+    state.status = deliverLastResult('batch', 'batch_result_ready', 'batch_inserted', 'batch_sent');
   }
   renderPanel();
 }
@@ -249,9 +247,54 @@ function insertLastResult(): void {
   if (!state.lastResult) return;
   const inserted = insertIntoChatInput(state.lastResult);
   if (inserted) {
-    state.status = state.status === 'batch_result_ready' ? 'batch_inserted' : 'inserted';
+    if (state.autoSendResult && sendCurrentChatInput()) {
+      state.status = state.status === 'batch_result_ready' || state.status === 'batch_stopped_on_failure' ? 'batch_sent' : 'sent';
+    } else {
+      state.status = state.status === 'batch_result_ready' || state.status === 'batch_stopped_on_failure' ? 'batch_inserted' : 'inserted';
+    }
   }
   renderPanel();
+}
+
+async function maybeAutoRunPending(): Promise<void> {
+  if (!state.autoExecuteEnabled) return;
+  if (state.status === 'executing' || state.status === 'batch_executing') return;
+  if (state.pending.length === 0) return;
+
+  const capability = assessPendingTools(state.pending, state.tools, state.toolCatalogLoaded);
+  if (!capability.runnable) return;
+  await runPending();
+}
+
+function deliverLastResult(
+  kind: 'single' | 'batch',
+  readyStatus: BridgeStatus,
+  insertedStatus: BridgeStatus,
+  sentStatus: BridgeStatus
+): BridgeStatus {
+  if (!state.autoInsertResult || !state.lastResult) {
+    return readyStatus;
+  }
+
+  const inserted = insertIntoChatInput(state.lastResult);
+  if (!inserted) {
+    if (!state.lastError) {
+      state.lastError = 'Chat input not found. Copied the result to clipboard instead.';
+    }
+    return readyStatus;
+  }
+
+  if (!state.autoSendResult) {
+    return insertedStatus;
+  }
+
+  const sent = sendCurrentChatInput();
+  if (!sent && !state.lastError) {
+    state.lastError = kind === 'batch'
+      ? 'Batch result inserted, but the send button was not found.'
+      : 'Tool result inserted, but the send button was not found.';
+  }
+  return sent ? sentStatus : insertedStatus;
 }
 
 async function refreshToolCatalog(): Promise<void> {
@@ -269,5 +312,9 @@ setUiHandlers({
 });
 renderPanel();
 void refreshGatewayStatus();
+void scanLatestAssistantMessage();
 onChatMutation(() => void scanLatestAssistantMessage());
-setInterval(() => void refreshGatewayStatus(), 30_000);
+setInterval(() => {
+  void refreshGatewayStatus();
+  void scanLatestAssistantMessage();
+}, 30_000);
