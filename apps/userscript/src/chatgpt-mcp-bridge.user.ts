@@ -355,6 +355,9 @@ async function maybeAutoRunPending(): Promise<void> {
 
   const requestId = state.pendingRequestId ?? getCurrentRequestIdentity();
   syncRoundGuard(requestId);
+  const capability = assessPendingTools(state.pending, state.tools, state.toolCatalogLoaded);
+  if (!capability.runnable) return;
+
   if (!canAutoRunForRequest(
     {
       requestId: state.autoRoundRequestId,
@@ -382,9 +385,6 @@ async function maybeAutoRunPending(): Promise<void> {
   );
   state.autoRoundRequestId = recorded.requestId;
   state.autoRoundCount = recorded.count;
-
-  const capability = assessPendingTools(state.pending, state.tools, state.toolCatalogLoaded);
-  if (!capability.runnable) return;
   await runPending();
 }
 

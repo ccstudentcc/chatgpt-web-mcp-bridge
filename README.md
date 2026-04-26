@@ -48,7 +48,7 @@ You can still edit the file explicitly:
 {
   "host": "127.0.0.1",
   "port": 8024,
-  "workspaceRoot": "C:/Users/chenpeng/projects/current",
+  "workspaceRoot": "C:/Users/your-name/projects/current",
   "shell": "pwsh",
   "trustedLocalMode": true,
   "autoExecuteLowRisk": true,
