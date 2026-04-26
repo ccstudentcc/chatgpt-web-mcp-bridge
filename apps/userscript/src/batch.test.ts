@@ -95,6 +95,30 @@ describe('executeBatch', () => {
       reason: 'SKIPPED_AFTER_BATCH_FAILURE'
     });
   });
+
+  it('reports progress in original execution order', async () => {
+    const blocks = createBlocks(3);
+    const progress: string[] = [];
+    const executeTool = vi.fn<(_: ToolCallRequest) => Promise<ToolCallResponse>>().mockResolvedValue({
+      ok: true,
+      tool: 'read_file',
+      result: { ok: true },
+      warnings: [],
+      durationMs: 1
+    });
+
+    await executeBatch({
+      batchId: 'batch-3',
+      messageId: 'assistant-3',
+      blocks,
+      executeTool,
+      onProgress: ({ current, total, tool }) => {
+        progress.push(`${current}/${total}:${tool}`);
+      }
+    });
+
+    expect(progress).toEqual(['1/3:read_file', '2/3:grep_files', '3/3:list_directory']);
+  });
 });
 
 function createBlocks(count = 2): ParsedMcpBlock[] {

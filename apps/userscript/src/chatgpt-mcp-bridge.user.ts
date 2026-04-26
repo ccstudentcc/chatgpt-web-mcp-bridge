@@ -6,7 +6,7 @@ import { extractVisibleText, findLatestAssistantMessage, onChatMutation } from '
 import { formatBatchToolResult, formatToolResult, insertIntoChatInput } from './inserter.js';
 import { parseMcpBlocks } from './parser.js';
 import { renderPanel, setUiHandlers } from './ui.js';
-import { state } from './state.js';
+import { type StoredBatch, state } from './state.js';
 
 async function refreshGatewayStatus(): Promise<void> {
   try {
@@ -40,6 +40,7 @@ async function scanLatestAssistantMessage(): Promise<void> {
   state.pendingMessageId = messageId;
   state.pendingBatchId = batchId;
   state.progress = undefined;
+  state.retryableBatch = undefined;
   state.lastError = undefined;
   state.status = getDetectedStatus();
   renderPanel();
@@ -73,6 +74,7 @@ async function runPending(): Promise<void> {
     state.pendingBatchId = undefined;
     state.pendingMessageId = undefined;
     state.progress = undefined;
+    state.retryableBatch = undefined;
     state.lastResult = formatToolResult(pending.block.tool, response);
     const inserted = insertIntoChatInput(state.lastResult);
     state.status = inserted ? 'inserted' : 'result_ready';
@@ -90,15 +92,32 @@ async function runPendingBatch(): Promise<void> {
   const messageId = state.pendingMessageId;
   if (pending.length < 2 || !batchId || !messageId) return;
 
+  await runStoredBatch({
+    blocks: pending,
+    batchId,
+    messageId
+  });
+}
+
+async function retryStoppedBatch(): Promise<void> {
+  const batch = state.retryableBatch;
+  if (!batch) return;
+  await runStoredBatch(batch);
+}
+
+async function runStoredBatch(batch: StoredBatch): Promise<void> {
+  const { blocks, batchId, messageId } = batch;
+  if (blocks.length < 2) return;
+
   state.status = 'batch_executing';
-  state.progress = { current: 1, total: pending.length, tool: pending[0]?.block.tool ?? 'unknown' };
+  state.progress = { current: 1, total: blocks.length, tool: blocks[0]?.block.tool ?? 'unknown' };
   state.lastError = undefined;
   renderPanel();
 
   const response = await executeBatch({
     batchId,
     messageId,
-    blocks: pending,
+    blocks,
     executeTool: callTool,
     onProgress: (progress) => {
       state.progress = progress;
@@ -115,10 +134,16 @@ async function runPendingBatch(): Promise<void> {
   state.lastResult = formatBatchToolResult(response);
 
   if (!response.ok) {
+    state.retryableBatch = {
+      blocks,
+      batchId,
+      messageId
+    };
     state.status = 'batch_stopped_on_failure';
     state.lastError = buildBatchFailureMessage(response.items);
     renderPanel();
   } else {
+    state.retryableBatch = undefined;
     state.lastError = undefined;
   }
 
@@ -137,6 +162,7 @@ function ignorePending(): void {
     state.pendingBatchId = undefined;
     state.pendingMessageId = undefined;
     state.progress = undefined;
+    state.retryableBatch = undefined;
     state.status = 'idle';
     state.lastError = undefined;
     renderPanel();
@@ -149,6 +175,7 @@ function ignorePending(): void {
   state.pendingBatchId = undefined;
   state.pendingMessageId = undefined;
   state.progress = undefined;
+  state.retryableBatch = undefined;
   state.status = getDetectedStatus();
   renderPanel();
 }
@@ -187,7 +214,7 @@ function buildBatchFailureMessage(items: BatchResultItem[]): string {
   return `Batch stopped after \`${failed.tool}\` failed: ${failed.error.message}`;
 }
 
-setUiHandlers({ onRun: runPending, onIgnore: ignorePending });
+setUiHandlers({ onRun: runPending, onIgnore: ignorePending, onRetry: retryStoppedBatch });
 renderPanel();
 void refreshGatewayStatus();
 onChatMutation(() => void scanLatestAssistantMessage());

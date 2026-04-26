@@ -2,34 +2,32 @@
 
 ## Goal
 
-Implement the approved v0.1 userscript behavior for multiple `mcp` blocks appearing in the same assistant reply.
+Finish the next userscript polish slice after same-reply batch execution by exposing retry UX for stopped batches and making pending batch previews more informative.
 
 ## In Scope
 
-- Detect when one assistant reply contains multiple valid `mcp` blocks.
-- Introduce a batch execution path with one `Run All` entrypoint and serial execution order.
-- Stop batch execution on the first tool failure and mark the remaining items as skipped.
-- Insert one final `tool_result_batch` payload instead of partial per-tool inserts.
-- Extend the userscript UI and state model for batch detection, progress, and final result handling.
-- Add focused tests for ordered parsing, batch execution semantics, and batch result formatting.
+- Preserve the existing batch execution contract and stop-on-first-failure behavior.
+- Keep a retryable stopped-batch snapshot in userscript state.
+- Expose a `Retry whole batch` action after batch failure.
+- Show richer pending batch previews with concise argument summaries instead of tool names alone.
+- Add focused tests for preview formatting and batch progress ordering.
 
 ## Out of Scope
 
-- Changing gateway-side tool execution, security policy, or response schema.
-- Adding auto-send, automatic multi-round loops, or parallel tool execution.
-- Implementing retry UX, persistent batch history, or Chrome extension migration.
+- Changing gateway behavior or the `tool_result_batch` schema.
+- Adding browser-driven E2E automation, auto-send, or background retries.
+- Redesigning the panel visual style beyond the new preview and retry controls.
 
 ## Constraints
 
-- Preserve the existing single-tool path and result format.
-- Treat only multiple valid `mcp` blocks from the same assistant reply as one batch.
-- Keep the implementation inside the existing userscript architecture without introducing a heavy framework layer.
+- Preserve the single-tool path and keep multi-block behavior additive.
+- Reuse the existing batch execution path for both first-run and retry flows.
+- Keep preview logic in pure helpers so focused tests can cover it without DOM harnesses.
 - Keep validation focused on `@cwmb/protocol` build plus userscript lint, test, and build.
 
 ## Acceptance Criteria
 
-- The userscript enters batch mode when the latest assistant reply contains two or more valid `mcp` blocks.
-- Batch execution runs in original order via one `Run All` action and stops on the first failure.
-- The final inserted content for batch mode is a single `tool_result_batch` payload with completed, failed, and skipped items.
-- Duplicate DOM scans do not re-run an already executed batch in the same page session.
-- Focused userscript tests cover parser order, batch stop-on-failure semantics, and batch result formatting.
+- After a batch stops on failure, the panel exposes `Retry whole batch` without requiring the assistant message to be re-detected.
+- Retrying a stopped batch reuses the original batch order and final insertion flow.
+- Pending batch entries show concise argument previews in the panel.
+- Focused tests cover preview summaries and ordered batch progress callbacks.

@@ -21,6 +21,12 @@ export interface ExecutionProgress {
   tool: string;
 }
 
+export interface StoredBatch {
+  blocks: ParsedMcpBlock[];
+  batchId: string;
+  messageId: string;
+}
+
 export interface BridgeState {
   status: BridgeStatus;
   token: string;
@@ -30,6 +36,7 @@ export interface BridgeState {
   pendingMessageId?: string;
   executedCallIds: Set<string>;
   executedBatchIds: Set<string>;
+  retryableBatch?: StoredBatch;
   progress?: ExecutionProgress;
   lastResult?: string;
   lastError?: string;

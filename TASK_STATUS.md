@@ -2,25 +2,25 @@
 
 ## Current Truth
 
-- The repo now implements same-reply multi-block batch handling in the Tampermonkey userscript.
-- Single-tool execution remains intact; batch mode activates only when the latest assistant reply contains two or more valid `mcp` blocks.
-- Batch mode provides one `Run All` entrypoint, executes tool calls serially in original order, stops on the first failure, and inserts one final `tool_result_batch` payload.
-- The userscript now tracks batch progress, batch de-duplication, and batch-specific UI states without changing gateway behavior.
+- The userscript still uses the same same-reply batch execution contract introduced in the previous slice.
+- After a batch stops on failure, the panel now keeps a retryable batch snapshot and exposes `Retry whole batch`.
+- Batch previews in the panel now show concise argument summaries instead of only tool names.
+- Single-tool behavior and gateway contracts remain unchanged.
 
 ## Latest Verified Evidence
 
-- `pnpm --filter @cwmb/protocol build` succeeded, providing the workspace entrypoints required by userscript validation.
+- `pnpm --filter @cwmb/protocol build` succeeded.
 - `pnpm --filter @cwmb/userscript lint` succeeded.
-- `pnpm --filter @cwmb/userscript test` succeeded with 3 passing files and 7 passing tests.
-- `pnpm --filter @cwmb/userscript build` succeeded and regenerated `apps/userscript/dist/chatgpt-mcp-bridge.user.js`.
-- New focused coverage exists for parser ordering, batch stop-on-failure behavior, and batch result formatting.
+- `pnpm --filter @cwmb/userscript test` succeeded with 4 passing files and 11 passing tests.
+- `pnpm --filter @cwmb/userscript build` succeeded.
+- New focused coverage exists for preview summaries and ordered batch progress callbacks.
 
 ## Next Step
 
-- Manually exercise the userscript in ChatGPT Web to confirm the batch UI and insertion flow feel correct against the live DOM.
-- If the next slice stays in userscript, consider adding an explicit retry path for stopped batches and richer batch argument previews in the panel.
+- Manually exercise the userscript in ChatGPT Web to confirm the retry button and richer previews feel correct against the live DOM.
+- If the next slice stays in userscript, consider preserving retryable batches across soft reloads or adding a more explicit per-item failure summary in the panel.
 
 ## Caveats
 
-- This slice did not add browser-driven end-to-end validation; verification is currently lint, unit tests, and userscript build.
-- Userscript validation still depends on building `@cwmb/protocol` first because workspace packages resolve through their `dist/` entrypoints.
+- Retryable batches are stored only in in-memory userscript state and do not survive a page refresh.
+- Verification is still lint, unit tests, and userscript build; no browser-driven E2E run was added in this slice.
