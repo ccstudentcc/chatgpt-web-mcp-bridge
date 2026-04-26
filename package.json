@@ -1,0 +1,16 @@
+{
+  "name": "chatgpt-web-mcp-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A safe local tool bridge for ChatGPT Web on Windows + Chrome.",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @cwmb/gateway --filter @cwmb/userscript dev",
+    "dev:gateway": "pnpm --filter @cwmb/gateway dev",
+    "dev:userscript": "pnpm --filter @cwmb/userscript dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint"
+  },
+  "packageManager": "pnpm@9.6.0"
+}
