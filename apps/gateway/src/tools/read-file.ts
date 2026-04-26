@@ -26,6 +26,9 @@ export const readFileTool: LocalTool<ReadFileArgs, ReadFileResult> = {
   risk: 'low',
   requiresConfirmation: false,
   enabled: true,
+  exampleArgs: {
+    path: 'README.md'
+  },
   argsSchema: ReadFileArgsSchema,
   async run(args, ctx) {
     const resolved = await resolveWorkspacePath(args.path, {

@@ -49,7 +49,8 @@ function createTools(): ToolDescriptor[] {
       description: 'Read a text file.',
       risk: 'low',
       requiresConfirmation: false,
-      enabled: true
+      enabled: true,
+      exampleArgs: { path: 'README.md' }
     },
     {
       name: 'grep_files',
@@ -57,7 +58,8 @@ function createTools(): ToolDescriptor[] {
       description: 'Search file content.',
       risk: 'medium',
       requiresConfirmation: false,
-      enabled: true
+      enabled: true,
+      exampleArgs: { pattern: 'todo' }
     }
   ];
 }

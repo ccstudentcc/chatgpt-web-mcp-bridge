@@ -25,5 +25,6 @@ export const ToolDescriptorSchema = z.object({
   description: z.string(),
   risk: RiskLevelSchema,
   requiresConfirmation: z.boolean(),
-  enabled: z.boolean()
+  enabled: z.boolean(),
+  exampleArgs: z.record(z.string(), z.unknown()).default({})
 });

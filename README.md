@@ -81,6 +81,7 @@ Install `apps/userscript/dist/chatgpt-mcp-bridge.user.js` in Tampermonkey.
 Open ChatGPT Web. In the bridge panel:
 
 - adjust `Gateway base URL` if the gateway is not on the default `http://127.0.0.1:8024`,
+- use `Insert MCP list` or `Copy MCP list` once per conversation so ChatGPT sees the current live tool catalog and example `mcp` blocks,
 - verify `Auto execute`, `Auto insert`, and `Auto send` are all on for the fully automatic flow.
 
 When you change the Gateway base URL in the panel, the userscript refreshes gateway status and `/tools` capabilities immediately.
@@ -115,6 +116,7 @@ If `Auto insert` is off, the panel keeps the result in `Insert result` / `Copy r
 
 ## Supported v0.1 tools
 
+- `mcp_list`
 - `read_file`
 - `list_directory`
 - `search_files`

@@ -1,3 +1,4 @@
+import { buildToolCatalogPrompt, summarizeToolCatalog } from './catalog.js';
 import { assessPendingTools, formatCapabilityLabel } from './capabilities.js';
 import { summarizePendingBlock } from './preview.js';
 import { saveBaseUrl, saveToken, state } from './state.js';
@@ -7,6 +8,7 @@ let onRunHandler: (() => void) | null = null;
 let onIgnoreHandler: (() => void) | null = null;
 let onRetryHandler: (() => void) | null = null;
 let onInsertHandler: (() => void) | null = null;
+let onInsertCatalogHandler: (() => void) | null = null;
 let onConfigChangedHandler: (() => void) | null = null;
 
 export function setUiHandlers(handlers: {
@@ -14,12 +16,14 @@ export function setUiHandlers(handlers: {
   onIgnore: () => void;
   onRetry: () => void;
   onInsert: () => void;
+  onInsertCatalog: () => void;
   onConfigChanged: () => void;
 }): void {
   onRunHandler = handlers.onRun;
   onIgnoreHandler = handlers.onIgnore;
   onRetryHandler = handlers.onRetry;
   onInsertHandler = handlers.onInsert;
+  onInsertCatalogHandler = handlers.onInsertCatalog;
   onConfigChangedHandler = handlers.onConfigChanged;
 }
 
@@ -75,6 +79,8 @@ export function renderPanel(): void {
   const capabilityHint = capability.blockedReason ? `<div style="color:#a40000">${escapeHtml(capability.blockedReason)}</div>` : '';
   const riskLine = capability.highestRisk ? `<div>Risk: ${escapeHtml(capability.highestRisk)}</div>` : '';
   const progress = state.progress ? `<div>Progress: Running ${state.progress.current}/${state.progress.total}: <code>${escapeHtml(state.progress.tool)}</code></div>` : '';
+  const catalogSummary = summarizeToolCatalog(state.tools);
+  const toolCatalogPrompt = buildToolCatalogPrompt(state.tools);
   root.innerHTML = `
     <strong>ChatGPT MCP Bridge</strong>
     <div>Status: ${escapeHtml(state.status)}</div>
@@ -83,16 +89,19 @@ export function renderPanel(): void {
     <div>Auto execute: ${state.autoExecuteEnabled ? 'on' : 'off'}</div>
     <div>Auto insert: ${state.autoInsertResult ? 'on' : 'off'}</div>
     <div>Auto send: ${state.autoSendResult ? 'on' : 'off'}</div>
+    <div>Catalog: ${state.toolCatalogLoaded ? `${catalogSummary.enabled} enabled / ${catalogSummary.total} total` : 'unavailable'}</div>
     ${pending ? `<div>${isBatch ? `Detected batch: ${state.pending.length} tools` : `Detected: <code>${escapeHtml(pending.block.tool)}</code>`}</div>` : ''}
     ${!pending && hasRetryableBatch ? `<div>Retryable batch: ${visibleBatch.length} tools</div>` : ''}
     ${riskLine}
     ${pendingList}
     ${progress}
     ${capabilityHint}
+    ${state.toolCatalogLoaded ? '<div style="color:#555">ChatGPT needs the MCP catalog once per conversation to know current tools.</div>' : ''}
     ${state.lastError ? `<div style="color:#a40000">${escapeHtml(state.lastError)}</div>` : ''}
     <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
       ${state.trustedLocalMode ? '' : '<button data-cwmb="token">Set token</button>'}
       <button data-cwmb="base-url">Set gateway URL</button>
+      ${state.toolCatalogLoaded ? '<button data-cwmb="insert-catalog">Insert MCP list</button><button data-cwmb="copy-catalog">Copy MCP list</button>' : ''}
       ${pending ? `${!state.autoExecuteEnabled && canRunPending ? `<button data-cwmb="run">${isBatch ? 'Run All' : 'Run'}</button>` : ''}<button data-cwmb="ignore">${isBatch ? 'Ignore batch' : 'Ignore'}</button><button data-cwmb="copy-json">${isBatch ? 'Copy first JSON' : 'Copy JSON'}</button>` : ''}
       ${!pending && canRetryBatch ? '<button data-cwmb="retry-batch">Retry whole batch</button>' : ''}
       ${canInsertResult ? '<button data-cwmb="insert-result">Insert result</button>' : ''}
@@ -118,6 +127,8 @@ export function renderPanel(): void {
   root.querySelector('[data-cwmb="ignore"]')?.addEventListener('click', () => onIgnoreHandler?.());
   root.querySelector('[data-cwmb="retry-batch"]')?.addEventListener('click', () => onRetryHandler?.());
   root.querySelector('[data-cwmb="insert-result"]')?.addEventListener('click', () => onInsertHandler?.());
+  root.querySelector('[data-cwmb="insert-catalog"]')?.addEventListener('click', () => onInsertCatalogHandler?.());
+  root.querySelector('[data-cwmb="copy-catalog"]')?.addEventListener('click', () => GM_setClipboard(toolCatalogPrompt));
   root.querySelector('[data-cwmb="copy-json"]')?.addEventListener('click', () => pending && GM_setClipboard(pending.raw));
   root.querySelector('[data-cwmb="copy-result"]')?.addEventListener('click', () => state.lastResult && GM_setClipboard(state.lastResult));
 }

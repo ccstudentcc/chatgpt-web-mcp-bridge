@@ -1,5 +1,7 @@
+import { chatgptSelectors } from './selectors.js';
+
 export function findLatestAssistantMessage(): HTMLElement | null {
-  const candidates = Array.from(document.querySelectorAll('[data-message-author-role="assistant"]')) as HTMLElement[];
+  const candidates = Array.from(document.querySelectorAll(chatgptSelectors.assistantMessage)) as HTMLElement[];
   if (candidates.length > 0) return candidates[candidates.length - 1] ?? null;
   return fallbackFindLatestCodeContainer();
 }
@@ -18,7 +20,7 @@ export function onChatMutation(callback: () => void): void {
 }
 
 function fallbackFindLatestCodeContainer(): HTMLElement | null {
-  const codeBlocks = Array.from(document.querySelectorAll('pre code')) as HTMLElement[];
+  const codeBlocks = Array.from(document.querySelectorAll(chatgptSelectors.codeBlock)) as HTMLElement[];
   const last = codeBlocks.slice(-5).reverse().find((node) => (node.innerText || '').includes('"tool"'));
   return last?.closest('pre') as HTMLElement | null;
 }

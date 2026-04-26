@@ -28,6 +28,10 @@ export const searchFilesTool: LocalTool<SearchFilesArgs, SearchFilesResult> = {
   risk: 'low',
   requiresConfirmation: false,
   enabled: true,
+  exampleArgs: {
+    query: 'README',
+    maxResults: 20
+  },
   argsSchema: SearchFilesArgsSchema,
   async run(args, ctx) {
     const normalizedQuery = args.query.toLowerCase();

@@ -1,3 +1,4 @@
+import { buildToolCatalogPrompt } from './catalog.js';
 import { assessPendingTools } from './capabilities.js';
 import type { ToolCallRequest } from '@cwmb/protocol';
 import type { BatchFailureItem, BatchResultItem } from './batch.js';
@@ -103,7 +104,7 @@ async function runPending(): Promise<void> {
     state.progress = undefined;
     state.retryableBatch = undefined;
     state.lastResult = formatToolResult(pending.block.tool, response);
-    state.status = deliverLastResult('single', 'result_ready', 'inserted', 'sent');
+    state.status = await deliverLastResult('single', 'result_ready', 'inserted', 'sent');
   } catch (err) {
     const errorCode = err && typeof err === 'object' && 'code' in err ? String((err as { code: unknown }).code) : '';
     state.status = errorCode === 'UNAUTHORIZED' ? 'unauthorized' : 'failed';
@@ -172,11 +173,11 @@ async function runStoredBatch(batch: StoredBatch): Promise<void> {
       messageId
     };
     state.lastError = buildBatchFailureMessage(response.items);
-    state.status = deliverLastResult('batch', 'batch_stopped_on_failure', 'batch_inserted', 'batch_sent');
+    state.status = await deliverLastResult('batch', 'batch_stopped_on_failure', 'batch_inserted', 'batch_sent');
   } else {
     state.retryableBatch = undefined;
     state.lastError = undefined;
-    state.status = deliverLastResult('batch', 'batch_result_ready', 'batch_inserted', 'batch_sent');
+    state.status = await deliverLastResult('batch', 'batch_result_ready', 'batch_inserted', 'batch_sent');
   }
   renderPanel();
 }
@@ -243,15 +244,31 @@ function buildBatchFailureMessage(items: BatchResultItem[]): string {
   return `Batch stopped after \`${failed.tool}\` failed: ${failed.error.message}`;
 }
 
-function insertLastResult(): void {
+async function insertLastResult(): Promise<void> {
   if (!state.lastResult) return;
   const inserted = insertIntoChatInput(state.lastResult);
   if (inserted) {
-    if (state.autoSendResult && sendCurrentChatInput()) {
+    if (state.autoSendResult && await sendCurrentChatInput()) {
       state.status = state.status === 'batch_result_ready' || state.status === 'batch_stopped_on_failure' ? 'batch_sent' : 'sent';
     } else {
       state.status = state.status === 'batch_result_ready' || state.status === 'batch_stopped_on_failure' ? 'batch_inserted' : 'inserted';
     }
+  }
+  renderPanel();
+}
+
+function insertToolCatalog(): void {
+  if (!state.toolCatalogLoaded || state.tools.length === 0) {
+    state.lastError = 'Tool catalog unavailable. Refresh gateway capabilities.';
+    renderPanel();
+    return;
+  }
+
+  const inserted = insertIntoChatInput(buildToolCatalogPrompt(state.tools));
+  if (!inserted) {
+    state.lastError = 'Chat input not found. Copied the MCP list to clipboard instead.';
+  } else {
+    state.lastError = undefined;
   }
   renderPanel();
 }
@@ -266,12 +283,12 @@ async function maybeAutoRunPending(): Promise<void> {
   await runPending();
 }
 
-function deliverLastResult(
+async function deliverLastResult(
   kind: 'single' | 'batch',
   readyStatus: BridgeStatus,
   insertedStatus: BridgeStatus,
   sentStatus: BridgeStatus
-): BridgeStatus {
+): Promise<BridgeStatus> {
   if (!state.autoInsertResult || !state.lastResult) {
     return readyStatus;
   }
@@ -288,7 +305,7 @@ function deliverLastResult(
     return insertedStatus;
   }
 
-  const sent = sendCurrentChatInput();
+  const sent = await sendCurrentChatInput();
   if (!sent && !state.lastError) {
     state.lastError = kind === 'batch'
       ? 'Batch result inserted, but the send button was not found.'
@@ -304,10 +321,11 @@ async function refreshToolCatalog(): Promise<void> {
 }
 
 setUiHandlers({
-  onRun: runPending,
+  onRun: () => void runPending(),
   onIgnore: ignorePending,
-  onRetry: retryStoppedBatch,
-  onInsert: insertLastResult,
+  onRetry: () => void retryStoppedBatch(),
+  onInsert: () => void insertLastResult(),
+  onInsertCatalog: insertToolCatalog,
   onConfigChanged: () => void refreshGatewayStatus()
 });
 renderPanel();

@@ -17,6 +17,11 @@ export const writeFileProposalTool: LocalTool<WriteFileProposalArgs, never> = {
   risk: 'medium',
   requiresConfirmation: true,
   enabled: false,
+  exampleArgs: {
+    path: 'docs/prd.md',
+    content: '# Updated content',
+    mode: 'replace'
+  },
   argsSchema: WriteFileProposalArgsSchema,
   async run() {
     throw new AppError('TOOL_DISABLED', 'write_file_proposal is reserved for P1 and disabled in v0.1.');

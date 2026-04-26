@@ -7,6 +7,7 @@ export interface ToolDescriptor {
   risk: RiskLevel;
   requiresConfirmation: boolean;
   enabled: boolean;
+  exampleArgs: Record<string, unknown>;
 }
 
 export interface ToolCallSource {

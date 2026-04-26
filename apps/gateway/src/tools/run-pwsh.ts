@@ -17,6 +17,10 @@ export const runPwshTool: LocalTool<RunPwshArgs, never> = {
   risk: 'high',
   requiresConfirmation: true,
   enabled: false,
+  exampleArgs: {
+    command: 'pnpm test',
+    cwd: '.'
+  },
   argsSchema: RunPwshArgsSchema,
   async run() {
     throw new AppError('PWSH_DISABLED', 'run_pwsh is disabled in v0.1.');

@@ -202,6 +202,13 @@ http://127.0.0.1:8024
 
 浏览器端需要向 ChatGPT 注入工具使用说明，使模型知道可以通过特定格式请求本地工具。
 
+v0.1 不应只依赖仓库文档中的固定示例。userscript 需要基于 Gateway 当前 `/tools` 返回的实时目录生成一份可插入/复制的 MCP catalog prompt，至少包含：
+
+- 当前 enabled 工具列表
+- 每个工具的说明
+- 每个工具的示例 `mcp` JSON block
+- `mcp_list` 的示例调用，便于模型在会话中自行刷新工具目录
+
 ### 推荐格式
 
 工具调用统一使用 JSON block：
@@ -228,6 +235,7 @@ mcp:read_file README.md
 ### 验收标准
 
 - 能在 ChatGPT 页面插入或复制工具协议说明
+- 插入内容来自当前 `/tools` 能力目录，而不是硬编码静态样例
 - ChatGPT 能稳定输出 `mcp` 代码块
 - 浏览器端能从回复中解析出合法 JSON
 - 非法 JSON 不执行，只提示解析失败
@@ -481,7 +489,9 @@ Please continue based on the tool result above.
 
 - 能把结果写入 ChatGPT 输入框
 - 能触发输入框的 input/change 事件
-- 默认不自动点击发送按钮
+- 支持优先写入可见 `contenteditable` composer，例如 `#prompt-textarea`
+- 必须忽略隐藏 fallback textarea，避免出现“结果写入了隐藏输入框但页面仍是语音按钮”的假成功
+- 默认自动等待当前 send 按钮出现后再点击发送
 - 支持复制结果到剪贴板作为降级方案
 
 ---
@@ -2020,7 +2030,7 @@ Tool finished: read_file
 
 ## A.7.6 输入框回填
 
-ChatGPT 输入框可能是 `textarea` 或 `contenteditable`。需要两套策略。
+ChatGPT 输入框可能是 `textarea` 或 `contenteditable`。需要两套策略，并且必须优先命中当前可见的真实输入控件。
 
 ### textarea 策略
 
@@ -2041,6 +2051,7 @@ function setTextareaValue(textarea: HTMLTextAreaElement, value: string) {
 ```ts
 function setContentEditableValue(el: HTMLElement, value: string) {
   el.focus();
+  // Prefer the visible composer node such as #prompt-textarea, not hidden fallback fields.
   el.textContent = value;
   el.dispatchEvent(new InputEvent('input', {
     bubbles: true,
@@ -2056,6 +2067,7 @@ function setContentEditableValue(el: HTMLElement, value: string) {
 
 - 复制到剪贴板
 - 浮层提示用户手动粘贴
+- 记录最近一次失败原因，例如命中了隐藏 textarea、找不到可见输入框或 send button 未出现
 
 ---
 
@@ -3786,11 +3798,14 @@ apps/userscript/src/dom.ts
 
 - 支持 textarea。
 - 支持 contenteditable。
+- contenteditable 路径优先选择可见 composer，例如 `#prompt-textarea`。
+- 不允许优先写入 `display:none` 的 fallback textarea。
 - 触发 input 事件。
 - 失败时复制到剪贴板。
 - 单工具路径继续回填单个 `tool_result`。
 - batch 路径只在整批结束后统一回填一次 `tool_result_batch`。
 - batch 回填前要先插入一段稳定摘要，说明这是同一条 assistant 回复中的多工具批处理结果。
+- 自动发送时要等待真实 send 按钮出现，例如 `#composer-submit-button`，不能在语音按钮阶段就判定失败。
 
 ### 插入模板
 
@@ -5688,8 +5703,9 @@ api_key=sk-abcd...[redacted]
 
 1. 尝试 textarea 原型 setter。
 2. 尝试 `InputEvent`。
-3. 尝试 clipboard 降级。
-4. 不自动点击发送按钮。
+3. 改为优先选择可见 `contenteditable` composer，避免误写隐藏 fallback textarea。
+4. 尝试 clipboard 降级。
+5. 记录失败原因，不要静默吞掉。
 
 ### D.13.3 选择器集中配置
 
@@ -5699,8 +5715,9 @@ ChatGPT 页面选择器必须集中维护，例如：
 export const chatgptSelectors = {
   assistantMessage: '[data-message-author-role="assistant"]',
   codeBlock: 'pre code',
-  textarea: 'textarea',
-  contentEditable: '[contenteditable="true"]'
+  textarea: 'textarea[name="prompt-textarea"]',
+  contentEditable: '#prompt-textarea[contenteditable="true"]',
+  sendButton: '#composer-submit-button'
 };
 ```
 

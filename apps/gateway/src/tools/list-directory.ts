@@ -32,6 +32,10 @@ export const listDirectoryTool: LocalTool<ListDirectoryArgs, ListDirectoryResult
   risk: 'low',
   requiresConfirmation: false,
   enabled: true,
+  exampleArgs: {
+    path: '.',
+    maxDepth: 2
+  },
   argsSchema: ListDirectoryArgsSchema,
   async run(args, ctx) {
     const root = await resolveWorkspacePath(args.path, {

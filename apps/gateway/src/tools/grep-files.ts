@@ -36,6 +36,11 @@ export const grepFilesTool: LocalTool<GrepFilesArgs, GrepFilesResult> = {
   risk: 'low',
   requiresConfirmation: false,
   enabled: true,
+  exampleArgs: {
+    pattern: 'TODO',
+    glob: '**/*.{ts,tsx,md}',
+    maxResults: 20
+  },
   argsSchema: GrepFilesArgsSchema,
   async run(args, ctx) {
     const matches: GrepMatch[] = [];
