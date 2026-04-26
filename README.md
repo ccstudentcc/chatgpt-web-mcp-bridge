@@ -8,7 +8,10 @@ A safe local tool bridge that lets ChatGPT Web request read-only project context
 
 Default behavior is intentionally conservative:
 
+- Only injects on `https://chatgpt.com/*` and `https://chat.openai.com/*`.
+- Only rewrites ChatGPT conversation requests, not arbitrary page traffic.
 - Only listens on `127.0.0.1`.
+- Rejects non-ChatGPT `Origin` headers at the gateway layer.
 - Uses trusted local mode by default, so localhost requests do not need a pairing token.
 - Limits all file operations to `workspaceRoot`.
 - Blocks `.env`, SSH keys, browser profile data, Git credentials, and other sensitive paths.
@@ -81,7 +84,8 @@ Install `apps/userscript/dist/chatgpt-mcp-bridge.user.js` in Tampermonkey.
 Open ChatGPT Web. In the bridge panel:
 
 - adjust `Gateway base URL` if the gateway is not on the default `http://127.0.0.1:8024`,
-- use `Insert MCP list` or `Copy MCP list` once per conversation so ChatGPT sees the current live tool catalog and example `mcp` blocks,
+- rely on automatic request-layer injection for the live MCP catalog by default,
+- use `Insert MCP list` or `Copy MCP list` only as a diagnostic / fallback path if request injection drifts,
 - verify `Auto execute`, `Auto insert`, and `Auto send` are all on for the fully automatic flow.
 
 When you change the Gateway base URL in the panel, the userscript refreshes gateway status and `/tools` capabilities immediately.
@@ -113,6 +117,61 @@ ChatGPT outputs mcp block
 ```
 
 If `Auto insert` is off, the panel keeps the result in `Insert result` / `Copy result` mode until you choose to insert it manually.
+
+## Batch tool calls
+
+One assistant reply can contain multiple `mcp` blocks. The userscript will:
+
+```text
+detect the blocks in order
+→ execute them serially
+→ stop on the first failure
+→ mark remaining items as skipped
+→ insert one unified tool_result_batch back into ChatGPT
+```
+
+Example:
+
+````markdown
+```mcp
+{
+  "tool": "list_directory",
+  "args": {
+    "path": ".",
+    "maxDepth": 2
+  }
+}
+```
+
+```mcp
+{
+  "tool": "read_file",
+  "args": {
+    "path": "README.md"
+  }
+}
+```
+````
+
+Observed outcomes from the current implementation:
+
+- success batch:
+  `completed: 3`, `failed: 0`, `skipped: 0`, `stoppedOnFailure: false`
+- stopped batch after a blocked path:
+  `completed: 1`, `failed: 1`, `skipped: 1`, `stoppedOnFailure: true`
+- verified blocked-path example:
+  trying to read `.env` returns `BLOCKED_PATH`
+- verified post-failure behavior:
+  later blocks in the same assistant reply return `SKIPPED_AFTER_BATCH_FAILURE`
+
+## Error-path checks
+
+Useful manual acceptance checks:
+
+- `read_file` on `.env` should fail with `BLOCKED_PATH`.
+- `read_file` on `../README.md` should fail with `PATH_OUTSIDE_WORKSPACE`.
+- `run_pwsh` should fail with `PWSH_DISABLED` or `TOOL_DISABLED` in v0.1.
+- In a multi-block batch, once one item fails, the remaining items should come back as `skipped`, with reason `SKIPPED_AFTER_BATCH_FAILURE`.
 
 ## Supported v0.1 tools
 

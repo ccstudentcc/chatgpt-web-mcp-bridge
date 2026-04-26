@@ -9,6 +9,7 @@
 - The userscript panel still exposes catalog copy/insert actions, but they are now fallback diagnostics instead of the primary capability-discovery path.
 - The userscript now consumes gateway automation flags, auto-executes enabled tools, auto-inserts results, and auto-sends them by default while still gating execution on live `/tools` capabilities.
 - Gateway now defaults to trusted local mode, so localhost `userscript -> gateway` calls no longer require a pairing token unless the user explicitly turns token auth back on.
+- README and PRD now align on request-layer catalog injection as the default path, formalize the current `tool_result_batch` shape, and spell out threat-model / error-path acceptance examples more explicitly.
 - In trusted local mode, the panel now reports `Token: off (trusted local mode)` and hides the token setup button instead of prompting for a pairing token that the default flow no longer needs.
 - Updating the token or Gateway base URL in the panel now re-syncs gateway health and `/tools` capabilities immediately, so executable actions do not stay hidden until the next poll.
 - The userscript now parses rendered ChatGPT code blocks from the real DOM instead of relying only on fenced markdown text, so automatic execution can start from actual ChatGPT replies where triple backticks are no longer visible.
@@ -43,4 +44,5 @@
 
 - This repo still lacks browser-driven end-to-end automation, so the final v0.1 claim depends on manual live acceptance rather than only unit and build checks.
 - Because ChatGPT Web can change its request payload shape, the new invisible injection path is best-effort and should degrade to the panel's manual catalog actions when the outgoing JSON shape drifts.
+- `maxToolRounds` is now documented as a required automatic-loop guardrail, but the current implementation still needs explicit enforcement code if we want the shipped behavior to fully match that PRD wording.
 - Optional or later-scope PRD items remain intentionally out of scope: dynamic `/settings`, `/logs` endpoint work, `write_file_proposal`, `run_pwsh`, `apply_proposal`, and Chrome extension migration.

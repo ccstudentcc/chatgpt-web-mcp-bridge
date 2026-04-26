@@ -226,7 +226,65 @@ v0.1 定义三个独立开关：
 - 统一回填一次 `tool_result_batch`
 - 结果中必须包含 completed / failed / skipped
 
-### 7.5 永久红线
+`tool_result_batch` 的回填结构以当前实际 userscript 输出为准：
+
+```json
+{
+  "type": "tool_result_batch",
+  "ok": false,
+  "batchId": "sha256...",
+  "source": {
+    "messageId": "assistant-message-id"
+  },
+  "summary": {
+    "total": 3,
+    "completed": 1,
+    "failed": 1,
+    "skipped": 1,
+    "stoppedOnFailure": true
+  },
+  "items": [
+    {
+      "index": 0,
+      "tool": "list_directory",
+      "callId": "call-1",
+      "ok": true,
+      "result": {},
+      "warnings": [],
+      "durationMs": 42
+    },
+    {
+      "index": 1,
+      "tool": "read_file",
+      "callId": "call-2",
+      "ok": false,
+      "error": {
+        "code": "BLOCKED_PATH",
+        "message": "The requested path is blocked by security policy."
+      },
+      "warnings": [],
+      "durationMs": 5
+    },
+    {
+      "index": 2,
+      "tool": "grep_files",
+      "callId": "call-3",
+      "status": "skipped",
+      "reason": "SKIPPED_AFTER_BATCH_FAILURE"
+    }
+  ],
+  "warnings": []
+}
+```
+
+### 7.5 `maxToolRounds`
+
+- `maxToolRounds` 用于限制同一用户请求触发的自动工具回合数，避免 assistant → `tool_result` → assistant → `tool_result` 自动循环。
+- 达到上限后，自动执行链路必须停止继续自动运行，并提示用户手动继续。
+- 该限制只作用于自动执行链路，不应阻止用户手动 `Run` / `Run All`。
+- v0.1 默认值为 `3`。
+
+### 7.6 永久红线
 
 即使开启自动化，也不得自动执行：
 
@@ -299,6 +357,7 @@ ChatGPT 页面在输入框为空时可能显示语音按钮。userscript 必须�
 - Gateway 只服务本机 `127.0.0.1`
 - 在 trusted local mode 开启时，userscript 调用 `/tools`、`/call-tool` 默认不要求 token
 - 只有用户主动关闭 trusted local mode，才退回 pairing token 模式
+- trusted local mode 不是“任意网页都可信”，只是不再要求本机配对 token
 
 ### 10.2 Token 回退模式
 
@@ -340,6 +399,14 @@ Gateway 记录调用日志，但不得记录：
 - token
 - secret-like value 原文
 - 页面凭据
+
+### 10.7 网页侧威胁模型
+
+- userscript 只在 ChatGPT Web 页面注入，不在其他网页启用。
+- 请求层注入只匹配 ChatGPT 会话请求，不改写其他请求。
+- Gateway 即使开启 trusted local mode，也只接受 ChatGPT Web 的 `Origin`，并继续依赖请求结构校验和工具白名单限制执行面。
+- 其他网页即使能探测 localhost 端口，也不应通过 origin 校验和工具白名单拿到任意本地执行能力。
+- trusted local mode 的风险边界必须在 README 和面板里明确：它降低的是本机配对摩擦，不是放弃网页侧最小授权。
 
 ---
 
@@ -413,6 +480,7 @@ v0.1 默认配置基线：
 
 - `workspaceRoot` 缺失时，Gateway 启动阶段可以安全回填当前启动目录；如果仍为空，工具调用返回配置错误。
 - `allowPwsh` 仅决定未来是否允许该工具暴露，不代表进入自动执行。
+- `maxToolRounds` 仅用于限制自动工具回合数，不应阻止用户手动继续运行。
 
 ---
 
@@ -496,12 +564,13 @@ README 首页必须明确：
 
 ### 16.1 产品语义验收
 
-- ChatGPT Web 会话中可以通过 live MCP catalog prompt 或 `mcp_list` 知道当前工具目录。
+- ChatGPT Web 会话中默认通过请求层 live MCP catalog 注入知道当前工具目录；面板 `Insert MCP list` / `Copy MCP list` 只作为兜底路径。
 - 模型能稳定输出 `mcp` JSON block。
 - userscript 能检测并执行 enabled 低风险工具。
 - 三个自动化开关都能独立生效。
 - 默认 happy path 为自动执行 + 自动插入 + 自动发送。
 - 任一开关关闭后，退回对应手动路径。
+- 同一 assistant 回复多 block 时，能统一回填符合 schema 的 `tool_result_batch`。
 
 ### 16.2 安全验收
 
@@ -511,6 +580,7 @@ README 首页必须明确：
 - `.env` 被拒绝
 - disabled 工具不会被自动执行
 - `run_pwsh` 不在默认执行面
+- 非 ChatGPT Web 的 `Origin` 被拒绝
 
 ### 16.3 ChatGPT 页面验收
 
@@ -518,6 +588,7 @@ README 首页必须明确：
 - 自动发送能等待 send button 出现
 - batch 失败后后续项不执行
 - 同一 assistant 回复多 block 只回填一次批量结果
+- 自动工具回合达到 `maxToolRounds` 后停止自动循环并提示用户手动继续
 
 ### 16.4 工程验收
 
