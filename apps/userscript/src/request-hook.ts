@@ -9,6 +9,8 @@ export interface RequestBodyInjectionResult {
   injected: boolean;
 }
 
+export type RequestHookStatus = 'injected' | 'missing_prompt' | 'matched_without_injection';
+
 export function installPageRequestHook(): void {
   if (document.documentElement.dataset.cwmbRequestHookInstalled === 'true') {
     return;
@@ -243,6 +245,11 @@ function buildPageHookSource(): string {
     window.__cwmbRequestHookInstalled = true;
     const CHATGPT_CONVERSATION_PATHS = ${JSON.stringify(CHATGPT_CONVERSATION_PATHS)};
     let currentPrompt = '';
+    const emitRequestHookStatus = (status, transport, url) => {
+      window.dispatchEvent(new CustomEvent('cwmb:request-hook-status', {
+        detail: { status, transport, url }
+      }));
+    };
     ${isChatGptConversationRequest.toString()}
     ${injectCatalogIntoRequestBody.toString()}
     ${injectCatalogIntoPayload.toString()}
@@ -267,7 +274,12 @@ function buildPageHookSource(): string {
         if (input instanceof Request) {
           method = input.method || method;
         }
-        if (!currentPrompt || !isChatGptConversationRequest(url, method)) {
+        const matched = isChatGptConversationRequest(url, method);
+        if (!matched) {
+          return originalFetch.apply(this, arguments);
+        }
+        if (!currentPrompt) {
+          emitRequestHookStatus('missing_prompt', 'fetch', url);
           return originalFetch.apply(this, arguments);
         }
         if (input instanceof Request) {
@@ -276,17 +288,24 @@ function buildPageHookSource(): string {
             const bodyText = await cloned.text();
             const next = injectCatalogIntoRequestBody(bodyText, currentPrompt);
             if (next.injected) {
+              emitRequestHookStatus('injected', 'fetch', url);
               const request = new Request(input, { body: next.bodyText });
               return originalFetch.call(this, request);
             }
+            emitRequestHookStatus('matched_without_injection', 'fetch', url);
           } catch {}
           return originalFetch.apply(this, arguments);
         }
         if (init && typeof init.body === 'string') {
           const next = injectCatalogIntoRequestBody(init.body, currentPrompt);
           if (next.injected) {
+            emitRequestHookStatus('injected', 'fetch', url);
             init.body = next.bodyText;
+          } else {
+            emitRequestHookStatus('matched_without_injection', 'fetch', url);
           }
+        } else {
+          emitRequestHookStatus('matched_without_injection', 'fetch', url);
         }
         return originalFetch.call(this, input, init);
       };
@@ -300,10 +319,19 @@ function buildPageHookSource(): string {
     };
     XMLHttpRequest.prototype.send = function(body) {
       const meta = requestMeta.get(this);
-      if (meta && currentPrompt && typeof body === 'string' && isChatGptConversationRequest(meta.url, meta.method)) {
-        const next = injectCatalogIntoRequestBody(body, currentPrompt);
-        if (next.injected) {
-          body = next.bodyText;
+      if (meta && isChatGptConversationRequest(meta.url, meta.method)) {
+        if (!currentPrompt) {
+          emitRequestHookStatus('missing_prompt', 'xhr', meta.url);
+        } else if (typeof body === 'string') {
+          const next = injectCatalogIntoRequestBody(body, currentPrompt);
+          if (next.injected) {
+            emitRequestHookStatus('injected', 'xhr', meta.url);
+            body = next.bodyText;
+          } else {
+            emitRequestHookStatus('matched_without_injection', 'xhr', meta.url);
+          }
+        } else {
+          emitRequestHookStatus('matched_without_injection', 'xhr', meta.url);
         }
       }
       return originalSend.call(this, body);

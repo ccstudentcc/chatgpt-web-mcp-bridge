@@ -18,8 +18,11 @@
 - Single-tool deduplication is now scoped to the current assistant message identity instead of only the raw JSON body, so the same MCP request can appear again in a new conversation without being suppressed as already executed.
 - Result insertion now prefers the visible `#prompt-textarea` / contenteditable composer over hidden fallback textareas and waits briefly for the real send button state before declaring auto-send failure.
 - The userscript now installs its request hook at `document-start`, then delays UI/DOM observers until `DOMContentLoaded`, so the first ChatGPT message request can still be patched without breaking panel startup.
+- The userscript now bootstraps the request-hook prompt from the last successful `/tools` snapshot before `DOMContentLoaded`, then warms it from a fresh gateway call in parallel so new-chat first turns do not depend solely on the current page's async panel sync.
+- The injected tool-catalog prompt now explicitly tells ChatGPT to prefer Local MCP Bridge tools for `workspaceRoot` file tasks over unrelated built-in connectors such as GitHub or Gmail, and to report specific disabled bridge tools instead of claiming local tools are unavailable.
 - Gateway startup now auto-creates `config.json` and backfills `workspaceRoot` from the current startup directory when the config is missing or incomplete.
 - The userscript panel is now a collapsible inspector-style surface with runtime badges, expandable batch/result payloads, and an in-panel activity log stream.
+- The panel activity log now records request-hook diagnostics for real ChatGPT conversation requests: injected, prompt-not-ready race, or matched-but-unpatched body.
 - The userscript panel is now draggable and remembers its last user-placed position instead of staying fixed in one corner.
 - The collapsed userscript panel now exposes the key immediate actions (`Run` / `Run all`, `Ignore`, `Retry batch`, `Insert result`) so pending tool handling no longer requires reopening the full inspector first.
 - `Auto execute`, `Auto insert`, and `Auto send` now behave as real userscript-local overrides instead of passive status display.
@@ -63,6 +66,11 @@
 - `pnpm --filter @cwmb/userscript test` succeeded again after adding the prompt-level `grep_files` usage guidance.
 - `pnpm --filter @cwmb/userscript build` succeeded again after the catalog prompt update.
 - `pnpm --filter @cwmb/userscript test` now covers manual-only gating for high-risk or confirmation-required tools.
+- `pnpm --filter @cwmb/protocol build` succeeded again before the latest userscript verification pass.
+- `pnpm --filter @cwmb/userscript lint` succeeded again after adding stored catalog bootstrap support for first-turn request injection.
+- `pnpm --filter @cwmb/userscript test` now succeeds with 9 passing files and 35 passing tests, including stored tool-catalog bootstrap coverage.
+- `pnpm --filter @cwmb/userscript build` succeeded again after the startup bootstrap change.
+- `pnpm --filter @cwmb/userscript test` now also covers the stronger catalog prompt wording for native-connector override guidance.
 - `pnpm -r lint` succeeded.
 - `pnpm -r test` succeeded across protocol, shared, gateway, and userscript.
 - `pnpm -r build` succeeded across protocol, shared, gateway, and userscript.
@@ -70,6 +78,8 @@
 ## Stop Line
 
 - The main remaining work is live manual validation against real ChatGPT Web traffic after the request-layer prompt injection switch.
+- The main remaining work is live manual validation against real ChatGPT Web traffic for the startup race boundary: cached-catalog bootstrap is now covered by unit tests, but a truly first-ever session without cache still needs manual confirmation.
+- The other remaining acceptance item is real-page confirmation that the stronger prompt wording is enough to stop ChatGPT from falling back to unrelated native connectors when local bridge tools are available.
 - The next acceptance step is a browser session that confirms three things together: hidden tool-hint injection, actual MCP block emission by ChatGPT, and end-to-end execute/insert/send behavior on the real page.
 
 ## Caveats

@@ -156,9 +156,12 @@ userscript 基于 `/tools` 动态生成一份 live catalog prompt，并在 ChatG
 ### 6.3 注入策略
 
 - 默认策略是请求层透明注入，而不是把 catalog 作为一条可见消息塞进聊天框。
+- userscript 启动时应先用上次成功同步的 catalog 做同步 bootstrap，再异步刷新 `/tools`，避免新聊天首条消息在网关探测完成前丢失注入。
 - 只匹配 ChatGPT 会话请求接口，不改写其他页面请求。
 - 每次用户发送消息时都可重新注入 live catalog，避免工具目录、开关状态或 enabled 状态变化后模型拿到旧信息。
 - 如果请求体结构无法识别，允许退回面板复制/插入 catalog 的手动路径。
+- 注入 prompt 要明确声明：对 `workspaceRoot` 下的本地文件任务，应优先使用 Local MCP Bridge，而不是无关的 ChatGPT 内建连接器；如果本地工具被禁用，也应说明具体缺失项，而不是笼统声称“没有本地工具”。
+- 面板活动日志应能区分三类信号：会话请求已注入、会话请求早于 prompt 就到达、以及会话请求命中但 body shape 未被改写，方便排查“为什么模型没看到 catalog”。
 
 ### 6.4 `mcp_list`
 

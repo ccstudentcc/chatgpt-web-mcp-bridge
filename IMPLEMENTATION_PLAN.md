@@ -55,4 +55,6 @@ Status: completed
 
 - The largest remaining risk is still real-page DOM drift: the new composer path now prefers visible contenteditable nodes and `#composer-submit-button`, but ChatGPT can change those selectors again.
 - Tool discovery now depends on `/tools` being available and current; if gateway capability refresh fails, the catalog prompt can become stale.
+- First-turn injection now bootstraps from the last successful catalog snapshot, but a truly first-ever session with no cache still depends on the initial `/tools` refresh winning the race.
+- Even with bootstrap in place, ChatGPT may still ignore or override prompt hints; request-hook diagnostics and stronger prompt wording reduce ambiguity, but real-page behavior remains the final authority.
 - Trusted local mode intentionally removes token friction, so the remaining safety boundary depends more heavily on localhost-only binding, origin checks, and conservative default tool scope.

@@ -17,12 +17,16 @@ describe('buildToolCatalogPrompt', () => {
     const prompt = buildToolCatalogPrompt(createTools());
 
     expect(prompt).toContain('Local MCP bridge tools are available in this chat.');
+    expect(prompt).toContain('these bridge tools are the source of truth even if ChatGPT also shows unrelated built-in connectors such as GitHub or Gmail');
+    expect(prompt).toContain('Do not claim the local bridge tools are unavailable if they are listed below.');
+    expect(prompt).toContain('prefer these bridge tools over unrelated built-in connectors');
     expect(prompt).toContain('```mcp');
     expect(prompt).toContain('"tool": "mcp_list"');
     expect(prompt).toContain('"tool": "read_file"');
     expect(prompt).toContain('`grep_files` defaults to literal search');
     expect(prompt).toContain('do not put `a|b|c` into a literal `query` and expect alternation');
     expect(prompt).toContain('Currently disabled tools (do not call): run_pwsh');
+    expect(prompt).toContain('instead of saying that no local bridge tools are available');
   });
 });
 

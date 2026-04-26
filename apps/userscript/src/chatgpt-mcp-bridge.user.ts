@@ -1,4 +1,5 @@
 import { buildToolCatalogPrompt } from './catalog.js';
+import { readStoredToolCatalog, writeStoredToolCatalog } from './catalog-cache.js';
 import { assessPendingTools } from './capabilities.js';
 import type { ToolCallFailure, ToolCallRequest } from '@cwmb/protocol';
 import type { BatchFailureItem, BatchResultItem } from './batch.js';
@@ -9,7 +10,7 @@ import { sha256Normalized } from './hash.js';
 import { formatBatchToolResult, formatToolResult, insertIntoChatInput, sendCurrentChatInput } from './inserter.js';
 import { parseMcpBlocks, parseRenderedMcpBlocks } from './parser.js';
 import { canAutoRunForRequest, recordAutoRunForRequest, syncAutoRoundRequest } from './round-guard.js';
-import { installPageRequestHook, syncRequestPrompt } from './request-hook.js';
+import { installPageRequestHook, syncRequestPrompt, type RequestHookStatus } from './request-hook.js';
 import { renderPanel, setUiHandlers } from './ui.js';
 import {
   addLogEntry,
@@ -25,6 +26,11 @@ import {
 } from './state.js';
 
 installPageRequestHook();
+installRequestHookDiagnostics();
+bootstrapRequestPrompt();
+void warmRequestPromptFromGateway();
+
+let lastRequestHookStatusKey = '';
 
 async function refreshGatewayStatus(): Promise<void> {
   try {
@@ -423,7 +429,63 @@ async function refreshToolCatalog(): Promise<void> {
   const tools = await listTools();
   state.tools = tools;
   state.toolCatalogLoaded = true;
-  syncRequestPrompt(buildToolCatalogPrompt(tools));
+  const prompt = buildToolCatalogPrompt(tools);
+  writeStoredToolCatalog(tools);
+  syncRequestPrompt(prompt);
+}
+
+function bootstrapRequestPrompt(): void {
+  const cachedTools = readStoredToolCatalog();
+  if (cachedTools.length === 0) {
+    return;
+  }
+
+  syncRequestPrompt(buildToolCatalogPrompt(cachedTools));
+}
+
+async function warmRequestPromptFromGateway(): Promise<void> {
+  try {
+    const tools = await listTools();
+    if (tools.length === 0) {
+      return;
+    }
+
+    writeStoredToolCatalog(tools);
+    syncRequestPrompt(buildToolCatalogPrompt(tools));
+  } catch {
+    // Keep the cached bootstrap prompt until the regular UI-driven sync runs.
+  }
+}
+
+function installRequestHookDiagnostics(): void {
+  window.addEventListener('cwmb:request-hook-status', (event: Event) => {
+    const detail = event instanceof CustomEvent ? event.detail as {
+      status?: RequestHookStatus;
+      transport?: string;
+      url?: string;
+    } : undefined;
+    if (!detail?.status) {
+      return;
+    }
+
+    const key = `${detail.status}:${detail.transport ?? 'unknown'}:${detail.url ?? ''}`;
+    if (key === lastRequestHookStatusKey) {
+      return;
+    }
+    lastRequestHookStatusKey = key;
+
+    if (detail.status === 'injected') {
+      addLogEntry('success', `Request hook injected MCP catalog via ${detail.transport ?? 'request'} conversation request.`);
+      return;
+    }
+
+    if (detail.status === 'missing_prompt') {
+      addLogEntry('warn', `Conversation request reached the page hook before the MCP catalog prompt was ready (${detail.transport ?? 'request'}).`);
+      return;
+    }
+
+    addLogEntry('warn', `Conversation request matched ChatGPT, but the body shape was not patched (${detail.transport ?? 'request'}).`);
+  });
 }
 
 function startBridge(): void {
