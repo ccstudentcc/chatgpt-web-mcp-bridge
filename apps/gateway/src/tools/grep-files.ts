@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import { z } from 'zod';
-import { redactSecretLikeContent } from '@cwmb/shared';
+import { AppError, assessSensitiveTextContent } from '@cwmb/shared';
 import type { LocalTool } from './index.js';
 import { matchesOptionalGlob, walkWorkspaceFiles } from './search-helpers.js';
 
@@ -32,7 +32,7 @@ export interface GrepFilesResult {
 export const grepFilesTool: LocalTool<GrepFilesArgs, GrepFilesResult> = {
   name: 'grep_files',
   title: 'Grep files',
-  description: 'Search text content in workspace files and redact secret-like values.',
+  description: 'Search text content in workspace files, block high-confidence secrets, and redact lower-confidence assignment-like values.',
   risk: 'low',
   requiresConfirmation: false,
   enabled: true,
@@ -80,13 +80,13 @@ export const grepFilesTool: LocalTool<GrepFilesArgs, GrepFilesResult> = {
             continue;
           }
 
-          const redactedLine = withRedaction(line, warnings);
+          const redactedLine = withSensitiveContentPolicy(line, warnings);
           const before = lines
             .slice(Math.max(0, i - args.context), i)
-            .map((contextLine) => withRedaction(contextLine, warnings));
+            .map((contextLine) => withSensitiveContentPolicy(contextLine, warnings));
           const after = lines
             .slice(i + 1, i + 1 + args.context)
-            .map((contextLine) => withRedaction(contextLine, warnings));
+            .map((contextLine) => withSensitiveContentPolicy(contextLine, warnings));
 
           matches.push({
             path: entry.relativePath,
@@ -114,11 +114,15 @@ export const grepFilesTool: LocalTool<GrepFilesArgs, GrepFilesResult> = {
   }
 };
 
-function withRedaction(line: string, warnings: Set<string>): string {
-  const redacted = redactSecretLikeContent(line);
-  if (redacted !== line) {
+function withSensitiveContentPolicy(line: string, warnings: Set<string>): string {
+  const sensitive = assessSensitiveTextContent(line);
+  if (sensitive.blocked) {
+    throw new AppError('SENSITIVE_CONTENT_BLOCKED', 'Potential secret-like content was detected.');
+  }
+
+  if (sensitive.redacted) {
     warnings.add('Potential secret-like content was redacted.');
   }
 
-  return redacted;
+  return sensitive.content;
 }

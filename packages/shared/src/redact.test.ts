@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { hasRedactableSecretLikeContent, hasSecretLikeContent, redactSecretLikeContent } from './redact.js';
+import {
+  assessSensitiveTextContent,
+  hasRedactableSecretLikeContent,
+  hasSecretLikeContent,
+  redactSecretLikeContent
+} from './redact.js';
 
 describe('redactSecretLikeContent', () => {
   it('redacts assignment-style placeholders without treating them as blocking secrets', () => {
@@ -21,5 +26,18 @@ describe('redactSecretLikeContent', () => {
     expect(redactSecretLikeContent(input)).toBe(input);
     expect(hasRedactableSecretLikeContent(input)).toBe(false);
     expect(hasSecretLikeContent(input)).toBe(false);
+  });
+
+  it('assesses blocking versus redaction consistently', () => {
+    expect(assessSensitiveTextContent('const token = getToken();')).toEqual({
+      blocked: false,
+      redacted: true,
+      content: 'const token = [REDACTED]'
+    });
+    expect(assessSensitiveTextContent('const api_key = "sk-1234567890abcdef";')).toEqual({
+      blocked: true,
+      redacted: false,
+      content: 'const api_key = "sk-1234567890abcdef";'
+    });
   });
 });

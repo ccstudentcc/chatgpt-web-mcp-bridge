@@ -16,20 +16,20 @@ describe('grepFilesTool', () => {
     }
   });
 
-  it('returns context, redacts secret-like content, and reports truncation counts', async () => {
+  it('redacts placeholder assignments and reports truncation counts', async () => {
     const root = await createWorkspace({
       'src/example.ts': [
         'const before = 1;',
-        'const api_key = sk-abcdefghijklmnop;',
+        'const token = getToken();',
         'const middle = 2;',
-        'const api_key = sk-qrstuvwxyzabcdef;',
+        'const token = getBackupToken();',
         'const after = 3;'
       ].join('\n'),
-      'notes/example.md': 'const api_key = sk-should-not-match'
+      'notes/example.md': 'const token = getShouldNotMatch();'
     });
 
     const result = await grepFilesTool.run(
-      { pattern: 'api_key', glob: '**/*.ts', maxResults: 1, caseSensitive: false, context: 1 },
+      { pattern: 'token', glob: '**/*.ts', maxResults: 1, caseSensitive: false, context: 1 },
       { config: makeConfig(root), logger: noOpLogger }
     );
 
@@ -39,12 +39,27 @@ describe('grepFilesTool', () => {
     expect(result.matches[0]).toEqual({
       path: 'src/example.ts',
       line: 2,
-      text: 'const api_key = [REDACTED]',
+      text: 'const token = [REDACTED]',
       before: ['const before = 1;'],
       after: ['const middle = 2;']
     });
     expect(result.warnings).toContain('Potential secret-like content was redacted.');
     expect(result.warnings).toContain('Result limit reached. Narrow pattern, glob, or context.');
+  });
+
+  it('blocks high-confidence secrets instead of returning redacted grep output', async () => {
+    const root = await createWorkspace({
+      'src/example.ts': 'const api_key = "sk-1234567890abcdef";'
+    });
+
+    await expect(
+      grepFilesTool.run(
+        { pattern: 'api_key', glob: '**/*.ts', maxResults: 10, caseSensitive: false, context: 0 },
+        { config: makeConfig(root), logger: noOpLogger }
+      )
+    ).rejects.toMatchObject({
+      code: 'SENSITIVE_CONTENT_BLOCKED'
+    });
   });
 });
 

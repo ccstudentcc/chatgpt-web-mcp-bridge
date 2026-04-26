@@ -43,3 +43,26 @@ export function redactSecretLikeContent(input: string): string {
   }
   return output;
 }
+
+export interface SensitiveContentAssessment {
+  blocked: boolean;
+  redacted: boolean;
+  content: string;
+}
+
+export function assessSensitiveTextContent(input: string): SensitiveContentAssessment {
+  if (hasSecretLikeContent(input)) {
+    return {
+      blocked: true,
+      redacted: false,
+      content: input
+    };
+  }
+
+  const content = redactSecretLikeContent(input);
+  return {
+    blocked: false,
+    redacted: content !== input,
+    content
+  };
+}

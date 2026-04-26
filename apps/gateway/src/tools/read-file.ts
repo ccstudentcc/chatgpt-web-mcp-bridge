@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import { z } from 'zod';
-import { AppError, hasSecretLikeContent, redactSecretLikeContent } from '@cwmb/shared';
+import { AppError, assessSensitiveTextContent } from '@cwmb/shared';
 import type { LocalTool } from './index.js';
 import { resolveWorkspacePath } from '../security/path-policy.js';
 
@@ -50,16 +50,16 @@ export const readFileTool: LocalTool<ReadFileArgs, ReadFileResult> = {
     }
 
     const content = buffer.toString(args.encoding);
-    if (hasSecretLikeContent(content)) {
+    const sensitive = assessSensitiveTextContent(content);
+    if (sensitive.blocked) {
       throw new AppError('SENSITIVE_CONTENT_BLOCKED', 'Potential secret-like content was detected.');
     }
-    const redactedContent = redactSecretLikeContent(content);
 
     return {
       path: resolved.relativePath,
       sizeBytes: stat.size,
       encoding: args.encoding,
-      content: redactedContent,
+      content: sensitive.content,
       truncated: false
     };
   }

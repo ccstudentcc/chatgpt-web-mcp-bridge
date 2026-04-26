@@ -208,10 +208,10 @@ Useful manual acceptance checks:
 
 Default enabled:
 - `mcp_list`
-- `read_file`
+- `read_file` (blocks high-confidence secrets, redacts lower-confidence assignment-style placeholders)
 - `list_directory`
 - `search_files`
-- `grep_files`
+- `grep_files` (same sensitive-content policy as `read_file`)
 
 Optional gated:
 - `write_file` (`allowWrite=true`, high risk, manual-only)
