@@ -92,9 +92,16 @@ export function renderPanel(): void {
       `<div class="cwmb-log-row cwmb-log-${entry.level}"><span class="cwmb-log-time">${escapeHtml(entry.timestamp)}</span><span class="cwmb-log-level">${escapeHtml(entry.level)}</span><span class="cwmb-log-message">${escapeHtml(entry.message)}</span></div>`
     )).join('')
     : '<div class="cwmb-empty-state">No events yet.</div>';
+  const collapsedActionHtml = [
+    pending
+      ? `${((!state.autoExecuteEnabled && canRunPending) || (state.autoExecuteEnabled && canRunPending && !capability.autoRunnable)) ? renderButton('run', isBatch ? 'Run all' : 'Run', 'primary') : ''}${renderButton('ignore', isBatch ? 'Ignore batch' : 'Ignore', 'danger')}`
+      : '',
+    !pending && canRetryBatch ? renderButton('retry-batch', 'Retry batch', 'primary') : '',
+    canInsertResult ? renderButton('insert-result', 'Insert result', 'primary') : ''
+  ].filter(Boolean).join('');
 
   root!.innerHTML = state.panelCollapsed
-    ? renderCollapsedPanel(statusTone, statusLabel, headerButtonLabel, activeBlocks.length, latestLog?.message)
+    ? renderCollapsedPanel(statusTone, statusLabel, headerButtonLabel, activeBlocks.length, latestLog?.message, collapsedActionHtml)
     : `
       <style>${panelStyles()}</style>
       <div class="cwmb-shell">
@@ -337,7 +344,8 @@ function renderCollapsedPanel(
   statusLabel: string,
   headerButtonLabel: string,
   activeCount: number,
-  latestLogMessage?: string
+  latestLogMessage: string | undefined,
+  actionHtml: string
 ): string {
   const summary = activeCount > 0
     ? `${activeCount} pending`
@@ -366,6 +374,7 @@ function renderCollapsedPanel(
         </div>
       </div>
       <div class="cwmb-collapsed-strip">${runtimeSummary}</div>
+      ${actionHtml ? `<div class="cwmb-collapsed-actions">${actionHtml}</div>` : ''}
       <div class="cwmb-collapsed-note">${escapeHtml(latestLogMessage ?? state.lastError ?? state.baseUrl)}</div>
     </div>
   `;
@@ -766,6 +775,12 @@ function collapsedStyles(): string {
       gap: 6px;
       margin-top: 10px;
     }
+    #cwmb-panel .cwmb-collapsed-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
     #cwmb-panel .cwmb-mini-state {
       display: inline-flex;
       align-items: center;
@@ -828,6 +843,16 @@ function collapsedStyles(): string {
       min-height: 34px;
       font: 600 12px/1 "IBM Plex Sans", "Segoe UI", sans-serif;
       cursor: pointer;
+    }
+    #cwmb-panel .cwmb-btn-primary {
+      background: linear-gradient(180deg, rgba(34,197,94,0.22), rgba(22,163,74,0.18));
+      border-color: rgba(34,197,94,0.45);
+      color: #dcfce7;
+    }
+    #cwmb-panel .cwmb-btn-danger {
+      background: rgba(127,29,29,0.24);
+      border-color: rgba(220,38,38,0.34);
+      color: #fecaca;
     }
   `;
 }

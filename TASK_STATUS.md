@@ -21,6 +21,7 @@
 - Gateway startup now auto-creates `config.json` and backfills `workspaceRoot` from the current startup directory when the config is missing or incomplete.
 - The userscript panel is now a collapsible inspector-style surface with runtime badges, expandable batch/result payloads, and an in-panel activity log stream.
 - The userscript panel is now draggable and remembers its last user-placed position instead of staying fixed in one corner.
+- The collapsed userscript panel now exposes the key immediate actions (`Run` / `Run all`, `Ignore`, `Retry batch`, `Insert result`) so pending tool handling no longer requires reopening the full inspector first.
 - `Auto execute`, `Auto insert`, and `Auto send` now behave as real userscript-local overrides instead of passive status display.
 - A userscript-local `Continue on error` toggle now defaults to off; when enabled, a batch keeps executing later tools after one tool call fails.
 - Structured failure results now follow the same insert/send automation path as successful tool results.
