@@ -3616,12 +3616,15 @@ apps/userscript/src/chatgpt-mcp-bridge.user.ts
 ### 实现要点
 
 - 请求 `/health`。
+- Gateway 在线且 token 可用时，再请求 `/tools` 作为能力目录。
 - 显示 connected / disconnected 状态。
 - Gateway 不在线时不报未捕获异常。
 
 ### 验收标准
 
 - Gateway 启动时显示 connected。
+- token 正确时能同步当前工具目录。
+- token 缺失或错误时，`/tools` 同步失败会显示 unauthorized。
 - Gateway 未启动时显示 disconnected。
 - 页面不出现持续刷屏错误。
 
@@ -3723,6 +3726,8 @@ Batch mode example:
 - 同一条 assistant 回复中存在多个合法 block 时，浮层进入 batch 模式并显示 `Run All`。
 - batch 模式下能显示当前进度，例如 `Running 2/3: grep_files`。
 - batch 因失败停止时，浮层明确提示后续调用已停止。
+- 如果检测到的工具在 `/tools` 中为 disabled 或根本不在目录中，浮层必须显示原因且不显示 `Run` / `Run All`。
+- 浮层应显示当前待执行工具或 batch 的 risk 信息，risk 以 `/tools` 返回为准。
 
 ---
 
@@ -5239,6 +5244,13 @@ v0.1 只允许预留、不允许默认启用：
 | `POST /apply-proposal` | P1 | 是 | 只由本地 UI 调用，不建议模型直接调用 |
 
 `/tools` 必须返回禁用工具，以便前端解释“能力存在但当前不可用”。禁用工具不得在 userscript 中显示为可执行按钮。
+
+userscript 必须把 `/tools` 结果当作执行前置条件，而不是只在调用 `/call-tool` 后被动吃错误：
+
+- tool 在 `/tools` 中存在且 `enabled=true` 时，才显示 `Run` / `Run All`。
+- tool 在 `/tools` 中存在但 `enabled=false` 时，显示“能力存在但当前不可用”的解释，不显示执行按钮。
+- tool 不在 `/tools` 目录中时，按 unsupported 处理，不显示执行按钮。
+- `/tools` 目录暂时不可用时，前端应保守降级为不可执行，而不是继续放出执行按钮。
 
 ## D.3 工具调用执行前检查顺序
 

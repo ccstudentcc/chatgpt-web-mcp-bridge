@@ -2,32 +2,33 @@
 
 ## Goal
 
-Finish the next userscript polish slice after same-reply batch execution by exposing retry UX for stopped batches and making pending batch previews more informative.
+Implement userscript capability awareness from `/tools` so the panel only offers executable actions that the current gateway actually exposes.
 
 ## In Scope
 
-- Preserve the existing batch execution contract and stop-on-first-failure behavior.
-- Keep a retryable stopped-batch snapshot in userscript state.
-- Expose a `Retry whole batch` action after batch failure.
-- Show richer pending batch previews with concise argument summaries instead of tool names alone.
-- Add focused tests for preview formatting and batch progress ordering.
+- Fetch the token-protected `/tools` catalog from the userscript.
+- Store the current tool catalog in userscript state.
+- Assess pending single-tool and batch requests against the live catalog before showing `Run` or `Run All`.
+- Explain disabled, unsupported, and catalog-unavailable states in the panel.
+- Show risk information derived from the current tool catalog.
+- Add focused tests for capability assessment.
 
 ## Out of Scope
 
-- Changing gateway behavior or the `tool_result_batch` schema.
-- Adding browser-driven E2E automation, auto-send, or background retries.
-- Redesigning the panel visual style beyond the new preview and retry controls.
+- Changing gateway routes or tool descriptors.
+- Adding browser E2E automation or visual redesign work.
+- Persisting tool catalogs across reloads.
 
 ## Constraints
 
-- Preserve the single-tool path and keep multi-block behavior additive.
-- Reuse the existing batch execution path for both first-run and retry flows.
-- Keep preview logic in pure helpers so focused tests can cover it without DOM harnesses.
-- Keep validation focused on `@cwmb/protocol` build plus userscript lint, test, and build.
+- Keep the gateway as the source of truth for enabled and disabled tools.
+- Keep single-tool and batch execution logic intact when capability checks pass.
+- Fail conservatively when the catalog is unavailable: no executable button.
+- Keep capability logic in pure helpers so it is easy to unit test.
 
 ## Acceptance Criteria
 
-- After a batch stops on failure, the panel exposes `Retry whole batch` without requiring the assistant message to be re-detected.
-- Retrying a stopped batch reuses the original batch order and final insertion flow.
-- Pending batch entries show concise argument previews in the panel.
-- Focused tests cover preview summaries and ordered batch progress callbacks.
+- The userscript fetches `/tools` and uses it to drive executable UI state.
+- Disabled or unsupported tools never show `Run` / `Run All`.
+- Pending requests show risk information from the live catalog.
+- Focused tests cover enabled, disabled, unsupported, and catalog-unavailable assessments.

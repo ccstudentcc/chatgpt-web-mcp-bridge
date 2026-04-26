@@ -1,8 +1,13 @@
-import { TOKEN_HEADER, type ToolCallRequest, type ToolCallResponse } from '@cwmb/protocol';
+import { TOKEN_HEADER, type ToolCallRequest, type ToolCallResponse, type ToolDescriptor } from '@cwmb/protocol';
 import { state } from './state.js';
 
 export async function health(): Promise<unknown> {
   return gmJson('GET', `${state.baseUrl}/health`);
+}
+
+export async function listTools(): Promise<ToolDescriptor[]> {
+  const response = await gmJson('GET', `${state.baseUrl}/tools`, undefined, { [TOKEN_HEADER]: state.token }) as { tools?: ToolDescriptor[] };
+  return Array.isArray(response.tools) ? response.tools : [];
 }
 
 export async function callTool(req: ToolCallRequest): Promise<ToolCallResponse> {
@@ -26,7 +31,12 @@ function gmJson(method: string, url: string, body?: unknown, headers: Record<str
       timeout: 15_000,
       onload: (response) => {
         try {
-          resolve(response.responseText ? JSON.parse(response.responseText) : null);
+          const payload = response.responseText ? JSON.parse(response.responseText) : null;
+          if (response.status >= 400) {
+            reject(toGatewayError(response.status, payload));
+            return;
+          }
+          resolve(payload);
         } catch (err) {
           reject(err);
         }
@@ -35,6 +45,38 @@ function gmJson(method: string, url: string, body?: unknown, headers: Record<str
       ontimeout: () => reject(new Error('Gateway request timed out'))
     });
   });
+}
+
+function toGatewayError(status: number, payload: unknown): Error {
+  const code = getPayloadField(payload, 'code') ?? getNestedPayloadField(payload, 'error', 'code') ?? `HTTP_${status}`;
+  const message = getPayloadField(payload, 'message') ?? getNestedPayloadField(payload, 'error', 'message') ?? `Gateway request failed with status ${status}`;
+  const details = getPayloadField(payload, 'details') ?? getNestedPayloadField(payload, 'error', 'details');
+  const error = new Error(message);
+  Object.assign(error, { code, details, status });
+  return error;
+}
+
+function getPayloadField(payload: unknown, key: string): string | undefined {
+  if (!payload || typeof payload !== 'object' || !(key in payload)) {
+    return undefined;
+  }
+
+  const value = (payload as Record<string, unknown>)[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function getNestedPayloadField(payload: unknown, parentKey: string, childKey: string): string | undefined {
+  if (!payload || typeof payload !== 'object' || !(parentKey in payload)) {
+    return undefined;
+  }
+
+  const parent = (payload as Record<string, unknown>)[parentKey];
+  if (!parent || typeof parent !== 'object' || !(childKey in parent)) {
+    return undefined;
+  }
+
+  const value = (parent as Record<string, unknown>)[childKey];
+  return typeof value === 'string' ? value : undefined;
 }
 
 function isToolFailure(response: ToolCallResponse): response is Extract<ToolCallResponse, { ok: false }> {

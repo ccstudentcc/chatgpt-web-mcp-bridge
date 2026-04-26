@@ -1,21 +1,22 @@
 # Implementation Plan
 
-## Stage 1: Next-Slice Review
+## Stage 1: Capability-Gap Review
 
 Status: completed
 
-- Re-read the current userscript batch implementation and task docs.
-- Confirm the two adjacent gaps already called out in `TASK_STATUS.md`: no retry path after batch failure and low-signal batch previews in the panel.
-- Keep the scope inside `apps/userscript` without touching gateway contracts.
+- Re-read the PRD sections around `/tools`, disabled tools, and userscript execution gating.
+- Confirm the gap: gateway already returned tool descriptors, but userscript still allowed execution without consuming the catalog.
+- Keep the scope in `apps/userscript` and treat gateway descriptors as the authoritative capability source.
 
-## Stage 2: Retry And Preview Implementation
+## Stage 2: Userscript Capability Awareness
 
 Status: completed
 
-- Add userscript state for a retryable stopped batch.
-- Route both first-run and retry through the same stored-batch execution path.
-- Add a pure preview helper for concise argument summaries and use it in the panel list.
-- Expose `Retry whole batch` only when a stopped batch is available.
+- Add `/tools` fetching to the userscript gateway client.
+- Store the live tool catalog in userscript state.
+- Add a pure capability-assessment helper for enabled, disabled, unsupported, and catalog-unavailable tool states.
+- Use that assessment in the panel so run actions only appear when the current request is executable.
+- Surface risk information from the tool catalog in the panel.
 
 ## Stage 3: Verification
 
@@ -28,5 +29,5 @@ Status: completed
 
 ## Risks
 
-- The retry path still depends on in-memory userscript state, so a page refresh clears the retryable batch.
-- Argument previews are intentionally compact and may omit lower-priority args once the summary is truncated.
+- Capability awareness now depends on the `/tools` fetch path, so missing or stale tokens block execution earlier and more visibly.
+- The panel currently renders one summary reason for blocked execution; future UX work may want per-item details beyond the inline labels.

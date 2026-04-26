@@ -1,7 +1,8 @@
+import { assessPendingTools } from './capabilities.js';
 import type { ToolCallRequest } from '@cwmb/protocol';
 import type { BatchFailureItem, BatchResultItem } from './batch.js';
 import { createBatchId, executeBatch } from './batch.js';
-import { callTool, health } from './gateway-client.js';
+import { callTool, health, listTools } from './gateway-client.js';
 import { extractVisibleText, findLatestAssistantMessage, onChatMutation } from './dom.js';
 import { formatBatchToolResult, formatToolResult, insertIntoChatInput } from './inserter.js';
 import { parseMcpBlocks } from './parser.js';
@@ -11,13 +12,24 @@ import { type StoredBatch, state } from './state.js';
 async function refreshGatewayStatus(): Promise<void> {
   try {
     await health();
-    if (state.status === 'disconnected' || state.status === 'idle' || state.status === 'detected' || state.status === 'detected_batch') {
+    await refreshToolCatalog();
+    if (state.status === 'disconnected' || state.status === 'unauthorized' || state.status === 'idle' || state.status === 'detected' || state.status === 'detected_batch') {
       state.status = getDetectedStatus();
       state.lastError = undefined;
     }
   } catch (err) {
-    state.status = 'disconnected';
-    state.lastError = err instanceof Error ? err.message : 'Gateway disconnected';
+    const errorCode = err && typeof err === 'object' && 'code' in err ? String((err as { code: unknown }).code) : '';
+    if (errorCode === 'UNAUTHORIZED') {
+      state.status = 'unauthorized';
+      state.toolCatalogLoaded = false;
+      state.tools = [];
+      state.lastError = err instanceof Error ? err.message : 'Invalid or missing pairing token.';
+    } else {
+      state.status = 'disconnected';
+      state.toolCatalogLoaded = false;
+      state.tools = [];
+      state.lastError = err instanceof Error ? err.message : 'Gateway disconnected';
+    }
   }
   renderPanel();
 }
@@ -54,6 +66,12 @@ async function runPending(): Promise<void> {
 
   const pending = state.pending[0];
   if (!pending) return;
+  const capability = assessPendingTools([pending], state.tools, state.toolCatalogLoaded);
+  if (!capability.runnable) {
+    state.lastError = capability.blockedReason ?? 'Tool is not runnable with the current gateway capabilities.';
+    renderPanel();
+    return;
+  }
   state.status = 'executing';
   state.lastError = undefined;
   renderPanel();
@@ -108,6 +126,12 @@ async function retryStoppedBatch(): Promise<void> {
 async function runStoredBatch(batch: StoredBatch): Promise<void> {
   const { blocks, batchId, messageId } = batch;
   if (blocks.length < 2) return;
+  const capability = assessPendingTools(blocks, state.tools, state.toolCatalogLoaded);
+  if (!capability.runnable) {
+    state.lastError = capability.blockedReason ?? 'Batch is not runnable with the current gateway capabilities.';
+    renderPanel();
+    return;
+  }
 
   state.status = 'batch_executing';
   state.progress = { current: 1, total: blocks.length, tool: blocks[0]?.block.tool ?? 'unknown' };
@@ -212,6 +236,12 @@ function buildBatchFailureMessage(items: BatchResultItem[]): string {
   const failed = items.find((item): item is BatchFailureItem => 'ok' in item && item.ok === false);
   if (!failed) return 'Batch stopped after a tool call failed.';
   return `Batch stopped after \`${failed.tool}\` failed: ${failed.error.message}`;
+}
+
+async function refreshToolCatalog(): Promise<void> {
+  const tools = await listTools();
+  state.tools = tools;
+  state.toolCatalogLoaded = true;
 }
 
 setUiHandlers({ onRun: runPending, onIgnore: ignorePending, onRetry: retryStoppedBatch });

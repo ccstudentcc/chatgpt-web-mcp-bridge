@@ -1,3 +1,4 @@
+import type { ToolDescriptor } from '@cwmb/protocol';
 import type { ParsedMcpBlock } from './parser.js';
 
 export type BridgeStatus =
@@ -31,6 +32,8 @@ export interface BridgeState {
   status: BridgeStatus;
   token: string;
   baseUrl: string;
+  tools: ToolDescriptor[];
+  toolCatalogLoaded: boolean;
   pending: ParsedMcpBlock[];
   pendingBatchId?: string;
   pendingMessageId?: string;
@@ -46,6 +49,8 @@ export const state: BridgeState = {
   status: 'idle',
   token: GM_getValue('cwmb_token', ''),
   baseUrl: GM_getValue('cwmb_base_url', 'http://127.0.0.1:8024'),
+  tools: [],
+  toolCatalogLoaded: false,
   pending: [],
   executedCallIds: new Set<string>(),
   executedBatchIds: new Set<string>()
