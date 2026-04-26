@@ -53,7 +53,8 @@ You can still edit the file explicitly:
   "trustedLocalMode": true,
   "autoExecuteLowRisk": true,
   "autoInsertResult": true,
-  "autoSendResult": true
+  "autoSendResult": true,
+  "maxToolRounds": 3
 }
 ```
 
@@ -86,7 +87,9 @@ Open ChatGPT Web. In the bridge panel:
 - adjust `Gateway base URL` if the gateway is not on the default `http://127.0.0.1:8024`,
 - rely on automatic request-layer injection for the live MCP catalog by default,
 - use `Insert MCP list` or `Copy MCP list` only as a diagnostic / fallback path if request injection drifts,
-- verify `Auto execute`, `Auto insert`, and `Auto send` are all on for the fully automatic flow.
+- use the collapsible inspector panel to review pending tools, result payloads, and the event log,
+- verify `Auto execute`, `Auto insert`, and `Auto send` are all on for the fully automatic flow,
+- leave `Continue on error` off if you want fail-stop batch behavior, or turn it on to keep executing later tools after one batch item fails.
 
 When you change the Gateway base URL in the panel, the userscript refreshes gateway status and `/tools` capabilities immediately.
 
@@ -125,8 +128,7 @@ One assistant reply can contain multiple `mcp` blocks. The userscript will:
 ```text
 detect the blocks in order
 → execute them serially
-→ stop on the first failure
-→ mark remaining items as skipped
+→ either stop on the first failure or continue, depending on `Continue on error`
 → insert one unified tool_result_batch back into ChatGPT
 ```
 
@@ -159,6 +161,8 @@ Observed outcomes from the current implementation:
   `completed: 3`, `failed: 0`, `skipped: 0`, `stoppedOnFailure: false`
 - stopped batch after a blocked path:
   `completed: 1`, `failed: 1`, `skipped: 1`, `stoppedOnFailure: true`
+- continue-on-error batch:
+  `completed: 2`, `failed: 1`, `skipped: 0`, `stoppedOnFailure: false`
 - verified blocked-path example:
   trying to read `.env` returns `BLOCKED_PATH`
 - verified post-failure behavior:
@@ -174,6 +178,8 @@ Useful manual acceptance checks:
 - In a multi-block batch, once one item fails, the remaining items should come back as `skipped`, with reason `SKIPPED_AFTER_BATCH_FAILURE`.
 
 ## Supported v0.1 tools
+
+`mcp_list` returns the same live gateway catalog that ChatGPT sees, including `mcp_list` itself, so total/enabled counts stay aligned with `/tools` and the injected prompt.
 
 - `mcp_list`
 - `read_file`

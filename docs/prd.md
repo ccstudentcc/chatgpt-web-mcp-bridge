@@ -165,6 +165,7 @@ Gateway 必须提供低风险只读工具 `mcp_list`，作用是：
 - 让模型在会话中自行刷新目录
 - 让模型看到当前工具的 `enabled` 状态
 - 让模型拿到每个工具的 `exampleArgs`
+- `tools` 返回中必须包含 `mcp_list` 自身，避免 prompt 目录、`/tools`、以及 `mcp_list` 结果之间出现统计不一致
 
 ### 6.5 输出格式
 
@@ -216,13 +217,17 @@ v0.1 定义三个独立开关：
 | `autoInsertResult` | 工具完成后自动插入输入框 | 停留在 `result_ready`，用户手动点 `Insert result` 或 `Copy result` |
 | `autoSendResult` | 结果插入后自动发送 | 停留在 `inserted`，用户手动点页面发送按钮 |
 
+无论工具成功还是失败，只要已经生成结构化 `tool_result` / `tool_result_batch`，都必须继续遵守 `autoInsertResult` 与 `autoSendResult` 的当前值。
+
 ### 7.4 Batch 规则
 
 同一条 assistant 回复中出现多个合法 `mcp` block 时：
 
 - 按出现顺序串行执行
 - 任意时刻最多一个 in-flight 调用
-- 任一项失败后立即停止
+- 默认在任一项失败后立即停止
+- userscript 额外提供一个本地开关 `continueBatchOnError`，默认关闭
+- 当 `continueBatchOnError` 开启时，已进入执行链路的后续项继续串行执行，不再自动标记为 `skipped`
 - 统一回填一次 `tool_result_batch`
 - 结果中必须包含 completed / failed / skipped
 
@@ -513,8 +518,12 @@ v0.1 默认配置基线：
 - Gateway 状态
 - trusted local mode / token 状态
 - 三个自动化开关的当前值
+- `continueBatchOnError` 的当前值
 - 当前检测到的工具或 batch
 - 错误信息
+- inspector 风格日志流
+- 可折叠 / 展开
+- batch / result 的可展开详情
 - `Insert MCP list`
 - `Copy MCP list`
 - `Run` / `Run All`
@@ -568,8 +577,10 @@ README 首页必须明确：
 - 模型能稳定输出 `mcp` JSON block。
 - userscript 能检测并执行 enabled 低风险工具。
 - 三个自动化开关都能独立生效。
+- `continueBatchOnError` 开关默认关闭，并能独立控制 batch 失败后是否继续执行。
 - 默认 happy path 为自动执行 + 自动插入 + 自动发送。
 - 任一开关关闭后，退回对应手动路径。
+- 工具失败后生成的结构化失败结果也遵守插入 / 发送开关。
 - 同一 assistant 回复多 block 时，能统一回填符合 schema 的 `tool_result_batch`。
 
 ### 16.2 安全验收
@@ -586,7 +597,8 @@ README 首页必须明确：
 
 - 结果能写入当前真实输入框，而不是隐藏 fallback textarea
 - 自动发送能等待 send button 出现
-- batch 失败后后续项不执行
+- `continueBatchOnError` 关闭时，batch 失败后后续项不执行并标记 `skipped`
+- `continueBatchOnError` 开启时，batch 在失败后继续执行后续项并统一回填失败摘要
 - 同一 assistant 回复多 block 只回填一次批量结果
 - 自动工具回合达到 `maxToolRounds` 后停止自动循环并提示用户手动继续
 

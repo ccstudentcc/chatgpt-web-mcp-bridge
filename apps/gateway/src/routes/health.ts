@@ -14,6 +14,7 @@ export async function registerHealthRoute(server: FastifyInstance, config: Gatew
     autoExecuteLowRisk: config.autoExecuteLowRisk,
     autoInsertResult: config.autoInsertResult,
     autoSendResult: config.autoSendResult,
+    maxToolRounds: config.maxToolRounds,
     shell: await detectShell()
   }));
 }

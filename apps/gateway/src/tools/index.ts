@@ -31,7 +31,9 @@ export function createToolRegistry(config: GatewayConfig): Map<string, LocalTool
     writeFileProposalTool,
     { ...runPwshTool, enabled: config.allowPwsh }
   ];
-  const tools: LocalTool[] = [createMcpListTool(baseTools), ...baseTools];
+  let tools: LocalTool[] = [];
+  const mcpListTool = createMcpListTool(() => tools);
+  tools = [mcpListTool, ...baseTools];
 
   return new Map(tools.map((tool) => [tool.name, tool]));
 }

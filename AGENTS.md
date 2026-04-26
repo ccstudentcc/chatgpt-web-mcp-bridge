@@ -13,9 +13,11 @@
 ## Durable Workflow
 
 - When a change modifies shipped behavior or validation expectations, update `docs/prd.md` and sync the task-control docs in the same pass.
+- When a change modifies the gateway-to-userscript contract, such as `/health`, `/tools`, or `mcp_list` metadata, update the matching gateway/userscript tests in the same pass.
 - Keep repository execution rules in `AGENTS.md`; keep temporary scope, rollout status, and open questions in the task-control docs.
 
 ## Validation
 
 - Use workspace scripts from the repo root: `pnpm dev`, `pnpm build`, `pnpm test`, `pnpm lint`.
+- For `apps/userscript` UI, DOM, or automation changes, run `pnpm --filter @cwmb/userscript lint`, `test`, and `build` before the wider root-level verification.
 - Stage explicit file paths when committing from a dirty tree.

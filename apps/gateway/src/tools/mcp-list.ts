@@ -15,7 +15,7 @@ export interface McpListResult {
   disabled: number;
 }
 
-export function createMcpListTool(baseTools: LocalTool[]): LocalTool<McpListArgs, McpListResult> {
+export function createMcpListTool(getTools: () => LocalTool[]): LocalTool<McpListArgs, McpListResult> {
   return {
     name: 'mcp_list',
     title: 'List MCP tools',
@@ -26,7 +26,7 @@ export function createMcpListTool(baseTools: LocalTool[]): LocalTool<McpListArgs
     exampleArgs: {},
     argsSchema: McpListArgsSchema,
     async run(args) {
-      const tools = baseTools
+      const tools = getTools()
         .filter((tool) => args.includeDisabled || tool.enabled)
         .map(toToolDescriptor);
 

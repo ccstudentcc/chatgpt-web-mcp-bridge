@@ -24,10 +24,21 @@ Status: completed
 - Keep clipboard fallback for true insert failures.
 - Wait for the current ChatGPT send button state to appear after insertion before declaring auto-send failure.
 
-## Stage 4: Verification And Close-Out
+## Stage 4: Inspector Panel And Failure Controls
 
 Status: completed
 
+- Redesign the userscript panel into a collapsible inspector surface with runtime badges, expandable payload details, and an activity log stream.
+- Turn `Execute`, `Insert`, and `Send` into real local override toggles that affect later detections/results immediately.
+- Add a local `Continue on error` toggle for batch execution, defaulting to fail-stop behavior.
+- Keep structured failure results on the same insert/send delivery path as successful results.
+
+## Stage 5: Verification And Close-Out
+
+Status: completed
+
+- Make `mcp_list` return the exact live catalog, including `mcp_list` itself, so totals stay aligned with `/tools` and the injected prompt.
+- Expose `maxToolRounds` through `/health` and enforce it in the userscript's automatic execution loop without blocking manual continuation.
 - Run `pnpm --filter @cwmb/protocol build`.
 - Run `pnpm --filter @cwmb/gateway lint`.
 - Run `pnpm --filter @cwmb/gateway test`.

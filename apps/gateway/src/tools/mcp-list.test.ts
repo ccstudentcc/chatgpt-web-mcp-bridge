@@ -11,9 +11,13 @@ describe('mcp_list tool', () => {
     expect(tool).toBeDefined();
     const result = await tool!.run({ includeDisabled: true }, { config: createConfig(), logger: createLogger() }) as McpListResult;
 
+    expect(result.tools.some((item) => item.name === 'mcp_list')).toBe(true);
     expect(result.tools.some((item) => item.name === 'read_file')).toBe(true);
     expect(result.tools.some((item) => item.name === 'run_pwsh')).toBe(true);
     expect(result.tools.find((item) => item.name === 'read_file')?.exampleArgs).toEqual({ path: 'README.md' });
+    expect(result.total).toBe(7);
+    expect(result.enabled).toBe(5);
+    expect(result.disabled).toBe(2);
   });
 });
 

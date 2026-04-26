@@ -19,6 +19,13 @@
 - Result insertion now prefers the visible `#prompt-textarea` / contenteditable composer over hidden fallback textareas and waits briefly for the real send button state before declaring auto-send failure.
 - The userscript now installs its request hook at `document-start`, then delays UI/DOM observers until `DOMContentLoaded`, so the first ChatGPT message request can still be patched without breaking panel startup.
 - Gateway startup now auto-creates `config.json` and backfills `workspaceRoot` from the current startup directory when the config is missing or incomplete.
+- The userscript panel is now a collapsible inspector-style surface with runtime badges, expandable batch/result payloads, and an in-panel activity log stream.
+- `Auto execute`, `Auto insert`, and `Auto send` now behave as real userscript-local overrides instead of passive status display.
+- A userscript-local `Continue on error` toggle now defaults to off; when enabled, a batch keeps executing later tools after one tool call fails.
+- Structured failure results now follow the same insert/send automation path as successful tool results.
+- Single-tool failures now clear the pending item after result generation, preventing later gateway refreshes from re-running the same failed call implicitly.
+- `mcp_list` now returns the full live gateway catalog including `mcp_list` itself, so its totals align with `/tools` and the injected MCP prompt.
+- Gateway `/health` now exposes `maxToolRounds`, and the userscript now enforces that automatic tool-round guard per detected user request while leaving manual `Run` / `Run All` available.
 - Repository-level `lint`, `test`, and `build` entrypoints now pass across the workspace.
 
 ## Latest Verified Evidence
@@ -31,6 +38,11 @@
 - `pnpm --filter @cwmb/userscript lint` succeeded.
 - `pnpm --filter @cwmb/userscript test` succeeded with 6 passing files and 19 passing tests.
 - `pnpm --filter @cwmb/userscript build` succeeded.
+- `pnpm --filter @cwmb/userscript lint` succeeded again after the inspector-panel and batch-control updates.
+- `pnpm --filter @cwmb/userscript test` succeeded again with 7 passing files and 28 passing tests after the batch continue-on-error coverage was added.
+- `pnpm --filter @cwmb/userscript build` succeeded again after the panel rewrite.
+- `pnpm --filter @cwmb/gateway test` succeeded again with 7 passing files and 14 passing tests after adding `mcp_list` self-catalog and `/health` coverage.
+- `pnpm --filter @cwmb/userscript test` succeeded again with 8 passing files and 31 passing tests after adding `maxToolRounds` round-guard coverage.
 - `pnpm -r lint` succeeded.
 - `pnpm -r test` succeeded across protocol, shared, gateway, and userscript.
 - `pnpm -r build` succeeded across protocol, shared, gateway, and userscript.
@@ -44,5 +56,5 @@
 
 - This repo still lacks browser-driven end-to-end automation, so the final v0.1 claim depends on manual live acceptance rather than only unit and build checks.
 - Because ChatGPT Web can change its request payload shape, the new invisible injection path is best-effort and should degrade to the panel's manual catalog actions when the outgoing JSON shape drifts.
-- `maxToolRounds` is now documented as a required automatic-loop guardrail, but the current implementation still needs explicit enforcement code if we want the shipped behavior to fully match that PRD wording.
+- The new automation controls are userscript-local overrides today; there is still no gateway `/settings` API for persisting them centrally.
 - Optional or later-scope PRD items remain intentionally out of scope: dynamic `/settings`, `/logs` endpoint work, `write_file_proposal`, `run_pwsh`, `apply_proposal`, and Chrome extension migration.
