@@ -7,12 +7,20 @@ let onRunHandler: (() => void) | null = null;
 let onIgnoreHandler: (() => void) | null = null;
 let onRetryHandler: (() => void) | null = null;
 let onInsertHandler: (() => void) | null = null;
+let onConfigChangedHandler: (() => void) | null = null;
 
-export function setUiHandlers(handlers: { onRun: () => void; onIgnore: () => void; onRetry: () => void; onInsert: () => void }): void {
+export function setUiHandlers(handlers: {
+  onRun: () => void;
+  onIgnore: () => void;
+  onRetry: () => void;
+  onInsert: () => void;
+  onConfigChanged: () => void;
+}): void {
   onRunHandler = handlers.onRun;
   onIgnoreHandler = handlers.onIgnore;
   onRetryHandler = handlers.onRetry;
   onInsertHandler = handlers.onInsert;
+  onConfigChangedHandler = handlers.onConfigChanged;
 }
 
 export function renderPanel(): void {
@@ -95,6 +103,7 @@ export function renderPanel(): void {
     const token = prompt('Pairing token', state.token);
     if (token !== null) saveToken(token.trim());
     renderPanel();
+    onConfigChangedHandler?.();
   });
   root.querySelector('[data-cwmb="base-url"]')?.addEventListener('click', () => {
     const baseUrl = prompt('Gateway base URL', state.baseUrl);
@@ -102,6 +111,7 @@ export function renderPanel(): void {
       saveBaseUrl(baseUrl.trim());
     }
     renderPanel();
+    onConfigChangedHandler?.();
   });
   root.querySelector('[data-cwmb="toggle-auto-insert"]')?.addEventListener('click', () => {
     saveAutoInsertResult(!state.autoInsertResult);

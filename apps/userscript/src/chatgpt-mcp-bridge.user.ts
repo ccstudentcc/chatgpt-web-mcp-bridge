@@ -259,7 +259,13 @@ async function refreshToolCatalog(): Promise<void> {
   state.toolCatalogLoaded = true;
 }
 
-setUiHandlers({ onRun: runPending, onIgnore: ignorePending, onRetry: retryStoppedBatch, onInsert: insertLastResult });
+setUiHandlers({
+  onRun: runPending,
+  onIgnore: ignorePending,
+  onRetry: retryStoppedBatch,
+  onInsert: insertLastResult,
+  onConfigChanged: () => void refreshGatewayStatus()
+});
 renderPanel();
 void refreshGatewayStatus();
 onChatMutation(() => void scanLatestAssistantMessage());

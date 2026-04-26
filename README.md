@@ -85,6 +85,8 @@ Open ChatGPT Web. In the bridge panel:
 - adjust `Gateway base URL` if the gateway is not on the default `http://127.0.0.1:8024`,
 - leave `Auto insert` on for the default flow, or turn it off if you want results to stay in `Insert result` / `Copy result` mode until you confirm them manually.
 
+When you change the token or Gateway base URL in the panel, the userscript refreshes gateway status and `/tools` capabilities immediately.
+
 ## Try your first tool call
 
 Ask ChatGPT to output:
