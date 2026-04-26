@@ -13,6 +13,7 @@ export interface GatewayHealthResponse {
   autoExecuteLowRisk?: boolean;
   autoInsertResult?: boolean;
   autoSendResult?: boolean;
+  maxToolRounds?: number;
 }
 
 export async function health(): Promise<GatewayHealthResponse> {

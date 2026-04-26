@@ -6,6 +6,11 @@ export function findLatestAssistantMessage(): HTMLElement | null {
   return fallbackFindLatestCodeContainer();
 }
 
+export function findLatestUserMessage(): HTMLElement | null {
+  const candidates = Array.from(document.querySelectorAll(chatgptSelectors.userMessage)) as HTMLElement[];
+  return candidates.length > 0 ? candidates[candidates.length - 1] ?? null : null;
+}
+
 export function extractVisibleText(el: HTMLElement): string {
   return el.innerText || el.textContent || '';
 }

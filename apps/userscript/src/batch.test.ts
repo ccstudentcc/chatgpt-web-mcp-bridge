@@ -119,6 +119,51 @@ describe('executeBatch', () => {
 
     expect(progress).toEqual(['1/3:read_file', '2/3:grep_files', '3/3:list_directory']);
   });
+
+  it('can continue executing later tools after a failure when configured', async () => {
+    const blocks = createBlocks(3);
+    const executeTool = vi.fn<(_: ToolCallRequest) => Promise<ToolCallResponse>>().mockImplementation(async (request) => {
+      if (request.tool === 'grep_files') {
+        return {
+          ok: false,
+          tool: request.tool,
+          error: {
+            code: 'BLOCKED_PATH',
+            message: 'Blocked path.'
+          },
+          warnings: [],
+          durationMs: 3
+        };
+      }
+
+      return {
+        ok: true,
+        tool: request.tool,
+        result: { echoed: request.tool },
+        warnings: [],
+        durationMs: 2
+      };
+    });
+
+    const result = await executeBatch({
+      batchId: 'batch-4',
+      messageId: 'assistant-4',
+      blocks,
+      executeTool,
+      continueOnFailure: true
+    });
+
+    expect(executeTool).toHaveBeenCalledTimes(3);
+    expect(result.ok).toBe(false);
+    expect(result.summary).toEqual({
+      total: 3,
+      completed: 2,
+      failed: 1,
+      skipped: 0,
+      stoppedOnFailure: false
+    });
+    expect(result.items[2]).toMatchObject({ index: 2, tool: 'list_directory', ok: true });
+  });
 });
 
 function createBlocks(count = 2): ParsedMcpBlock[] {

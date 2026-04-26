@@ -1,5 +1,6 @@
 export const chatgptSelectors = {
   assistantMessage: '[data-message-author-role="assistant"]',
+  userMessage: '[data-message-author-role="user"]',
   codeBlock: 'pre code',
   editableInputs: [
     '#prompt-textarea[contenteditable="true"]',

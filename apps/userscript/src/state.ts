@@ -30,25 +30,51 @@ export interface StoredBatch {
   messageId: string;
 }
 
+export interface ActivityLogEntry {
+  timestamp: string;
+  level: 'info' | 'success' | 'warn' | 'error';
+  message: string;
+}
+
 export interface BridgeState {
   status: BridgeStatus;
   token: string;
   baseUrl: string;
   trustedLocalMode: boolean;
+  maxToolRounds: number;
+  gatewayAutoExecuteDefault: boolean;
+  gatewayAutoInsertDefault: boolean;
+  gatewayAutoSendDefault: boolean;
   autoExecuteEnabled: boolean;
   autoInsertResult: boolean;
   autoSendResult: boolean;
+  continueBatchOnError: boolean;
+  panelCollapsed: boolean;
   tools: ToolDescriptor[];
   toolCatalogLoaded: boolean;
   pending: ParsedMcpBlock[];
   pendingBatchId?: string;
   pendingMessageId?: string;
+  pendingRequestId?: string;
   executedCallIds: Set<string>;
   executedBatchIds: Set<string>;
   retryableBatch?: StoredBatch;
+  autoRoundRequestId?: string;
+  autoRoundCount: number;
   progress?: ExecutionProgress;
   lastResult?: string;
   lastError?: string;
+  logs: ActivityLogEntry[];
+}
+
+const autoExecuteStored = GM_getValue('cwmb_auto_execute', 'inherit');
+const autoInsertStored = GM_getValue('cwmb_auto_insert', 'inherit');
+const autoSendStored = GM_getValue('cwmb_auto_send', 'inherit');
+
+function readStoredToggle(stored: string, fallback: boolean): boolean {
+  if (stored === 'true') return true;
+  if (stored === 'false') return false;
+  return fallback;
 }
 
 export const state: BridgeState = {
@@ -56,14 +82,22 @@ export const state: BridgeState = {
   token: GM_getValue('cwmb_token', ''),
   baseUrl: GM_getValue('cwmb_base_url', 'http://127.0.0.1:8024'),
   trustedLocalMode: true,
-  autoExecuteEnabled: true,
-  autoInsertResult: true,
-  autoSendResult: true,
+  maxToolRounds: 3,
+  gatewayAutoExecuteDefault: true,
+  gatewayAutoInsertDefault: true,
+  gatewayAutoSendDefault: true,
+  autoExecuteEnabled: readStoredToggle(autoExecuteStored, true),
+  autoInsertResult: readStoredToggle(autoInsertStored, true),
+  autoSendResult: readStoredToggle(autoSendStored, true),
+  continueBatchOnError: GM_getValue('cwmb_continue_batch_on_error', 'false') === 'true',
+  panelCollapsed: GM_getValue('cwmb_panel_collapsed', 'false') === 'true',
   tools: [],
   toolCatalogLoaded: false,
   pending: [],
+  autoRoundCount: 0,
   executedCallIds: new Set<string>(),
-  executedBatchIds: new Set<string>()
+  executedBatchIds: new Set<string>(),
+  logs: []
 };
 
 export function saveToken(token: string): void {
@@ -81,17 +115,66 @@ export function applyAutomationSettings(settings: {
   autoExecuteLowRisk?: boolean;
   autoInsertResult?: boolean;
   autoSendResult?: boolean;
+  maxToolRounds?: number;
 }): void {
   if (typeof settings.trustedLocalMode === 'boolean') {
     state.trustedLocalMode = settings.trustedLocalMode;
   }
+  if (typeof settings.maxToolRounds === 'number') {
+    state.maxToolRounds = settings.maxToolRounds;
+  }
   if (typeof settings.autoExecuteLowRisk === 'boolean') {
-    state.autoExecuteEnabled = settings.autoExecuteLowRisk;
+    state.gatewayAutoExecuteDefault = settings.autoExecuteLowRisk;
+    if (GM_getValue('cwmb_auto_execute', 'inherit') === 'inherit') {
+      state.autoExecuteEnabled = settings.autoExecuteLowRisk;
+    }
   }
   if (typeof settings.autoInsertResult === 'boolean') {
-    state.autoInsertResult = settings.autoInsertResult;
+    state.gatewayAutoInsertDefault = settings.autoInsertResult;
+    if (GM_getValue('cwmb_auto_insert', 'inherit') === 'inherit') {
+      state.autoInsertResult = settings.autoInsertResult;
+    }
   }
   if (typeof settings.autoSendResult === 'boolean') {
-    state.autoSendResult = settings.autoSendResult;
+    state.gatewayAutoSendDefault = settings.autoSendResult;
+    if (GM_getValue('cwmb_auto_send', 'inherit') === 'inherit') {
+      state.autoSendResult = settings.autoSendResult;
+    }
   }
+}
+
+export function toggleAutoExecute(): void {
+  state.autoExecuteEnabled = !state.autoExecuteEnabled;
+  GM_setValue('cwmb_auto_execute', String(state.autoExecuteEnabled));
+}
+
+export function toggleAutoInsert(): void {
+  state.autoInsertResult = !state.autoInsertResult;
+  GM_setValue('cwmb_auto_insert', String(state.autoInsertResult));
+}
+
+export function toggleAutoSend(): void {
+  state.autoSendResult = !state.autoSendResult;
+  GM_setValue('cwmb_auto_send', String(state.autoSendResult));
+}
+
+export function toggleContinueBatchOnError(): void {
+  state.continueBatchOnError = !state.continueBatchOnError;
+  GM_setValue('cwmb_continue_batch_on_error', String(state.continueBatchOnError));
+}
+
+export function togglePanelCollapsed(): void {
+  state.panelCollapsed = !state.panelCollapsed;
+  GM_setValue('cwmb_panel_collapsed', String(state.panelCollapsed));
+}
+
+export function addLogEntry(level: ActivityLogEntry['level'], message: string): void {
+  state.logs = [
+    ...state.logs,
+    {
+      timestamp: new Date().toLocaleTimeString([], { hour12: false }),
+      level,
+      message
+    }
+  ].slice(-40);
 }

@@ -55,6 +55,7 @@ interface ExecuteBatchOptions {
   messageId: string;
   blocks: ParsedMcpBlock[];
   executeTool: (request: ToolCallRequest) => Promise<ToolCallResponse>;
+  continueOnFailure?: boolean;
   onProgress?: (progress: { current: number; total: number; tool: string }) => void;
 }
 
@@ -63,7 +64,7 @@ export async function createBatchId(messageId: string, blocks: Array<Pick<Parsed
 }
 
 export async function executeBatch(options: ExecuteBatchOptions): Promise<ToolResultBatch> {
-  const { batchId, messageId, blocks, executeTool, onProgress } = options;
+  const { batchId, messageId, blocks, executeTool, continueOnFailure = false, onProgress } = options;
   const items: BatchResultItem[] = [];
   const warnings = new Set<string>();
 
@@ -98,9 +99,13 @@ export async function executeBatch(options: ExecuteBatchOptions): Promise<ToolRe
       durationMs: response.durationMs
     });
 
-    for (const skipped of blocks.slice(index + 1)) {
+    if (continueOnFailure) {
+      continue;
+    }
+
+    for (const [offset, skipped] of blocks.slice(index + 1).entries()) {
       items.push({
-        index: items.length,
+        index: index + offset + 1,
         tool: skipped.block.tool,
         callId: skipped.callId,
         status: 'skipped',
