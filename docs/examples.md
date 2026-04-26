@@ -48,7 +48,7 @@
 {
   "tool": "grep_files",
   "args": {
-    "pattern": "workspaceRoot",
+    "query": "workspaceRoot",
     "glob": "**/*.{ts,md,json}",
     "maxResults": 100,
     "caseSensitive": false

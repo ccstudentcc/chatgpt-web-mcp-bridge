@@ -313,9 +313,11 @@ v0.1 定义三个独立开关：
 | `read_file` | low | 是 | 是 | 读取 UTF-8 文本文件；高置信度 secret 硬拦，低置信度赋值模式脱敏返回 |
 | `list_directory` | low | 是 | 是 | 枚举目录内容 |
 | `search_files` | low | 是 | 是 | 按文件名/路径搜索 |
-| `grep_files` | low | 是 | 是 | 按文本内容搜索；高置信度 secret 硬拦，低置信度赋值模式脱敏返回 |
+| `grep_files` | low | 是 | 是 | 按文本内容搜索；默认字面量 `query` 或 `patterns[]`，可显式切到 `regex`；高置信度 secret 硬拦，低置信度赋值模式脱敏返回 |
 
 `search_files` 的产品语义是“按相对路径做大小写不敏感的包含搜索”。实现上可优先利用 `rg` 做候选路径枚举和查询预过滤，但必须保留无 `rg` 时的 Node 降级路径，并确保两条路径的结果语义一致。
+
+`grep_files` 的产品语义是“默认保守、显式高级”：默认 `mode=literal`，使用单个 `query` 或多个 `patterns[]` 做字面量搜索；只有显式 `mode=regex` 时才按正则解释输入。实现上可优先利用 `rg` 为字面量模式筛出候选文件，但最终匹配行、上下文、脱敏和截断语义必须由 Node 统一整形，避免 `rg` 可用性或模式差异改变返回 contract。结果中应返回 `modeUsed`、`engine`、`interpretedAs`，让 0 matches 与降级路径可解释。
 
 ### 8.2 保留但默认禁用
 

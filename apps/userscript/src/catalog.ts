@@ -18,6 +18,7 @@ export function summarizeToolCatalog(tools: ToolDescriptor[]): ToolCatalogSummar
 export function buildToolCatalogPrompt(tools: ToolDescriptor[]): string {
   const enabledTools = tools.filter((tool) => tool.enabled);
   const disabledTools = tools.filter((tool) => !tool.enabled);
+  const grepFilesTool = enabledTools.find((tool) => tool.name === 'grep_files');
   const summary = summarizeToolCatalog(tools);
   const lines = [
     'Local MCP bridge tools are available in this chat.',
@@ -33,6 +34,14 @@ export function buildToolCatalogPrompt(tools: ToolDescriptor[]): string {
     '',
     'Enabled tools:'
   ];
+
+  if (grepFilesTool) {
+    lines.splice(10, 0,
+      '- `grep_files` defaults to literal search: use `query` for one term or `patterns` for multiple literal terms.',
+      '- Use `mode: "regex"` only when you intentionally need regex semantics; do not put `a|b|c` into a literal `query` and expect alternation.',
+      ''
+    );
+  }
 
   for (const tool of enabledTools) {
     lines.push(`- ${tool.name}: ${tool.description}`);

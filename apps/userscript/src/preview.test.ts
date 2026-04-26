@@ -4,7 +4,7 @@ import { summarizeArgs, summarizePendingBlock } from './preview.js';
 describe('summarizeArgs', () => {
   it('renders compact key-value previews for simple args', () => {
     expect(summarizeArgs({ path: 'README.md' })).toBe('path=README.md');
-    expect(summarizeArgs({ pattern: 'todo', glob: '**/*.ts' })).toBe('pattern=todo, glob=**/*.ts');
+    expect(summarizeArgs({ query: 'todo', glob: '**/*.ts' })).toBe('query=todo, glob=**/*.ts');
   });
 
   it('truncates longer previews and marks omitted values', () => {

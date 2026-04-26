@@ -21,7 +21,7 @@ describe('parseMcpBlocks', () => {
       '```',
       '',
       '```mcp',
-      '{"tool":"grep_files","args":{"pattern":"todo"}}',
+      '{"tool":"grep_files","args":{"query":"todo"}}',
       '```'
     ].join('\n'));
 

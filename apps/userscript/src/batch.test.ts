@@ -7,7 +7,7 @@ describe('createBatchId', () => {
   it('is stable for the same message identity and raw block order', async () => {
     const blocks = [
       { raw: '{"tool":"read_file","args":{"path":"README.md"}}' },
-      { raw: '{"tool":"grep_files","args":{"pattern":"todo"}}' }
+      { raw: '{"tool":"grep_files","args":{"query":"todo"}}' }
     ];
 
     await expect(createBatchId('assistant-1', blocks)).resolves.toBe(await createBatchId('assistant-1', blocks));
@@ -174,8 +174,8 @@ function createBlocks(count = 2): ParsedMcpBlock[] {
       callId: 'call-read'
     },
     {
-      block: { tool: 'grep_files', args: { pattern: 'todo' } },
-      raw: '{"tool":"grep_files","args":{"pattern":"todo"}}',
+      block: { tool: 'grep_files', args: { query: 'todo' } },
+      raw: '{"tool":"grep_files","args":{"query":"todo"}}',
       callId: 'call-grep'
     },
     {

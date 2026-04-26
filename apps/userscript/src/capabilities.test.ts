@@ -89,7 +89,7 @@ function createTools(): ToolDescriptor[] {
       risk: 'medium',
       requiresConfirmation: false,
       enabled: true,
-      exampleArgs: { pattern: 'todo' }
+      exampleArgs: { query: 'todo' }
     }
   ];
 }
@@ -102,8 +102,8 @@ function createBlocks(count = 2): ParsedMcpBlock[] {
       callId: 'call-read'
     },
     {
-      block: { tool: 'grep_files', args: { pattern: 'todo' } },
-      raw: '{"tool":"grep_files","args":{"pattern":"todo"}}',
+      block: { tool: 'grep_files', args: { query: 'todo' } },
+      raw: '{"tool":"grep_files","args":{"query":"todo"}}',
       callId: 'call-grep'
     },
     {

@@ -6,6 +6,27 @@ import { grepFilesTool } from './grep-files.js';
 
 const createdRoots: string[] = [];
 
+describe('grepFilesTool.argsSchema', () => {
+  it('accepts a literal query or literal patterns, but not both', () => {
+    expect(grepFilesTool.argsSchema.parse({ query: 'token' })).toMatchObject({ mode: 'literal', query: 'token' });
+    expect(grepFilesTool.argsSchema.parse({ patterns: ['token', 'todo'], match: 'all' })).toMatchObject({
+      mode: 'literal',
+      patterns: ['token', 'todo'],
+      match: 'all'
+    });
+
+    expect(() => grepFilesTool.argsSchema.parse({ query: 'token', patterns: ['todo'] })).toThrow(
+      'Provide exactly one of query or patterns.'
+    );
+    expect(() => grepFilesTool.argsSchema.parse({ mode: 'regex', patterns: ['todo'] })).toThrow(
+      'Regex mode only supports query, not patterns.'
+    );
+    expect(() => grepFilesTool.argsSchema.parse({ query: 'token', match: 'all' })).toThrow(
+      'match is only supported with patterns.'
+    );
+  });
+});
+
 describe('grepFilesTool', () => {
   afterEach(async () => {
     while (createdRoots.length > 0) {
@@ -16,7 +37,7 @@ describe('grepFilesTool', () => {
     }
   });
 
-  it('redacts placeholder assignments and reports truncation counts', async () => {
+  it('redacts placeholder assignments for literal query mode and reports truncation counts', async () => {
     const root = await createWorkspace({
       'src/example.ts': [
         'const before = 1;',
@@ -29,10 +50,17 @@ describe('grepFilesTool', () => {
     });
 
     const result = await grepFilesTool.run(
-      { pattern: 'token', glob: '**/*.ts', maxResults: 1, caseSensitive: false, context: 1 },
+      { mode: 'literal', query: 'token', match: 'any', glob: '**/*.ts', maxResults: 1, caseSensitive: false, context: 1 },
       { config: makeConfig(root), logger: noOpLogger }
     );
 
+    expect(result.modeUsed).toBe('literal');
+    expect(['rg', 'node-fallback']).toContain(result.engine);
+    expect(result.interpretedAs).toEqual({
+      query: 'token',
+      patterns: null,
+      match: null
+    });
     expect(result.totalMatches).toBe(2);
     expect(result.returnedMatches).toBe(1);
     expect(result.truncated).toBe(true);
@@ -44,7 +72,63 @@ describe('grepFilesTool', () => {
       after: ['const middle = 2;']
     });
     expect(result.warnings).toContain('Potential secret-like content was redacted.');
-    expect(result.warnings).toContain('Result limit reached. Narrow pattern, glob, or context.');
+    expect(result.warnings).toContain('Result limit reached. Narrow query, patterns, glob, or context.');
+  });
+
+  it('supports literal multi-pattern all-match semantics at file scope', async () => {
+    const root = await createWorkspace({
+      'src/qualified.ts': [
+        'const token = getToken();',
+        'const mode = "strict";',
+        'const todo = "ship it";'
+      ].join('\n'),
+      'src/partial.ts': 'const token = getToken();'
+    });
+
+    const result = await grepFilesTool.run(
+      { mode: 'literal', patterns: ['token', 'todo'], match: 'all', glob: '**/*.ts', maxResults: 10, caseSensitive: false, context: 0 },
+      { config: makeConfig(root), logger: noOpLogger }
+    );
+
+    expect(result.modeUsed).toBe('literal');
+    expect(result.interpretedAs).toEqual({
+      query: null,
+      patterns: ['token', 'todo'],
+      match: 'all'
+    });
+    expect(result.totalMatches).toBe(2);
+    expect(result.matches.map((item) => `${item.path}:${item.line}`)).toEqual([
+      'src/qualified.ts:1',
+      'src/qualified.ts:3'
+    ]);
+  });
+
+  it('supports regex query mode without relying on literal alternation parsing', async () => {
+    const root = await createWorkspace({
+      'docs/example.md': [
+        'gateway exposes CORS checks',
+        'bridge can call write_file manually',
+        'run_task stays out of scope'
+      ].join('\n')
+    });
+
+    const result = await grepFilesTool.run(
+      { mode: 'regex', query: 'CORS|write_file', match: 'any', glob: '**/*.md', maxResults: 10, caseSensitive: true, context: 0 },
+      { config: makeConfig(root), logger: noOpLogger }
+    );
+
+    expect(result.modeUsed).toBe('regex');
+    expect(result.engine).toBe('node-fallback');
+    expect(result.interpretedAs).toEqual({
+      query: 'CORS|write_file',
+      patterns: null,
+      match: null
+    });
+    expect(result.totalMatches).toBe(2);
+    expect(result.matches.map((item) => item.text)).toEqual([
+      'gateway exposes CORS checks',
+      'bridge can call write_file manually'
+    ]);
   });
 
   it('blocks high-confidence secrets instead of returning redacted grep output', async () => {
@@ -54,7 +138,7 @@ describe('grepFilesTool', () => {
 
     await expect(
       grepFilesTool.run(
-        { pattern: 'api_key', glob: '**/*.ts', maxResults: 10, caseSensitive: false, context: 0 },
+        { mode: 'literal', query: 'api_key', match: 'any', glob: '**/*.ts', maxResults: 10, caseSensitive: false, context: 0 },
         { config: makeConfig(root), logger: noOpLogger }
       )
     ).rejects.toMatchObject({

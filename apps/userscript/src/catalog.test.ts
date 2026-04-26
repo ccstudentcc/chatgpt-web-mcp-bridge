@@ -5,8 +5,8 @@ import { buildToolCatalogPrompt, summarizeToolCatalog } from './catalog.js';
 describe('summarizeToolCatalog', () => {
   it('counts enabled and disabled tools', () => {
     expect(summarizeToolCatalog(createTools())).toEqual({
-      total: 3,
-      enabled: 2,
+      total: 4,
+      enabled: 3,
       disabled: 1
     });
   });
@@ -20,6 +20,8 @@ describe('buildToolCatalogPrompt', () => {
     expect(prompt).toContain('```mcp');
     expect(prompt).toContain('"tool": "mcp_list"');
     expect(prompt).toContain('"tool": "read_file"');
+    expect(prompt).toContain('`grep_files` defaults to literal search');
+    expect(prompt).toContain('do not put `a|b|c` into a literal `query` and expect alternation');
     expect(prompt).toContain('Currently disabled tools (do not call): run_pwsh');
   });
 });
@@ -43,6 +45,15 @@ function createTools(): ToolDescriptor[] {
       requiresConfirmation: false,
       enabled: true,
       exampleArgs: { path: 'README.md' }
+    },
+    {
+      name: 'grep_files',
+      title: 'Grep files',
+      description: 'Search file content.',
+      risk: 'low',
+      requiresConfirmation: false,
+      enabled: true,
+      exampleArgs: { query: 'workspaceRoot', glob: '**/*.{ts,md}' }
     },
     {
       name: 'run_pwsh',

@@ -28,6 +28,9 @@
 - `search_files` now preserves its case-insensitive path-substring semantics while using `rg` for candidate prefilter when available and falling back to the Node walker if `rg` is missing or fails.
 - `read_file` now blocks only high-confidence secret material and otherwise returns redacted content for lower-confidence assignment-style patterns such as `token = ...` or `api_key = ...`, avoiding full-file rejection during code review.
 - `grep_files` now follows the same two-tier sensitive-content policy as `read_file`: high-confidence secrets block the response, while lower-confidence assignment-style patterns are redacted inline.
+- `grep_files` now uses an explicit search contract: default `mode=literal` with either `query` or `patterns[]`, optional `mode=regex`, file-scope `match=all` for literal multi-pattern searches, and `engine` / `interpretedAs` metadata so zero-match results stay explainable.
+- `grep_files` literal mode now uses `rg` only as a candidate-file prefilter when available; Node still owns final line matching, context assembly, secret handling, and truncation so `rg` availability cannot silently change the result contract.
+- The injected userscript tool-catalog prompt now teaches the `grep_files` split explicitly: use `query` for one literal term, `patterns[]` for multiple literal terms, and `mode: "regex"` only when regex semantics are intentional.
 - Single-tool failures now clear the pending item after result generation, preventing later gateway refreshes from re-running the same failed call implicitly.
 - `mcp_list` now returns the full live gateway catalog including `mcp_list` itself, so its totals align with `/tools` and the injected MCP prompt.
 - Gateway `/health` now exposes `maxToolRounds`, and the userscript now enforces that automatic tool-round guard per detected user request while leaving manual `Run` / `Run All` available.
@@ -54,6 +57,11 @@
 - `pnpm --filter @cwmb/shared test` now covers the split between blocking secrets and redaction-only assignment patterns.
 - `pnpm --filter @cwmb/gateway test` now succeeds with 9 passing files and 23 passing tests, including `read_file` coverage for redacted placeholder assignments versus blocked high-confidence secrets.
 - `pnpm --filter @cwmb/gateway test` now also covers `grep_files` with the same split: placeholder assignments are redacted in results, while high-confidence secrets raise `SENSITIVE_CONTENT_BLOCKED`.
+- `pnpm --filter @cwmb/gateway lint` succeeded again after the `grep_files` contract change to `query` / `patterns[]` / `regex`.
+- `pnpm --filter @cwmb/gateway test` now succeeds with 9 passing files and 27 passing tests, including `grep_files` schema validation, literal multi-pattern `match=all`, explicit regex mode, and the fixed `rg` candidate-file path handling.
+- `pnpm --filter @cwmb/userscript test` now succeeds with 8 passing files and 32 passing tests after syncing MCP examples from `grep_files.pattern` to `grep_files.query`.
+- `pnpm --filter @cwmb/userscript test` succeeded again after adding the prompt-level `grep_files` usage guidance.
+- `pnpm --filter @cwmb/userscript build` succeeded again after the catalog prompt update.
 - `pnpm --filter @cwmb/userscript test` now covers manual-only gating for high-risk or confirmation-required tools.
 - `pnpm -r lint` succeeded.
 - `pnpm -r test` succeeded across protocol, shared, gateway, and userscript.
