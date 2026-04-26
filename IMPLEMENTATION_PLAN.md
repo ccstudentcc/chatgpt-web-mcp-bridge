@@ -1,32 +1,33 @@
 # Implementation Plan
 
-## Stage 1: Control Surface And Repo Policy
+## Stage 1: Contract And Gap Review
 
 Status: completed
 
-- Add `.gitattributes` for LF normalization.
-- Add `tmp/` to `.gitignore`.
-- Create task control docs for this PRD-driven phase.
+- Re-read the PRD sections covering multi-block detection, result insertion, and userscript UI states.
+- Confirm that the repo still only executed `state.pending[0]`, so the approved batch flow was a real implementation gap.
+- Keep the single-tool path unchanged and scope the change to same-reply multi-block handling.
 
-## Stage 2: Gateway Read-Only Tool Completion
-
-Status: completed
-
-- Implement `apps/gateway/src/tools/search-files.ts`.
-- Update `apps/gateway/src/tools/grep-files.ts` to support `glob`, explicit result counts, and clearer truncation metadata.
-- Keep the existing disabled placeholders for write and shell tools unchanged.
-
-## Stage 3: Validation
+## Stage 2: Userscript Batch Implementation
 
 Status: completed
 
-- Add focused Vitest coverage for `search_files` and `grep_files`.
-- Run the smallest relevant tests first.
-- If workspace sandboxing blocks `pnpm`, rerun validation with escalation and record that boundary in `TASK_STATUS.md`.
+- Add a pure batch execution module to compute `batchId`, execute tool calls in order, stop on failure, and build a `tool_result_batch` payload.
+- Extend userscript state and UI for batch detection, progress display, and final batch insertion.
+- Wire scan, `Run All`, ignore, and de-duplication behavior into `chatgpt-mcp-bridge.user.ts`.
+- Reuse the existing insertion path while adding a dedicated batch formatter.
+
+## Stage 3: Verification
+
+Status: completed
+
+- Build `@cwmb/protocol` so its workspace entrypoints exist for userscript validation.
+- Run `pnpm --filter @cwmb/userscript lint`.
+- Run `pnpm --filter @cwmb/userscript test`.
+- Run `pnpm --filter @cwmb/userscript build`.
 
 ## Risks
 
-- `rg` may not exist on every Windows machine, so fallback behavior must stay correct.
-- Search results can grow quickly, so truncation metadata needs to remain explicit.
-- Secret-like content can surface through grep matches, so redaction behavior must remain intact.
-- App-level checks currently assume `@cwmb/shared` and `@cwmb/protocol` have been built first so their `dist/` entrypoints exist.
+- The userscript still infers message identity from DOM attributes or text snapshots, so ChatGPT DOM changes could affect batch de-duplication quality.
+- Batch stop-on-failure now exists only in the userscript layer; gateway responses remain single-tool shaped by design.
+- Future UI work may want a visible retry path for stopped batches, but that is intentionally out of scope for this slice.

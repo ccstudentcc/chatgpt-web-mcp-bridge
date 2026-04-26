@@ -8,6 +8,20 @@ describe('parseMcpBlocks', () => {
     expect(result.blocks[0]?.block.tool).toBe('read_file');
   });
 
+  it('preserves block order when multiple mcp blocks appear in the same reply', async () => {
+    const result = await parseMcpBlocks([
+      '```mcp',
+      '{"tool":"read_file","args":{"path":"README.md"}}',
+      '```',
+      '',
+      '```mcp',
+      '{"tool":"grep_files","args":{"pattern":"todo"}}',
+      '```'
+    ].join('\n'));
+
+    expect(result.blocks.map((block) => block.block.tool)).toEqual(['read_file', 'grep_files']);
+  });
+
   it('reports invalid json', async () => {
     const result = await parseMcpBlocks('```mcp\n{"tool":\n```');
     expect(result.blocks).toHaveLength(0);

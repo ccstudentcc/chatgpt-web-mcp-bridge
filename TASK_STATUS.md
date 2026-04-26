@@ -2,28 +2,25 @@
 
 ## Current Truth
 
-- The repo already has a working scaffold for the v0.1 gateway, protocol package, and Tampermonkey userscript.
-- `.gitattributes` now fixes repo text files to LF, and `.gitignore` now excludes `tmp/`.
-- `search_files` is implemented with an `rg`-first path listing strategy and a Node fallback.
-- `grep_files` now supports `glob`, context lines, secret redaction, and explicit `totalMatches` / `returnedMatches` / `truncated` metadata.
-- Userscript tool calls now surface `UNAUTHORIZED` as a UI status and add an explicit truncation summary before inserting oversized tool results.
+- The repo now implements same-reply multi-block batch handling in the Tampermonkey userscript.
+- Single-tool execution remains intact; batch mode activates only when the latest assistant reply contains two or more valid `mcp` blocks.
+- Batch mode provides one `Run All` entrypoint, executes tool calls serially in original order, stops on the first failure, and inserts one final `tool_result_batch` payload.
+- The userscript now tracks batch progress, batch de-duplication, and batch-specific UI states without changing gateway behavior.
 
 ## Latest Verified Evidence
 
-- `git ls-files --eol README.md package.json apps/gateway/src/index.ts apps/userscript/src/ui.ts docs/prd.md` showed `i/lf w/lf` before adding `.gitattributes`, and the new policy now preserves that line-ending choice.
-- `pnpm --filter @cwmb/shared build` succeeded.
-- `pnpm --filter @cwmb/protocol build` succeeded.
-- `pnpm --filter @cwmb/gateway lint` succeeded.
+- `pnpm --filter @cwmb/protocol build` succeeded, providing the workspace entrypoints required by userscript validation.
 - `pnpm --filter @cwmb/userscript lint` succeeded.
-- `pnpm --filter @cwmb/gateway test -- src/tools/search-files.test.ts src/tools/grep-files.test.ts` succeeded with 3 passing tests.
-- `pnpm --filter @cwmb/gateway build` succeeded.
-- `pnpm --filter @cwmb/userscript build` succeeded after rerunning outside the sandbox because the sandbox blocked the `esbuild` child process with `spawn EPERM`.
+- `pnpm --filter @cwmb/userscript test` succeeded with 3 passing files and 7 passing tests.
+- `pnpm --filter @cwmb/userscript build` succeeded and regenerated `apps/userscript/dist/chatgpt-mcp-bridge.user.js`.
+- New focused coverage exists for parser ordering, batch stop-on-failure behavior, and batch result formatting.
 
 ## Next Step
 
-- Continue the PRD sequence from the next v0.1 gap, likely `/tools`-driven userscript capability awareness or the remaining settings / status-panel polish.
-- If app-level checks are run from a clean clone, build `@cwmb/shared` and `@cwmb/protocol` before validating `gateway` or `userscript`.
+- Manually exercise the userscript in ChatGPT Web to confirm the batch UI and insertion flow feel correct against the live DOM.
+- If the next slice stays in userscript, consider adding an explicit retry path for stopped batches and richer batch argument previews in the panel.
 
 ## Caveats
 
-- App package imports currently resolve through workspace package `dist/` entrypoints, so clean-environment validation depends on building `packages/shared` and `packages/protocol` first.
+- This slice did not add browser-driven end-to-end validation; verification is currently lint, unit tests, and userscript build.
+- Userscript validation still depends on building `@cwmb/protocol` first because workspace packages resolve through their `dist/` entrypoints.

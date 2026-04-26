@@ -31,16 +31,25 @@ export function renderPanel(): void {
   }
 
   const pending = state.pending[0];
+  const isBatch = state.pending.length > 1 && Boolean(state.pendingBatchId);
+  const pendingList = isBatch
+    ? `<ol style="margin:8px 0 0 18px;padding:0">${state.pending
+        .map((item) => `<li><code>${escapeHtml(item.block.tool)}</code></li>`)
+        .join('')}</ol>`
+    : '';
+  const progress = state.progress ? `<div>Progress: Running ${state.progress.current}/${state.progress.total}: <code>${escapeHtml(state.progress.tool)}</code></div>` : '';
   root.innerHTML = `
     <strong>ChatGPT MCP Bridge</strong>
     <div>Status: ${escapeHtml(state.status)}</div>
     <div>Gateway: ${escapeHtml(state.baseUrl)}</div>
     <div>Token: ${state.token ? 'set' : 'missing'}</div>
-    ${pending ? `<div>Detected: <code>${escapeHtml(pending.block.tool)}</code></div>` : ''}
+    ${pending ? `<div>${isBatch ? `Detected batch: ${state.pending.length} tools` : `Detected: <code>${escapeHtml(pending.block.tool)}</code>`}</div>` : ''}
+    ${pendingList}
+    ${progress}
     ${state.lastError ? `<div style="color:#a40000">${escapeHtml(state.lastError)}</div>` : ''}
     <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
       <button data-cwmb="token">Set token</button>
-      ${pending ? '<button data-cwmb="run">Run</button><button data-cwmb="ignore">Ignore</button><button data-cwmb="copy-json">Copy JSON</button>' : ''}
+      ${pending ? `<button data-cwmb="run">${isBatch ? 'Run All' : 'Run'}</button><button data-cwmb="ignore">${isBatch ? 'Ignore batch' : 'Ignore'}</button><button data-cwmb="copy-json">${isBatch ? 'Copy first JSON' : 'Copy JSON'}</button>` : ''}
       ${state.lastResult ? '<button data-cwmb="copy-result">Copy result</button>' : ''}
     </div>
   `;

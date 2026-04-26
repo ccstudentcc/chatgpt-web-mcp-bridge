@@ -287,11 +287,41 @@ v0.1 不做自动多轮 agent loop。浏览器端可以自动检测工具调用�
 - 不因为第一个工具成功而自动执行下一个工具。
 - 同一 callId 在当前页面会话中只允许执行一次。
 
+同一条 assistant 回复中如果出现两个或以上合法 `mcp` block，v0.1 还必须定义明确的 batch 路径：
+
+- 浮层进入 batch 模式，主操作改为 `Run All`。
+- batch 内 block 顺序按 assistant 回复中的出现顺序固定。
+- `Run All` 触发后按顺序串行执行，任意时刻最多只允许一个 in-flight 工具调用。
+- 任一 block 失败后立即停止后续执行，不再继续调用剩余 block。
+- 已成功项先缓存在本地 batch accumulator 中，不逐条插入输入框。
+- 整个 batch 结束后只回填一次批量结果，且必须同时包含已完成、失败、未执行三类项。
+- 同一 batch 除了保留单项 `callId` 去重外，还必须生成 `batchId` 做整批去重。
+
+### Batch 标识
+
+batch 路径必须显式生成 `batchId`，用于 DOM 重渲染防重入、UI 状态关联和日志归并。推荐规则：
+
+```text
+batchId = sha256(messageIdentity + normalizedRawMcpBlocksInOrder)
+```
+
+其中：
+
+- `messageIdentity` 优先取当前 assistant 消息的稳定 DOM 标识；取不到时可降级为消息文本快照摘要。
+- `normalizedRawMcpBlocksInOrder` 表示按原始出现顺序拼接后的标准化 `mcp` block 内容。
+
 ### 工具循环规则
 
 工具结果插入输入框后，系统不会自动点击发送按钮。用户手动发送结果后，如果 ChatGPT 再次输出新的 `mcp` block，才进入下一轮检测。
 
 `maxToolRounds` 只限制同一用户任务上下文中的工具调用轮次上限，不代表允许无人值守连续执行。达到上限后，userscript 应提示用户需要手动确认是否继续。
+
+对 batch 路径补充以下规则：
+
+- userscript 只有在当前 assistant 回复稳定、且完整解析出全部合法 block 后，才允许显示 `Run All`。
+- batch 执行过程中不允许提前把局部结果插入输入框。
+- batch 因失败而提前停止时，剩余未执行 block 必须统一标记为 `skipped`，原因固定为 `SKIPPED_AFTER_BATCH_FAILURE`。
+- batch 结束后只生成一次可插入内容；用户手动发送该批量结果后，下一轮 assistant 回复才进入新的检测周期。
 
 ### 禁止行为
 
@@ -299,6 +329,9 @@ v0.1 不做自动多轮 agent loop。浏览器端可以自动检测工具调用�
 - 不从用户消息、历史消息、网页粘贴内容中自动执行 `mcp` block。
 - 不把 tool result 中出现的 `mcp` block 当作新的可执行工具调用。
 - 不在一次 DOM 重渲染中重复执行同一 block。
+- 不在一次 DOM 重渲染中重复执行同一 batch。
+- 不在 batch 模式下并发执行多个工具调用。
+- 不在 batch 进行到一半时先插入部分成功结果，再继续执行剩余 block。
 
 ---
 
@@ -1046,11 +1079,26 @@ node dist/server.js
 
 ## 10.2 多工具调用
 
-v0.1 可以解析同一条 assistant 回复中的多个 `mcp` block，但执行策略必须保守：默认只把多个 block 放入待执行队列，不自动并发执行，也不在一个工具成功后自动执行下一个工具。
+v0.1 可以解析同一条 assistant 回复中的多个 `mcp` block，但执行策略必须保守，并且要把“同一回复多 block”与“多轮 agent loop”明确区分开。
 
-队列展示顺序按 block 在回复中的出现顺序排列。用户点击 Run 时一次只执行一个 block。每个 block 通过 `callId = sha256(normalizedRawMcpBlock)` 去重，同一页面会话中同一 callId 不重复执行。
+- 多 block 仅表示同一条 assistant 回复里同时给出了多个工具调用，不代表允许无人值守地跨多轮连续调用工具。
+- 当合法 block 数量为 1 时，沿用单工具执行和单条 `tool_result` 回填。
+- 当合法 block 数量大于等于 2 时，userscript 进入 batch 模式，显示 `Run All` 作为主入口。
+- `Run All` 后按 block 原始顺序串行执行，不并发、不乱序、不自动重试。
+- 任一 block 失败后立即停止后续执行，并把未执行项标记为 `skipped`。
+- 整个 batch 结束后只回填一次批量结果，不在中间插入部分成功项。
+
+标识规则：
+
+- 每个 block 仍然通过 `callId = sha256(normalizedRawMcpBlock)` 去重。
+- 同一 batch 额外生成 `batchId = sha256(messageIdentity + normalizedRawMcpBlocksInOrder)`。
+- 同一页面会话中同一 `callId` 不重复执行，同一 `batchId` 也不重复执行。
 
 ## 10.3 工具结果格式
+
+### 10.3.1 单工具结果
+
+单工具路径继续使用现有 `tool_result`：
 
 ````markdown
 ```tool_result
@@ -1064,6 +1112,68 @@ v0.1 可以解析同一条 assistant 回复中的多个 `mcp` block，但执行�
 }
 ```
 ````
+
+### 10.3.2 Batch 结果
+
+同一条 assistant 回复中的多个 block 通过 `Run All` 执行后，必须统一回填 `tool_result_batch`：
+
+````markdown
+```tool_result_batch
+{
+  "type": "tool_result_batch",
+  "ok": false,
+  "batchId": "sha256(...)",
+  "source": {
+    "messageId": "assistant-message-id-if-available"
+  },
+  "summary": {
+    "total": 3,
+    "completed": 1,
+    "failed": 1,
+    "skipped": 1,
+    "stoppedOnFailure": true
+  },
+  "items": [
+    {
+      "index": 0,
+      "tool": "read_file",
+      "callId": "aaa",
+      "ok": true,
+      "result": {
+        "path": "README.md",
+        "content": "..."
+      }
+    },
+    {
+      "index": 1,
+      "tool": "grep_files",
+      "callId": "bbb",
+      "ok": false,
+      "error": {
+        "code": "PATH_OUTSIDE_WORKSPACE",
+        "message": "..."
+      }
+    },
+    {
+      "index": 2,
+      "tool": "list_directory",
+      "callId": "ccc",
+      "status": "skipped",
+      "reason": "SKIPPED_AFTER_BATCH_FAILURE"
+    }
+  ]
+}
+```
+````
+
+约束：
+
+- `items` 必须保持与原始 `mcp` block 相同的顺序。
+- 外层 `ok` 表示整批是否完全成功；只要有一项失败就为 `false`。
+- 已成功项使用 `ok: true` + `result`。
+- 失败项使用 `ok: false` + `error`。
+- 未执行项必须显式标记为 `status: "skipped"`，不能伪装成失败或空结果。
+- 回填文本要在 JSON 前增加一段简短摘要，明确这是同一条 assistant 回复中的批量工具结果。
 
 ## 10.4 错误格式
 
@@ -3595,6 +3705,13 @@ Gateway: connected / disconnected
 Detected: read_file
 Risk: low
 [Run] [Copy] [Ignore]
+
+Batch mode example:
+3 tools detected in this reply
+1. read_file README.md
+2. grep_files post.json.tags
+3. list_directory docs
+[Run All] [Copy first JSON] [Ignore batch]
 ```
 
 ### 验收标准
@@ -3603,6 +3720,9 @@ Risk: low
 - 可显示当前工具名。
 - 点击 Run 能触发工具调用。
 - 点击 Ignore 后不再提示同一 callId。
+- 同一条 assistant 回复中存在多个合法 block 时，浮层进入 batch 模式并显示 `Run All`。
+- batch 模式下能显示当前进度，例如 `Running 2/3: grep_files`。
+- batch 因失败停止时，浮层明确提示后续调用已停止。
 
 ---
 
@@ -3653,6 +3773,9 @@ apps/userscript/src/dom.ts
 - 支持 contenteditable。
 - 触发 input 事件。
 - 失败时复制到剪贴板。
+- 单工具路径继续回填单个 `tool_result`。
+- batch 路径只在整批结束后统一回填一次 `tool_result_batch`。
+- batch 回填前要先插入一段稳定摘要，说明这是同一条 assistant 回复中的多工具批处理结果。
 
 ### 插入模板
 
@@ -3666,11 +3789,30 @@ Tool result for `read_file`:
 Please continue based on this tool result.
 ````
 
+batch 路径推荐模板：
+
+````markdown
+Batch tool results for one assistant reply:
+- total: 3
+- completed: 1
+- failed: 1
+- skipped: 1
+- stoppedOnFailure: true
+
+```tool_result_batch
+{...}
+```
+
+Please continue based on the batch tool results above.
+````
+
 ### 验收标准
 
 - 执行成功后结果能进入输入框。
 - 默认不自动发送。
 - 插入失败时可以复制结果。
+- batch 执行过程中输入框不会提前插入局部结果。
+- batch 全部完成或停止后，只插入一次批量结果。
 
 ---
 
@@ -3752,6 +3894,7 @@ apps/userscript/src/parser.test.ts
 
 - 单 block
 - 多 block
+- 同一文本中的多个 block 保持原始顺序
 - 非法 JSON
 - 缺失 tool
 - 空 args 默认值
@@ -5142,6 +5285,23 @@ interface InsertableToolResult {
   truncatedForInsert: boolean;
   originalSizeChars?: number;
 }
+
+interface InsertableToolBatchResult {
+  type: 'tool_result_batch';
+  ok: boolean;
+  batchId: string;
+  summary: {
+    total: number;
+    completed: number;
+    failed: number;
+    skipped: number;
+    stoppedOnFailure: boolean;
+  };
+  items: unknown[];
+  warnings: string[];
+  truncatedForInsert: boolean;
+  originalSizeChars?: number;
+}
 ```
 
 默认策略：
@@ -5150,6 +5310,8 @@ interface InsertableToolResult {
 - Userscript 插入输入框前按 `maxInsertedChars` 再截断。
 - 截断时保留路径、命中数量、前后文摘要和 warnings。
 - 如果命中疑似 secret，优先返回脱敏片段或拒绝返回完整内容。
+- batch 路径的截断与插入必须按整批结果整体计算，只允许生成一次最终可插入内容。
+- batch 被截断时，必须优先保留 `summary`、失败项、以及每个 item 的最小状态字段，成功项内容可以优先做摘要化裁剪。
 
 ## D.5 Userscript UI 状态显示要求
 
@@ -5161,12 +5323,23 @@ interface InsertableToolResult {
 | `unauthorized` | token 缺失或错误 | Set token / Retry |
 | `idle` | 未检测到工具调用 | 无 |
 | `detected` | 检测到待执行工具 | Run / Copy JSON / Ignore |
+| `detected_batch` | 同一条 assistant 回复中检测到多个待执行工具 | Run All / Copy first JSON / Ignore batch |
 | `executing` | 正在执行工具 | Cancel display only，v0.1 可不真正取消请求 |
+| `batch_executing` | 正在串行执行 batch | 仅显示当前进度，v0.1 不要求真实取消 |
+| `batch_stopped_on_failure` | batch 因某个工具失败而提前停止 | Copy result / Retry whole batch |
 | `result_ready` | 工具结果已返回 | Insert / Copy result |
+| `batch_result_ready` | 批量工具结果已汇总完成 | Insert / Copy result |
 | `inserted` | 已插入输入框 | 提示用户手动发送 |
+| `batch_inserted` | 批量结果已插入输入框 | 提示用户手动发送 |
 | `failed` | 执行失败 | Copy error / Retry |
 
 v0.1 不需要复杂设置页，但 token、Gateway base URL、autoInsertResult 至少需要可配置。
+
+batch 模式下还必须满足：
+
+- 面板能显示 `N tools detected in this reply` 类摘要。
+- 执行过程中能显示 `Running 2/3: grep_files` 这类进度。
+- 失败停止时必须明确提示“后续调用已停止”，避免用户误以为剩余项仍会自动执行。
 
 ## D.6 README 必须警告的内容
 
@@ -5191,6 +5364,8 @@ README 前部必须明确写出：
 - token 缺失访问 `/call-tool` 被拒绝。
 - Gateway 只监听 `127.0.0.1`。
 - 工具结果插入后不会自动发送。
+- 同一条 assistant 回复中的多 block 能通过一次 `Run All` 串行执行并只回填一次批量结果。
+- batch 第 N 项失败时，第 N+1 项及后续项不会执行，且会在批量结果中标记为 `skipped`。
 - 日志不包含完整文件内容。
 - README 中的第一条示例可复现。
 

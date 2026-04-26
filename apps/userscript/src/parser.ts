@@ -1,4 +1,5 @@
 import { McpBlockSchema, type McpBlock } from '@cwmb/protocol';
+import { sha256Normalized } from './hash.js';
 
 export interface ParsedMcpBlock {
   block: McpBlock;
@@ -23,17 +24,11 @@ export async function parseMcpBlocks(text: string): Promise<ParseResult> {
     try {
       const json = JSON.parse(rawJson) as unknown;
       const block = McpBlockSchema.parse(json);
-      blocks.push({ block, raw: rawJson, callId: await sha256(rawJson) });
+      blocks.push({ block, raw: rawJson, callId: await sha256Normalized(rawJson) });
     } catch (err) {
       errors.push(err instanceof Error ? err.message : 'Invalid mcp block.');
     }
   }
 
   return { blocks, errors };
-}
-
-async function sha256(input: string): Promise<string> {
-  const bytes = new TextEncoder().encode(input.replace(/\r\n/g, '\n').trim());
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }

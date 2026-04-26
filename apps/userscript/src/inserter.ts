@@ -1,3 +1,5 @@
+import type { ToolResultBatch } from './batch.js';
+
 export function insertIntoChatInput(value: string): boolean {
   const textarea = document.querySelector('textarea') as HTMLTextAreaElement | null;
   if (textarea) {
@@ -28,6 +30,27 @@ export function formatToolResult(tool: string, response: unknown): string {
   }
 
   lines.push('', '```tool_result', JSON.stringify(response, null, 2), '```', '', 'Please continue based on this tool result.');
+  return lines.join('\n');
+}
+
+export function formatBatchToolResult(response: ToolResultBatch): string {
+  const lines = [
+    'Batch tool results for one assistant reply:',
+    `- total: ${response.summary.total}`,
+    `- completed: ${response.summary.completed}`,
+    `- failed: ${response.summary.failed}`,
+    `- skipped: ${response.summary.skipped}`,
+    `- stoppedOnFailure: ${response.summary.stoppedOnFailure}`
+  ];
+
+  if (response.warnings.length > 0) {
+    lines.push('', 'Warnings:');
+    for (const warning of response.warnings) {
+      lines.push(`- ${warning}`);
+    }
+  }
+
+  lines.push('', '```tool_result_batch', JSON.stringify(response, null, 2), '```', '', 'Please continue based on the batch tool results above.');
   return lines.join('\n');
 }
 
