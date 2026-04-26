@@ -65,7 +65,7 @@ ChatGPT Web MCP Bridge 让 ChatGPT 网页端通过结构化 `mcp` JSON block 请
 
 #### 场景 C：先发现工具再调用
 
-模型在会话初期先通过 live MCP catalog prompt 或 `mcp_list` 知道当前有哪些工具、示例参数是什么，再决定调用哪个工具。
+模型在用户发送消息时通过 userscript 的请求层 live MCP catalog 注入知道当前有哪些工具、示例参数是什么，再决定调用哪个工具。
 
 #### 场景 D：后续扩展
 
@@ -77,7 +77,7 @@ ChatGPT Web MCP Bridge 让 ChatGPT 网页端通过结构化 `mcp` JSON block 请
 
 ### 4.1 ChatGPT Web Only
 
-v0.1 只为 ChatGPT Web 适配。DOM 选择器、结果回填、发送按钮检测、工具说明注入都以 ChatGPT 当前页面为唯一目标。
+v0.1 只为 ChatGPT Web 适配。DOM 选择器、结果回填、发送按钮检测、以及对 ChatGPT 会话请求体的工具提示注入都以当前网页实现为唯一目标。
 
 ### 4.2 安全默认值保守
 
@@ -113,13 +113,14 @@ Workspace files / optional future tools
 ### 5.1 ChatGPT Web
 
 - 承载会话
-- 接收 userscript 注入的 MCP catalog prompt
+- 接收 userscript 在出站会话请求中透明注入的 MCP catalog prompt
 - 输出 `mcp` JSON block
 
 ### 5.2 Userscript
 
 - 拉取 `/health` 与 `/tools`
 - 构建 live MCP catalog prompt
+- 在 ChatGPT 出站会话请求发出前透明注入 prompt
 - 监听 assistant 回复中的 `mcp` block
 - 执行 enabled 工具
 - 回填结果
@@ -142,7 +143,7 @@ Workspace files / optional future tools
 
 ### 6.2 Live MCP Catalog Prompt
 
-userscript 基于 `/tools` 动态生成一份可插入或复制的 catalog prompt，至少包含：
+userscript 基于 `/tools` 动态生成一份 live catalog prompt，并在 ChatGPT 会话请求发出前透明注入；面板里的复制/插入按钮只作为诊断和兜底。prompt 至少包含：
 
 - 当前 enabled 工具列表
 - 每个工具的名称、说明、风险等级
@@ -150,7 +151,14 @@ userscript 基于 `/tools` 动态生成一份可插入或复制的 catalog promp
 - `mcp_list` 的示例调用
 - 基本规则：只用相对 `workspaceRoot` 路径、只调用 enabled 工具、可一次输出多个 `mcp` block
 
-### 6.3 `mcp_list`
+### 6.3 注入策略
+
+- 默认策略是请求层透明注入，而不是把 catalog 作为一条可见消息塞进聊天框。
+- 只匹配 ChatGPT 会话请求接口，不改写其他页面请求。
+- 每次用户发送消息时都可重新注入 live catalog，避免工具目录、开关状态或 enabled 状态变化后模型拿到旧信息。
+- 如果请求体结构无法识别，允许退回面板复制/插入 catalog 的手动路径。
+
+### 6.4 `mcp_list`
 
 Gateway 必须提供低风险只读工具 `mcp_list`，作用是：
 
@@ -158,7 +166,7 @@ Gateway 必须提供低风险只读工具 `mcp_list`，作用是：
 - 让模型看到当前工具的 `enabled` 状态
 - 让模型拿到每个工具的 `exampleArgs`
 
-### 6.4 输出格式
+### 6.5 输出格式
 
 统一使用 fenced `mcp` JSON block：
 

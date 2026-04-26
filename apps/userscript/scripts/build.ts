@@ -13,6 +13,7 @@ const banner = `// ==UserScript==
 // @grant        GM_setClipboard
 // @connect      127.0.0.1
 // @connect      localhost
+// @run-at       document-start
 // ==/UserScript==
 `;
 

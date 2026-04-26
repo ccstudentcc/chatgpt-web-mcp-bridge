@@ -8,8 +8,11 @@ import { extractVisibleText, findLatestAssistantMessage, onChatMutation } from '
 import { sha256Normalized } from './hash.js';
 import { formatBatchToolResult, formatToolResult, insertIntoChatInput, sendCurrentChatInput } from './inserter.js';
 import { parseMcpBlocks, parseRenderedMcpBlocks } from './parser.js';
+import { installPageRequestHook, syncRequestPrompt } from './request-hook.js';
 import { renderPanel, setUiHandlers } from './ui.js';
 import { applyAutomationSettings, type BridgeStatus, type StoredBatch, state } from './state.js';
+
+installPageRequestHook();
 
 async function refreshGatewayStatus(): Promise<void> {
   try {
@@ -26,11 +29,13 @@ async function refreshGatewayStatus(): Promise<void> {
       state.status = 'unauthorized';
       state.toolCatalogLoaded = false;
       state.tools = [];
+      syncRequestPrompt('');
       state.lastError = err instanceof Error ? err.message : 'Gateway authorization failed.';
     } else {
       state.status = 'disconnected';
       state.toolCatalogLoaded = false;
       state.tools = [];
+      syncRequestPrompt('');
       state.lastError = err instanceof Error ? err.message : 'Gateway disconnected';
     }
   }
@@ -318,21 +323,30 @@ async function refreshToolCatalog(): Promise<void> {
   const tools = await listTools();
   state.tools = tools;
   state.toolCatalogLoaded = true;
+  syncRequestPrompt(buildToolCatalogPrompt(tools));
 }
 
-setUiHandlers({
-  onRun: () => void runPending(),
-  onIgnore: ignorePending,
-  onRetry: () => void retryStoppedBatch(),
-  onInsert: () => void insertLastResult(),
-  onInsertCatalog: insertToolCatalog,
-  onConfigChanged: () => void refreshGatewayStatus()
-});
-renderPanel();
-void refreshGatewayStatus();
-void scanLatestAssistantMessage();
-onChatMutation(() => void scanLatestAssistantMessage());
-setInterval(() => {
+function startBridge(): void {
+  setUiHandlers({
+    onRun: () => void runPending(),
+    onIgnore: ignorePending,
+    onRetry: () => void retryStoppedBatch(),
+    onInsert: () => void insertLastResult(),
+    onInsertCatalog: insertToolCatalog,
+    onConfigChanged: () => void refreshGatewayStatus()
+  });
+  renderPanel();
   void refreshGatewayStatus();
   void scanLatestAssistantMessage();
-}, 30_000);
+  onChatMutation(() => void scanLatestAssistantMessage());
+  setInterval(() => {
+    void refreshGatewayStatus();
+    void scanLatestAssistantMessage();
+  }, 30_000);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startBridge, { once: true });
+} else {
+  startBridge();
+}

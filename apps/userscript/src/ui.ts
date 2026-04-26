@@ -96,7 +96,7 @@ export function renderPanel(): void {
     ${pendingList}
     ${progress}
     ${capabilityHint}
-    ${state.toolCatalogLoaded ? '<div style="color:#555">ChatGPT needs the MCP catalog once per conversation to know current tools.</div>' : ''}
+    ${state.toolCatalogLoaded ? '<div style="color:#555">Tool hints are injected into outgoing ChatGPT requests. Catalog buttons are fallback only.</div>' : ''}
     ${state.lastError ? `<div style="color:#a40000">${escapeHtml(state.lastError)}</div>` : ''}
     <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
       ${state.trustedLocalMode ? '' : '<button data-cwmb="token">Set token</button>'}
