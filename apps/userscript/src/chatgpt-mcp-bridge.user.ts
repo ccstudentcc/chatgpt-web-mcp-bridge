@@ -2,6 +2,8 @@ import { buildInjectedToolPrompt, buildToolCatalogPrompt } from './catalog.js';
 import { readStoredToolCatalog, writeStoredToolCatalog } from './catalog-cache.js';
 import { assessPendingTools } from './capabilities.js';
 import {
+  createExecutionErrorEnvelopeFromLegacyResponse,
+  createInlineToolResultEnvelopeFromLegacyResponse,
   createLegacyToolCallRequest,
   getExecuteResponseCompat,
   type BatchResultFailureItem,
@@ -182,6 +184,9 @@ async function runPending(): Promise<void> {
   try {
     const response = await callTool(request);
     const executeCompat = getExecuteResponseCompat(response);
+    const resultEnvelope = executeCompat?.result.type === 'inline_tool_result'
+      ? executeCompat.result
+      : createInlineToolResultEnvelopeFromLegacyResponse(response, pending.callId);
     state.executedCallIds.add(pending.callId);
     state.pending = state.pending.slice(1);
     state.pendingBatchId = undefined;
@@ -189,14 +194,18 @@ async function runPending(): Promise<void> {
     state.pendingRequestId = undefined;
     state.progress = undefined;
     state.retryableBatch = undefined;
-    state.lastResult = formatToolResult(pending.block.tool, response);
+    state.lastResult = formatToolResult(pending.block.tool, resultEnvelope);
     addLogEntry('success', `Tool completed: ${pending.block.tool}${executeCompat ? ` [${executeCompat.executionId}]` : ''}`);
     state.status = await deliverLastResult('single', 'result_ready', 'inserted', 'sent');
   } catch (err) {
     const errorCode = err && typeof err === 'object' && 'code' in err ? String((err as { code: unknown }).code) : '';
     const executeCompat = getExecuteResponseCompat(err);
+    const failure = failureFromError(pending.block.tool, err);
+    const resultEnvelope = executeCompat?.result.type === 'execution_error'
+      ? executeCompat.result
+      : createExecutionErrorEnvelopeFromLegacyResponse(failure);
     state.lastError = err instanceof Error ? err.message : 'Tool call failed';
-    state.lastResult = formatToolResult(pending.block.tool, failureFromError(pending.block.tool, err));
+    state.lastResult = formatToolResult(pending.block.tool, resultEnvelope);
     addLogEntry('error', `Tool failed: ${pending.block.tool}${executeCompat ? ` [${executeCompat.executionId}]` : ''} (${errorCode || 'INTERNAL_ERROR'})`);
     state.progress = undefined;
     state.retryableBatch = undefined;

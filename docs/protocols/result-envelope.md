@@ -26,7 +26,7 @@ Current repo truth requires `tool_result_batch` to remain a first-class result f
 
 Current implementation note:
 
-- `/call-tool` compatibility responses now attach either an inline tool-result envelope or an execution-error envelope under a nested `execute.result`, while userscript-delivered multi-call batches still use `tool_result_batch`.
+- `/call-tool` compatibility responses now attach either an inline tool-result envelope or an execution-error envelope under a nested `execute.result`, and userscript single-result insertion now formats that shared envelope shape instead of raw legacy single-call payloads.
 - The current `tool_result_batch` envelope is now also shared in `@cwmb/protocol`, including per-item success/failure/skipped variants and the compat `source.messageId` field still used by userscript result insertion.
 
 ## 3. Minimum Semantics

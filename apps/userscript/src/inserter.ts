@@ -1,4 +1,4 @@
-import type { BatchResultEnvelope } from '@cwmb/protocol';
+import type { BatchResultEnvelope, ExecutionErrorEnvelope, InlineToolResultEnvelope } from '@cwmb/protocol';
 import { chatgptSelectors, looksLikeChatGptSendButton } from './chatgpt-runtime-facts.js';
 
 export function insertIntoChatInput(value: string): boolean {
@@ -76,7 +76,7 @@ function findSendButton(): HTMLButtonElement | null {
   return null;
 }
 
-export function formatToolResult(tool: string, response: unknown): string {
+export function formatToolResult(tool: string, response: InlineToolResultEnvelope | ExecutionErrorEnvelope): string {
   const responseJson = JSON.stringify(response, null, 2);
   const lines = [
     `Bridge tool result for \`${tool}\`:`,
@@ -125,12 +125,12 @@ function chooseFence(content: string): string {
   return '`'.repeat(Math.max(3, longestBacktickRun + 1));
 }
 
-function buildTruncationSummary(tool: string, response: unknown): string | null {
-  if (!response || typeof response !== 'object' || !('result' in response)) {
+function buildTruncationSummary(tool: string, response: InlineToolResultEnvelope | ExecutionErrorEnvelope): string | null {
+  if (response.type !== 'inline_tool_result') {
     return null;
   }
 
-  const result = (response as { result?: unknown }).result;
+  const result = response.output;
   if (!result || typeof result !== 'object' || !('truncated' in result) || (result as { truncated?: unknown }).truncated !== true) {
     return null;
   }
@@ -142,7 +142,7 @@ function buildTruncationSummary(tool: string, response: unknown): string | null 
     lines.push(`Returned matches: ${returnedMatches} / ${totalMatches}`);
   }
 
-  const warnings = getWarnings(response);
+  const warnings = response.warnings ?? [];
   if (warnings.length > 0) {
     lines.push('Warnings:');
     for (const warning of warnings) {
@@ -160,15 +160,6 @@ function getNumberField(value: unknown, key: string): number | null {
 
   const field = (value as Record<string, unknown>)[key];
   return typeof field === 'number' ? field : null;
-}
-
-function getWarnings(response: unknown): string[] {
-  if (!response || typeof response !== 'object' || !('warnings' in response)) {
-    return [];
-  }
-
-  const warnings = (response as { warnings?: unknown }).warnings;
-  return Array.isArray(warnings) ? warnings.filter((item): item is string => typeof item === 'string') : [];
 }
 
 function findVisibleEditable(): HTMLElement | null {

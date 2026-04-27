@@ -25,7 +25,7 @@ export async function listTools(): Promise<ToolDescriptor[]> {
   return Array.isArray(response.tools) ? response.tools : [];
 }
 
-export async function callTool(req: ToolCallRequest): Promise<ToolCallCompatResponse> {
+export async function callTool(req: ToolCallRequest): Promise<Extract<ToolCallCompatResponse, { ok: true }>> {
   const response = await gmJson('POST', `${state.baseUrl}/call-tool`, req, { [TOKEN_HEADER]: state.token }) as ToolCallCompatResponse;
   if (isToolFailure(response)) {
     const error = new Error(response.error.message);

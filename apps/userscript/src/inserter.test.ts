@@ -4,30 +4,53 @@ import { formatBatchToolResult, formatToolResult, readCurrentChatInputText } fro
 describe('formatToolResult', () => {
   it('makes the bridge-delivered execution boundary explicit', () => {
     const output = formatToolResult('read_file', {
+      type: 'inline_tool_result',
+      callId: 'call-read',
+      tool: 'read_file',
       ok: true,
-      result: {
+      output: {
         path: 'README.md',
         content: '# Hello'
-      }
+      },
+      summary: 'Tool read_file completed successfully.'
     });
 
     expect(output).toContain('Bridge tool result for `read_file`:');
     expect(output).toContain('This result was executed outside the model after your previous `mcp` reply.');
     expect(output).toContain('```tool_result');
+    expect(output).toContain('"type": "inline_tool_result"');
     expect(output).toContain('Continue only after reading this bridge-provided tool result.');
   });
 
   it('uses a longer outer fence when file content contains triple backticks', () => {
     const output = formatToolResult('read_file', {
+      type: 'inline_tool_result',
+      callId: 'call-read',
+      tool: 'read_file',
       ok: true,
-      result: {
+      output: {
         path: 'apps/userscript/src/catalog.ts',
         content: '```mcp\n{\n  "tool": "read_file"\n}\n```'
-      }
+      },
+      summary: 'Tool read_file completed successfully.'
     });
 
     expect(output).toContain('````tool_result');
     expect(output).toContain('````\n\nContinue only after reading this bridge-provided tool result.');
+  });
+
+  it('renders execution-error envelopes without assuming a legacy top-level result shape', () => {
+    const output = formatToolResult('write_file', {
+      type: 'execution_error',
+      error: {
+        code: 'TOOL_DISABLED',
+        summary: 'Tool disabled: write_file',
+        retryable: false
+      }
+    });
+
+    expect(output).toContain('"type": "execution_error"');
+    expect(output).toContain('Bridge tool result for `write_file`:');
   });
 });
 
