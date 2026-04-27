@@ -28,16 +28,24 @@ export function insertIntoChatInput(value: string): boolean {
   return false;
 }
 
-export async function sendCurrentChatInput(): Promise<boolean> {
-  const deadline = Date.now() + 3_000;
-  while (Date.now() < deadline) {
+export async function sendCurrentChatInput({
+  timeoutMs = 8_000,
+  now = Date.now,
+  waitForNextPoll = wait
+}: {
+  timeoutMs?: number;
+  now?: () => number;
+  waitForNextPoll?: (ms: number) => Promise<void>;
+} = {}): Promise<boolean> {
+  const deadline = now() + timeoutMs;
+  while (now() < deadline) {
     const button = findSendButton();
     if (button) {
       button.click();
       return true;
     }
 
-    await wait(50);
+    await waitForNextPoll(50);
   }
 
   return false;

@@ -360,6 +360,7 @@ userscript 必须优先写入当前可见的真实输入控件，而不是隐藏
 - 优先可见 `contenteditable`，例如 `#prompt-textarea`
 - 其次可见 textarea
 - 失败时退回剪贴板
+- 若结果已经插入但尚未发送，刷新同一会话后应优先恢复这份未发送结果的 bridge 状态，而不是把同一条尚未闭合的 assistant `mcp` turn 再执行一遍
 
 ### 9.2 发送按钮
 
@@ -368,6 +369,7 @@ ChatGPT 页面在输入框为空时可能显示语音按钮。userscript 必须�
 - 在结果插入后等待真实 send button 状态出现
 - 再尝试点击发送
 - 不能因为仍处于语音按钮态就立即判定 “send button not found”
+- 不能仅凭 `#composer-submit-button` 这个 id 就判定“已经可以发送”；当它仍是 `data-testid="stop-button"`、`aria-label="停止流式传输"` 之类的 stop 态时，必须继续等待，而不是点错按钮或误记发送成功
 
 ### 9.3 选择器治理
 
@@ -630,6 +632,8 @@ README 首页必须明确：
 
 - 结果能写入当前真实输入框，而不是隐藏 fallback textarea
 - 自动发送能等待 send button 出现
+- 自动发送不会把 stop-streaming 态的 `#composer-submit-button` 误当成 send button
+- 对于已插入但未发送的结果，刷新同一线程不会重复执行同一条 assistant `mcp` turn，也不会重复插入同一份结果
 - `continueBatchOnError` 关闭时，batch 失败后后续项不执行并标记 `skipped`
 - `continueBatchOnError` 开启时，batch 在失败后继续执行后续项并统一回填失败摘要
 - 同一 assistant 回复多 block 只回填一次批量结果

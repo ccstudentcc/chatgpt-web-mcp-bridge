@@ -44,8 +44,10 @@ import {
   clearGatewayRuntime,
   getCatalogTools,
   hasLiveCatalog,
+  restorePersistedUndeliveredResultSession,
   setGatewayCatalog,
   setGatewayHealth,
+  syncPersistedUndeliveredResultSession,
   type BridgeStatus,
   type StoredBatch,
   state,
@@ -92,6 +94,7 @@ async function refreshGatewayStatus(): Promise<void> {
     }
   }
   renderPanel();
+  syncUndeliveredResultSession();
   void maybeAutoRunPending();
 }
 async function scanLatestAssistantMessage(): Promise<void> {
@@ -125,6 +128,7 @@ async function scanLatestAssistantMessage(): Promise<void> {
     applyPendingSelectionUpdate(clearPendingSelectionRuntime());
     state.progress = undefined;
     state.status = detection.reset.nextStatus;
+    syncUndeliveredResultSession();
     return;
   }
 
@@ -151,6 +155,7 @@ async function scanLatestAssistantMessage(): Promise<void> {
       ? `Detected batch with ${pendingUpdate.pending.length} tool calls.`
       : `Detected tool call: ${pendingUpdate.pending[0]?.block.tool ?? 'unknown'}`);
     renderPanel();
+    syncUndeliveredResultSession();
     void maybeAutoRunPending();
     return;
   }
@@ -166,6 +171,7 @@ async function scanLatestAssistantMessage(): Promise<void> {
   if (invalidUpdate.isNewInvalidTurn) {
     addLogEntry('warn', `Blocked invalid MCP reply: ${detection.invalidReason}`);
   }
+  syncUndeliveredResultSession();
   renderPanel();
 }
 
@@ -234,6 +240,7 @@ async function runPending(): Promise<void> {
       state.status = await deliverLastResult('failed');
     }
   }
+  syncUndeliveredResultSession();
   renderPanel();
 }
 
@@ -300,6 +307,7 @@ async function runStoredBatch(batch: StoredBatch): Promise<void> {
   state.lastError = batchDelivery.lastError;
   addLogEntry(batchDelivery.logEvent.level, batchDelivery.logEvent.message);
   state.status = await deliverLastResult(batchDelivery.readyStatus);
+  syncUndeliveredResultSession();
   renderPanel();
 }
 
@@ -324,12 +332,14 @@ function ignorePending(): void {
     state.status = ignoredPending.status;
     state.lastError = undefined;
     addLogEntry('info', 'Ignored pending batch.');
+    syncUndeliveredResultSession();
     renderPanel();
     return;
   }
 
   state.status = ignoredPending.status;
   addLogEntry('info', `Ignored tool call: ${ignoredPending.ignoredTool ?? 'unknown'}`);
+  syncUndeliveredResultSession();
   renderPanel();
 }
 
@@ -354,6 +364,7 @@ function applyBatchExecutionMarkers(items: BatchResultItem[], batchId: string): 
 async function insertLastResult(): Promise<void> {
   if (!state.lastResult) return;
   state.status = await performLastResultDelivery(getCurrentReadyDeliveryStatus());
+  syncUndeliveredResultSession();
   renderPanel();
 }
 
@@ -578,6 +589,12 @@ function startBridge(): void {
     }
   });
   addLogEntry('info', 'Bridge panel mounted.');
+  if (restorePersistedUndeliveredResultSession({
+    conversationPath: window.location.pathname,
+    currentComposerText: readCurrentChatInputText()
+  })) {
+    addLogEntry('info', 'Restored the undelivered bridge result from the current composer after refresh.');
+  }
   renderPanel();
   void refreshGatewayStatus();
   void scanLatestAssistantMessage();
@@ -600,6 +617,10 @@ function syncRoundGuard(requestId: string): void {
 
   state.autoRoundRequestId = next.requestId;
   state.autoRoundCount = next.count;
+}
+
+function syncUndeliveredResultSession(): void {
+  syncPersistedUndeliveredResultSession(window.location.pathname);
 }
 
 function failureFromError(tool: string, error: unknown): ToolCallFailure {

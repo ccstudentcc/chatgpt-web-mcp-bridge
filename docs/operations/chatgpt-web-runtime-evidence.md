@@ -166,3 +166,24 @@ But the underlying DOM/request-shape observations still need to be centralized h
   - `apps/extension/src/turn-runtime/mcp-turn-analysis.ts`
   - `apps/userscript/src/parser.test.ts`
   - `apps/userscript/src/chatgpt-mcp-bridge.user.ts`
+
+## Evidence: undelivered composer state survives refresh, and `composer-submit-button` can still be a stop button
+
+- Date: 2026-04-27
+- Method: manual repro on a real signed-in page with result-delivery validation
+- Page state:
+  - existing thread
+  - single-result delivery with `Send=off`, followed by refresh on the same thread
+  - assistant reply still streaming or stalled, with ChatGPT showing `#composer-submit-button[data-testid="stop-button"]`
+- Observation:
+  - When a bridge result was inserted into the ChatGPT composer but not sent, refreshing the same thread preserved that composer text.
+  - Without an explicit undelivered-result restore path, startup/history rescan could treat the same assistant `mcp` turn as open again and re-execute it, causing duplicate insertion attempts against the already preserved composer text.
+  - During streaming or a stalled tail, ChatGPT reused `#composer-submit-button` for a stop action with `data-testid="stop-button"` and an `aria-label` equivalent to `停止流式传输`, so button id alone was not enough to prove that the composer was ready to send.
+- Impact:
+  - Result-delivery recovery must persist enough undelivered state to survive refresh on the same conversation and suppress re-execution of the already handled `mcp` turn when the preserved composer still matches the pending bridge result.
+  - Send-button detection must explicitly reject stop-streaming variants and wait for a real send affordance instead of treating every `#composer-submit-button` as ready.
+- Affected surfaces:
+  - `apps/extension/src/chatgpt-adapter/chatgpt-runtime-facts.ts`
+  - `apps/userscript/src/inserter.ts`
+  - `apps/userscript/src/state.ts`
+  - `apps/userscript/src/chatgpt-mcp-bridge.user.ts`

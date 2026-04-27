@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { formatBatchToolResult, formatToolResult, readCurrentChatInputText } from './inserter.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { formatBatchToolResult, formatToolResult, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
 
 describe('formatToolResult', () => {
   it('makes the bridge-delivered execution boundary explicit', () => {
@@ -115,5 +115,57 @@ describe('readCurrentChatInputText', () => {
     Object.defineProperty(globalThis, 'HTMLElement', { value: FakeHTMLElement, configurable: true });
 
     expect(readCurrentChatInputText()).toBe('Tool result for `mcp_list`');
+  });
+});
+
+describe('sendCurrentChatInput', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(globalThis, 'document');
+    Reflect.deleteProperty(globalThis, 'window');
+  });
+
+  it('waits for a real send button instead of clicking the stop-streaming button', async () => {
+    const stopButton = {
+      id: 'composer-submit-button',
+      dataset: { testid: 'stop-button' },
+      disabled: false,
+      getAttribute: (name: string) => name === 'aria-label' ? '停止流式传输' : null,
+      click: vi.fn()
+    };
+    const sendButton = {
+      id: 'composer-submit-button',
+      dataset: { testid: 'send-button' },
+      disabled: false,
+      getAttribute: (name: string) => name === 'aria-label' ? '发送提示' : null,
+      click: vi.fn()
+    };
+
+    let currentTime = 0;
+    let currentButton: typeof stopButton | typeof sendButton = stopButton;
+    Object.defineProperty(globalThis, 'document', {
+      value: {
+        querySelector: () => currentButton
+      },
+      configurable: true
+    });
+    Object.defineProperty(globalThis, 'window', {
+      value: {
+        getComputedStyle: () => ({ display: 'block', visibility: 'visible' })
+      },
+      configurable: true
+    });
+
+    const sent = await sendCurrentChatInput({
+      timeoutMs: 500,
+      now: () => currentTime,
+      waitForNextPoll: async (ms) => {
+        currentTime += ms;
+        currentButton = sendButton;
+      }
+    });
+
+    expect(sent).toBe(true);
+    expect(stopButton.click).not.toHaveBeenCalled();
+    expect(sendButton.click).toHaveBeenCalledTimes(1);
   });
 });

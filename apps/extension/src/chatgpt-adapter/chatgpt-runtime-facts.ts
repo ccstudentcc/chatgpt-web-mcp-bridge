@@ -204,10 +204,18 @@ export function findNearestChatGptUserTurn(node: Element): HTMLElement | null {
 }
 
 export function looksLikeChatGptSendButton(button: HTMLButtonElement): boolean {
-  if (button.id === 'composer-submit-button' || button.dataset.testid === 'send-button') {
+  const label = button.getAttribute('aria-label') ?? '';
+  if (button.dataset.testid === 'stop-button' || /stop|stream|停止|流式/u.test(label)) {
+    return false;
+  }
+
+  if (button.dataset.testid === 'send-button') {
     return true;
   }
 
-  const label = button.getAttribute('aria-label') ?? '';
-  return /send|message|提示|发送/i.test(label) && !/voice|speech|语音/i.test(label);
+  if (button.id === 'composer-submit-button') {
+    return /send|message|prompt|提示|发送/i.test(label);
+  }
+
+  return /send|message|prompt|提示|发送/i.test(label) && !/voice|speech|语音/i.test(label);
 }

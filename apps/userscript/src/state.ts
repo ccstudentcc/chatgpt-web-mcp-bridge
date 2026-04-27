@@ -1,6 +1,7 @@
 import type { CatalogSource, GatewayHealthContract, GatewayRuntimeSnapshot } from '@cwmb/protocol';
 import type { ParsedMcpBlock } from './parser.js';
 import type { DeliveryRecoveryNotice } from './result-delivery.js';
+import { normalizeChatGptConversationPath } from './chatgpt-runtime-facts.js';
 import {
   getGatewayCatalogTools,
   hasLiveGatewayCatalog,
@@ -88,6 +89,24 @@ export interface BridgeState {
   logs: ActivityLogEntry[];
   requestInjectionMode: RequestInjectionMode;
 }
+
+type PersistedUndeliveredResultStatus = Extract<
+  BridgeStatus,
+  'failed' | 'result_ready' | 'batch_result_ready' | 'batch_stopped_on_failure' | 'inserted' | 'batch_inserted'
+>;
+
+interface PersistedUndeliveredResultSession {
+  conversationPath: string;
+  status: PersistedUndeliveredResultStatus;
+  lastResult: string;
+  lastError?: string;
+  lastDeliveryRecovery?: DeliveryRecoveryNotice;
+  executedCallIds: string[];
+  executedBatchIds: string[];
+  retryableBatch?: StoredBatch;
+}
+
+const UNDELIVERED_RESULT_SESSION_KEY = 'cwmb_undelivered_result_session';
 
 const autoExecuteStored = GM_getValue('cwmb_auto_execute', 'inherit');
 const autoInsertStored = GM_getValue('cwmb_auto_insert', 'inherit');
@@ -249,4 +268,128 @@ export function addLogEntry(level: ActivityLogEntry['level'], message: string): 
       message
     }
   ].slice(-40);
+}
+
+export function syncPersistedUndeliveredResultSession(conversationPath: string): void {
+  if (!shouldPersistUndeliveredResult(state.status) || !state.lastResult) {
+    GM_setValue(UNDELIVERED_RESULT_SESSION_KEY, '');
+    return;
+  }
+
+  const normalizedPath = normalizeChatGptConversationPath(conversationPath);
+  if (!normalizedPath) {
+    GM_setValue(UNDELIVERED_RESULT_SESSION_KEY, '');
+    return;
+  }
+
+  const persisted: PersistedUndeliveredResultSession = {
+    conversationPath: normalizedPath,
+    status: state.status,
+    lastResult: state.lastResult,
+    lastError: state.lastError,
+    lastDeliveryRecovery: state.lastDeliveryRecovery,
+    executedCallIds: [...state.executedCallIds],
+    executedBatchIds: [...state.executedBatchIds],
+    retryableBatch: state.retryableBatch
+  };
+  GM_setValue(UNDELIVERED_RESULT_SESSION_KEY, JSON.stringify(persisted));
+}
+
+export function restorePersistedUndeliveredResultSession({
+  conversationPath,
+  currentComposerText
+}: {
+  conversationPath: string;
+  currentComposerText: string;
+}): boolean {
+  const restored = readPersistedUndeliveredResultSession(conversationPath);
+  if (!restored) {
+    return false;
+  }
+
+  if (normalizePersistedText(restored.lastResult) !== normalizePersistedText(currentComposerText)) {
+    GM_setValue(UNDELIVERED_RESULT_SESSION_KEY, '');
+    return false;
+  }
+
+  state.status = restored.status;
+  state.lastResult = restored.lastResult;
+  state.lastError = restored.lastError;
+  state.lastDeliveryRecovery = restored.lastDeliveryRecovery;
+  state.retryableBatch = restored.retryableBatch;
+  state.executedCallIds = new Set(restored.executedCallIds);
+  state.executedBatchIds = new Set(restored.executedBatchIds);
+  return true;
+}
+
+function shouldPersistUndeliveredResult(status: BridgeStatus): status is PersistedUndeliveredResultStatus {
+  return status === 'failed'
+    || status === 'result_ready'
+    || status === 'batch_result_ready'
+    || status === 'batch_stopped_on_failure'
+    || status === 'inserted'
+    || status === 'batch_inserted';
+}
+
+function readPersistedUndeliveredResultSession(conversationPath: string): PersistedUndeliveredResultSession | null {
+  const raw = GM_getValue(UNDELIVERED_RESULT_SESSION_KEY, '');
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<PersistedUndeliveredResultSession>;
+    const normalizedPath = normalizeChatGptConversationPath(conversationPath);
+    const parsedStatus = parsed.status;
+    if (
+      !parsed
+      || typeof parsed.conversationPath !== 'string'
+      || normalizeChatGptConversationPath(parsed.conversationPath) !== normalizedPath
+      || typeof parsed.lastResult !== 'string'
+      || !Array.isArray(parsed.executedCallIds)
+      || !Array.isArray(parsed.executedBatchIds)
+      || !shouldPersistUndeliveredResult(parsedStatus as BridgeStatus)
+    ) {
+      return null;
+    }
+
+    const status = parsedStatus as PersistedUndeliveredResultStatus;
+
+    return {
+      conversationPath: parsed.conversationPath,
+      status,
+      lastResult: parsed.lastResult,
+      lastError: typeof parsed.lastError === 'string' ? parsed.lastError : undefined,
+      lastDeliveryRecovery: isDeliveryRecoveryNotice(parsed.lastDeliveryRecovery) ? parsed.lastDeliveryRecovery : undefined,
+      executedCallIds: parsed.executedCallIds.filter((item): item is string => typeof item === 'string'),
+      executedBatchIds: parsed.executedBatchIds.filter((item): item is string => typeof item === 'string'),
+      retryableBatch: isStoredBatch(parsed.retryableBatch) ? parsed.retryableBatch : undefined
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isDeliveryRecoveryNotice(value: unknown): value is DeliveryRecoveryNotice {
+  return value !== null
+    && typeof value === 'object'
+    && 'kind' in value
+    && 'message' in value
+    && typeof (value as { kind: unknown }).kind === 'string'
+    && typeof (value as { message: unknown }).message === 'string';
+}
+
+function isStoredBatch(value: unknown): value is StoredBatch {
+  return value !== null
+    && typeof value === 'object'
+    && 'batchId' in value
+    && 'messageId' in value
+    && 'blocks' in value
+    && typeof (value as { batchId: unknown }).batchId === 'string'
+    && typeof (value as { messageId: unknown }).messageId === 'string'
+    && Array.isArray((value as { blocks: unknown }).blocks);
+}
+
+function normalizePersistedText(value: string): string {
+  return value.replace(/\u00a0/g, ' ').trim();
 }
