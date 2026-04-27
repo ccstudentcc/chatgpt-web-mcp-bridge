@@ -118,3 +118,24 @@ But the underlying DOM/request-shape observations still need to be centralized h
 - [../v0.9-entrypoint.md](../v0.9-entrypoint.md)
 - [troubleshooting.md](./troubleshooting.md)
 - [../architecture/extension-runtime.md](../architecture/extension-runtime.md)
+
+## Evidence: assistant turn source may need outer turn normalization
+
+- Date: 2026-04-27
+- Method: manual repro on a real signed-in page, plus local runtime/test analysis
+- Page state:
+  - existing thread
+  - assistant reply containing natural-language text before and after a fenced `mcp` block
+  - startup/history rescan also exercised on refresh
+- Observation:
+  - Manual repro showed that startup/history rescan correctly restored only the latest open assistant MCP turn after refresh.
+  - The same manual repro window still allowed a prose-wrapped `mcp` turn to execute even after local parser rules were tightened to block prose before the first fenced `mcp` block.
+  - Local code analysis plus targeted regression tests indicate the likely runtime cause: the assistant-message selector path can land on an inner assistant-tagged node whose visible text is only the code block, while the full outer assistant turn still contains the surrounding prose.
+- Impact:
+  - DOM-sensitive turn scanning should normalize assistant candidates back to the outer `[data-turn="assistant"]` container when present before running turn analysis.
+  - Invalid-turn enforcement can otherwise diverge between local parser tests and live-page behavior because the parser sees only the code block text instead of the full assistant reply.
+- Affected surfaces:
+  - `apps/extension/src/chatgpt-adapter/chatgpt-runtime-facts.ts`
+  - `apps/userscript/src/dom.ts`
+  - `apps/userscript/src/dom.test.ts`
+  - `apps/extension/src/turn-runtime/mcp-turn-analysis.ts`

@@ -93,6 +93,57 @@ describe('findAssistantMessages fallback', () => {
     expect(result[0]).toBe(assistantPre);
   });
 
+  it('normalizes assistant candidates to the outer assistant turn container when the selector hits an inner node', () => {
+    class FakeHTMLElement {
+      innerText: string;
+      textContent: string;
+      private readonly assistantTurn: FakeHTMLElement | null;
+
+      constructor(text: string, assistantTurn: FakeHTMLElement | null = null) {
+        this.innerText = text;
+        this.textContent = text;
+        this.assistantTurn = assistantTurn;
+      }
+
+      closest(selector: string): FakeHTMLElement | null {
+        if (selector === '[data-turn="assistant"]') {
+          return this.assistantTurn;
+        }
+        if (selector === '[data-turn="assistant"], [data-message-author-role="assistant"]') {
+          return this.assistantTurn ?? this;
+        }
+        if (selector === 'pre') {
+          return this;
+        }
+        return null;
+      }
+    }
+
+    const outerAssistantTurn = new FakeHTMLElement(
+      '我准备读取项目根目录下的 README.md 文件内容。\n\nmcp\n{\n  "tool": "read_file",\n  "args": {\n    "path": "README.md"\n  }\n}\n\n已完成。'
+    );
+    const innerAssistantNode = new FakeHTMLElement(
+      'mcp\n{\n  "tool": "read_file",\n  "args": {\n    "path": "README.md"\n  }\n}',
+      outerAssistantTurn
+    );
+
+    const documentStub = {
+      querySelectorAll: (selector: string) => {
+        if (selector === '[data-message-author-role="assistant"]') {
+          return [innerAssistantNode];
+        }
+        return [];
+      }
+    };
+
+    Object.defineProperty(globalThis, 'document', { value: documentStub, configurable: true });
+    Object.defineProperty(globalThis, 'HTMLElement', { value: FakeHTMLElement, configurable: true });
+
+    const result = findAssistantMessages();
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBe(outerAssistantTurn);
+  });
+
   it('treats a bridge tool_result after the latest assistant MCP turn as closed', () => {
     class FakeHTMLElement {
       innerText: string;

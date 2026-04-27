@@ -15,7 +15,9 @@ const bridgeResultFallbackSelector = [
 
 export function findAssistantMessages(): HTMLElement[] {
   const candidates = Array.from(document.querySelectorAll(chatgptSelectors.assistantMessage)) as HTMLElement[];
-  if (candidates.length > 0) return candidates;
+  if (candidates.length > 0) {
+    return normalizeAssistantCandidates(candidates);
+  }
   return fallbackFindCodeContainers();
 }
 
@@ -119,6 +121,20 @@ function fallbackFindCodeContainers(): HTMLElement[] {
       return true;
     })
     .filter((node) => looksLikeExplicitMcpRenderedBlock(extractVisibleText(node)));
+}
+
+function normalizeAssistantCandidates(candidates: HTMLElement[]): HTMLElement[] {
+  const seen = new Set<HTMLElement>();
+
+  return candidates
+    .map((candidate) => findNearestChatGptAssistantTurn(candidate) ?? candidate)
+    .filter((candidate) => {
+      if (seen.has(candidate)) {
+        return false;
+      }
+      seen.add(candidate);
+      return true;
+    });
 }
 
 function normalizeFallbackCodeContainer(node: HTMLElement): HTMLElement | null {

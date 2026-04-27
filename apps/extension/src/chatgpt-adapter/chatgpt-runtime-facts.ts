@@ -90,6 +90,11 @@ export function isIgnorableChatGptStatusText(text: string): boolean {
 }
 
 export function findNearestChatGptAssistantTurn(node: Element): HTMLElement | null {
+  const explicitTurn = node.closest('[data-turn="assistant"]') as HTMLElement | null;
+  if (explicitTurn) {
+    return explicitTurn;
+  }
+
   return node.closest(chatgptSelectors.assistantTurnContainer) as HTMLElement | null;
 }
 
