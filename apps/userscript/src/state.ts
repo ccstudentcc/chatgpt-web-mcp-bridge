@@ -99,6 +99,7 @@ interface PersistedUndeliveredResultSession {
   conversationPath: string;
   status: PersistedUndeliveredResultStatus;
   lastResult: string;
+  composerSnapshot?: string;
   lastError?: string;
   lastDeliveryRecovery?: DeliveryRecoveryNotice;
   executedCallIds: string[];
@@ -270,7 +271,13 @@ export function addLogEntry(level: ActivityLogEntry['level'], message: string): 
   ].slice(-40);
 }
 
-export function syncPersistedUndeliveredResultSession(conversationPath: string): void {
+export function syncPersistedUndeliveredResultSession({
+  conversationPath,
+  currentComposerText
+}: {
+  conversationPath: string;
+  currentComposerText?: string;
+}): void {
   if (!shouldPersistUndeliveredResult(state.status) || !state.lastResult) {
     GM_setValue(UNDELIVERED_RESULT_SESSION_KEY, '');
     return;
@@ -286,6 +293,9 @@ export function syncPersistedUndeliveredResultSession(conversationPath: string):
     conversationPath: normalizedPath,
     status: state.status,
     lastResult: state.lastResult,
+    composerSnapshot: shouldPersistComposerSnapshot(state.status, currentComposerText)
+      ? currentComposerText
+      : undefined,
     lastError: state.lastError,
     lastDeliveryRecovery: state.lastDeliveryRecovery,
     executedCallIds: [...state.executedCallIds],
@@ -307,7 +317,7 @@ export function restorePersistedUndeliveredResultSession({
     return false;
   }
 
-  if (normalizePersistedText(restored.lastResult) !== normalizePersistedText(currentComposerText)) {
+  if (!matchesPersistedComposerState(restored, currentComposerText)) {
     GM_setValue(UNDELIVERED_RESULT_SESSION_KEY, '');
     return false;
   }
@@ -359,6 +369,7 @@ function readPersistedUndeliveredResultSession(conversationPath: string): Persis
       conversationPath: parsed.conversationPath,
       status,
       lastResult: parsed.lastResult,
+      composerSnapshot: typeof parsed.composerSnapshot === 'string' ? parsed.composerSnapshot : undefined,
       lastError: typeof parsed.lastError === 'string' ? parsed.lastError : undefined,
       lastDeliveryRecovery: isDeliveryRecoveryNotice(parsed.lastDeliveryRecovery) ? parsed.lastDeliveryRecovery : undefined,
       executedCallIds: parsed.executedCallIds.filter((item): item is string => typeof item === 'string'),
@@ -392,4 +403,51 @@ function isStoredBatch(value: unknown): value is StoredBatch {
 
 function normalizePersistedText(value: string): string {
   return value.replace(/\u00a0/g, ' ').trim();
+}
+
+function shouldPersistComposerSnapshot(
+  status: PersistedUndeliveredResultStatus,
+  currentComposerText?: string
+): currentComposerText is string {
+  return (status === 'inserted' || status === 'batch_inserted')
+    && typeof currentComposerText === 'string'
+    && normalizePersistedText(currentComposerText).length > 0;
+}
+
+function matchesPersistedComposerState(
+  session: PersistedUndeliveredResultSession,
+  currentComposerText: string
+): boolean {
+  const current = normalizePersistedText(currentComposerText);
+  if (!current) {
+    return false;
+  }
+
+  const candidates = [
+    session.composerSnapshot,
+    session.lastResult,
+    stripResultHeading(session.lastResult),
+    session.composerSnapshot ? stripResultHeading(session.composerSnapshot) : undefined
+  ]
+    .filter((value): value is string => typeof value === 'string')
+    .map(normalizePersistedText)
+    .filter((value, index, values) => value.length > 0 && values.indexOf(value) === index);
+
+  return candidates.some((candidate) => candidate === current);
+}
+
+function stripResultHeading(value: string): string {
+  const lines = value.split('\n');
+  if (lines.length < 2) {
+    return value;
+  }
+
+  if (
+    lines[0]?.startsWith('Bridge tool result for ')
+    || lines[0] === 'Bridge batch tool results for one assistant reply:'
+  ) {
+    return lines.slice(1).join('\n').trim();
+  }
+
+  return value.trim();
 }

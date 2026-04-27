@@ -620,7 +620,10 @@ function syncRoundGuard(requestId: string): void {
 }
 
 function syncUndeliveredResultSession(): void {
-  syncPersistedUndeliveredResultSession(window.location.pathname);
+  syncPersistedUndeliveredResultSession({
+    conversationPath: window.location.pathname,
+    currentComposerText: readCurrentChatInputText()
+  });
 }
 
 function failureFromError(tool: string, error: unknown): ToolCallFailure {

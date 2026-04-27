@@ -178,10 +178,12 @@ But the underlying DOM/request-shape observations still need to be centralized h
 - Observation:
   - When a bridge result was inserted into the ChatGPT composer but not sent, refreshing the same thread preserved that composer text.
   - Without an explicit undelivered-result restore path, startup/history rescan could treat the same assistant `mcp` turn as open again and re-execute it, causing duplicate insertion attempts against the already preserved composer text.
+  - In at least one real repro, the preserved composer text after refresh no longer matched the original bridge insertion byte-for-byte: the leading `Bridge tool result for ...` heading line disappeared while the rest of the fenced `tool_result` payload remained, so exact full-text equality against the original insertion payload was too strict for restore.
   - During streaming or a stalled tail, ChatGPT reused `#composer-submit-button` for a stop action with `data-testid="stop-button"` and an `aria-label` equivalent to `停止流式传输`, so button id alone was not enough to prove that the composer was ready to send.
   - When the composer was actually ready to send, the same `#composer-submit-button` selector appeared with `data-testid="send-button"` and an `aria-label` equivalent to `发送提示`, confirming that the stable discriminator is the button state metadata rather than the shared id alone.
 - Impact:
   - Result-delivery recovery must persist enough undelivered state to survive refresh on the same conversation and suppress re-execution of the already handled `mcp` turn when the preserved composer still matches the pending bridge result.
+  - That restore path should prefer the observed composer snapshot, and only use looser payload-derived fallbacks where real-page formatting drift is known, instead of assuming the original insertion payload survives verbatim.
   - Send-button detection must explicitly reject stop-streaming variants and wait for a real send affordance instead of treating every `#composer-submit-button` as ready.
 - Affected surfaces:
   - `apps/extension/src/chatgpt-adapter/chatgpt-runtime-facts.ts`

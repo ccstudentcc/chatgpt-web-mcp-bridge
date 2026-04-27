@@ -51,6 +51,7 @@ describe('state runtime snapshot helpers', () => {
         conversationPath: '/c/test-thread',
         status: 'inserted',
         lastResult: 'tool-result',
+        composerSnapshot: 'tool-result',
         lastError: undefined,
         lastDeliveryRecovery: {
           kind: 'send_button_missing',
@@ -78,6 +79,56 @@ describe('state runtime snapshot helpers', () => {
     expect(restored).toBe(true);
     expect(state.status).toBe('inserted');
     expect(state.lastResult).toBe('tool-result');
+    expect([...state.executedCallIds]).toEqual(['call-1']);
+  });
+
+  it('restores an inserted result when ChatGPT keeps the composer snapshot but normalizes the bridge heading away', async () => {
+    vi.stubGlobal('GM_getValue', vi.fn((key: string, defaultValue = '') => {
+      if (key === 'cwmb_undelivered_result_session') {
+        return JSON.stringify({
+          conversationPath: '/c/test-thread',
+          status: 'inserted',
+          lastResult: [
+            'Bridge tool result for `read_file`:',
+            'This result was executed outside the model after your previous `mcp` reply.',
+            '',
+            '```tool_result',
+            '{}',
+            '```'
+          ].join('\n'),
+          composerSnapshot: [
+            'This result was executed outside the model after your previous `mcp` reply.',
+            '',
+            '```tool_result',
+            '{}',
+            '```'
+          ].join('\n'),
+          executedCallIds: ['call-1'],
+          executedBatchIds: []
+        });
+      }
+      return defaultValue;
+    }));
+    vi.stubGlobal('GM_setValue', vi.fn());
+
+    const {
+      restorePersistedUndeliveredResultSession,
+      state
+    } = await import('./state.js');
+
+    const restored = restorePersistedUndeliveredResultSession({
+      conversationPath: '/c/test-thread',
+      currentComposerText: [
+        'This result was executed outside the model after your previous `mcp` reply.',
+        '',
+        '```tool_result',
+        '{}',
+        '```'
+      ].join('\n')
+    });
+
+    expect(restored).toBe(true);
+    expect(state.status).toBe('inserted');
     expect([...state.executedCallIds]).toEqual(['call-1']);
   });
 
