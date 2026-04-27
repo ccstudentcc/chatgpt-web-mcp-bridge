@@ -1,5 +1,6 @@
 import type { CatalogSource, GatewayHealthContract, GatewayRuntimeSnapshot } from '@cwmb/protocol';
 import type { ParsedMcpBlock } from './parser.js';
+import type { DeliveryRecoveryNotice } from './result-delivery.js';
 import {
   getGatewayCatalogTools,
   hasLiveGatewayCatalog,
@@ -83,6 +84,7 @@ export interface BridgeState {
   progress?: ExecutionProgress;
   lastResult?: string;
   lastError?: string;
+  lastDeliveryRecovery?: DeliveryRecoveryNotice;
   logs: ActivityLogEntry[];
   requestInjectionMode: RequestInjectionMode;
 }

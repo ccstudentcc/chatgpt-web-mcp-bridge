@@ -1,8 +1,17 @@
 export type DeliveryKind = 'single' | 'batch';
 export type DeliveryPhase = 'ready' | 'inserted' | 'sent';
+export type DeliveryRecoveryKind =
+  | 'clipboard_fallback'
+  | 'send_button_missing'
+  | 'submission_not_confirmed';
 
 export interface DeliveryLogEvent {
   level: 'success' | 'warn';
+  message: string;
+}
+
+export interface DeliveryRecoveryNotice {
+  kind: DeliveryRecoveryKind;
   message: string;
 }
 
@@ -24,6 +33,7 @@ export interface DeliverResultOutcome {
   phase: DeliveryPhase;
   nextError?: string;
   events: DeliveryLogEvent[];
+  recovery?: DeliveryRecoveryNotice;
 }
 
 export async function deliverResult(options: DeliverResultOptions): Promise<DeliverResultOutcome> {
@@ -46,7 +56,11 @@ export async function deliverResult(options: DeliverResultOptions): Promise<Deli
     return {
       phase: 'ready',
       nextError: existingError ?? messages.clipboardFallbackError,
-      events: [{ level: 'warn', message: messages.clipboardFallbackLog }]
+      events: [{ level: 'warn', message: messages.clipboardFallbackLog }],
+      recovery: {
+        kind: 'clipboard_fallback',
+        message: messages.clipboardFallbackRecovery
+      }
     };
   }
 
@@ -85,7 +99,11 @@ export async function deliverResult(options: DeliverResultOptions): Promise<Deli
   return {
     phase: 'inserted',
     nextError: existingError ?? deliveryError,
-    events
+    events,
+    recovery: {
+      kind: sent ? 'submission_not_confirmed' : 'send_button_missing',
+      message: sent ? messages.notSubmittedRecovery : messages.sendButtonMissingRecovery
+    }
   };
 }
 
@@ -94,8 +112,11 @@ function getDeliveryMessages(kind: DeliveryKind): {
   sentLog: string;
   clipboardFallbackError: string;
   clipboardFallbackLog: string;
+  clipboardFallbackRecovery: string;
   sendButtonMissingError: string;
+  sendButtonMissingRecovery: string;
   notSubmittedError: string;
+  notSubmittedRecovery: string;
 } {
   if (kind === 'batch') {
     return {
@@ -103,8 +124,11 @@ function getDeliveryMessages(kind: DeliveryKind): {
       sentLog: 'Sent batch result back to ChatGPT.',
       clipboardFallbackError: 'Chat input not found. Result copied to clipboard fallback.',
       clipboardFallbackLog: 'Could not find chat input. Result copied to clipboard fallback.',
+      clipboardFallbackRecovery: 'Batch result was preserved in the clipboard. Use Insert result to retry after the chat composer is available again.',
       sendButtonMissingError: 'Batch result inserted, but the send button was not found.',
-      notSubmittedError: 'Batch result was inserted and the send button was clicked, but ChatGPT did not submit the composer.'
+      sendButtonMissingRecovery: 'Batch result is still preserved in the ChatGPT composer. Review it there and send it manually, or copy it again from the panel.',
+      notSubmittedError: 'Batch result was inserted and the send button was clicked, but ChatGPT did not submit the composer.',
+      notSubmittedRecovery: 'Batch result stayed in the ChatGPT composer after the send attempt. Review it there and send it manually, or copy it again from the panel.'
     };
   }
 
@@ -113,8 +137,11 @@ function getDeliveryMessages(kind: DeliveryKind): {
     sentLog: 'Sent result back to ChatGPT.',
     clipboardFallbackError: 'Chat input not found. Result copied to clipboard fallback.',
     clipboardFallbackLog: 'Could not find chat input. Result copied to clipboard fallback.',
+    clipboardFallbackRecovery: 'Tool result was preserved in the clipboard. Use Insert result to retry after the chat composer is available again.',
     sendButtonMissingError: 'Tool result inserted, but the send button was not found.',
-    notSubmittedError: 'Tool result was inserted and the send button was clicked, but ChatGPT did not submit the composer.'
+    sendButtonMissingRecovery: 'Tool result is still preserved in the ChatGPT composer. Review it there and send it manually, or copy it again from the panel.',
+    notSubmittedError: 'Tool result was inserted and the send button was clicked, but ChatGPT did not submit the composer.',
+    notSubmittedRecovery: 'Tool result stayed in the ChatGPT composer after the send attempt. Review it there and send it manually, or copy it again from the panel.'
   };
 }
 

@@ -102,7 +102,9 @@ export function renderPanel(): void {
     activeCount: activeBlocks.length,
     hasRetryableBatch,
     canInsertResult,
-    hasError: Boolean(state.lastError)
+    hasError: Boolean(state.lastError),
+    recoveryKind: state.lastDeliveryRecovery?.kind,
+    recoveryMessage: state.lastDeliveryRecovery?.message
   });
   const tokenLabel = state.trustedLocalMode ? 'Trusted local' : state.token ? 'Token set' : 'Token missing';
   const injectionModeLabel = state.requestInjectionMode === 'synthetic_system' ? 'Synthetic system' : 'Prepend user';
@@ -213,6 +215,7 @@ export function renderPanel(): void {
           ${capabilityHint}
           ${manualRunHint}
           ${state.lastError ? `<div class="cwmb-callout cwmb-callout-danger">${escapeHtml(state.lastError)}</div>` : ''}
+          ${deliveryCopy.recoveryCallout ? `<div class="cwmb-callout cwmb-callout-warn">${escapeHtml(deliveryCopy.recoveryCallout)}</div>` : ''}
           <details class="cwmb-disclosure" data-cwmb-disclosure-key="pending-details">
             <summary>${escapeHtml(deliveryCopy.pendingDisclosureLabel)}</summary>
             <div class="cwmb-disclosure-body">${pendingDetails}</div>

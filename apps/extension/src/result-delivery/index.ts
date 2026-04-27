@@ -1,4 +1,9 @@
 export {
+  deriveBatchDeliveryOutcome,
+  type BatchDeliveryOutcome,
+  type RetryableDeliveryBatch
+} from './batch-delivery-outcome.js';
+export {
   getDeliveryPanelCopy,
   type DeliveryPanelCopy
 } from './operator-panel-copy.js';
@@ -8,6 +13,8 @@ export {
 } from './batch-outcome-presentation.js';
 export {
   deliverResult,
+  type DeliveryRecoveryKind,
+  type DeliveryRecoveryNotice,
   type DeliveryKind,
   type DeliveryLogEvent,
   type DeliveryPhase,

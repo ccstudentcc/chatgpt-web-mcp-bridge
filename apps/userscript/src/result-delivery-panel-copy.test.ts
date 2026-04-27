@@ -56,4 +56,32 @@ describe('getDeliveryPanelCopy', () => {
       resultEmptyState: 'No result payload yet.'
     });
   });
+
+  it('switches recovery copy from one owner path when delivery needs manual follow-up', () => {
+    expect(getDeliveryPanelCopy({
+      activeCount: 0,
+      hasRetryableBatch: false,
+      canInsertResult: true,
+      hasError: false,
+      recoveryKind: 'clipboard_fallback',
+      recoveryMessage: 'Tool result was preserved in the clipboard.'
+    })).toMatchObject({
+      insertResultLabel: 'Retry insert',
+      copyResultLabel: 'Copy result',
+      recoveryCallout: 'Tool result was preserved in the clipboard.'
+    });
+
+    expect(getDeliveryPanelCopy({
+      activeCount: 0,
+      hasRetryableBatch: false,
+      canInsertResult: false,
+      hasError: false,
+      recoveryKind: 'send_button_missing',
+      recoveryMessage: 'Tool result stayed in the composer.'
+    })).toMatchObject({
+      insertResultLabel: 'Insert result',
+      copyResultLabel: 'Copy result again',
+      recoveryCallout: 'Tool result stayed in the composer.'
+    });
+  });
 });

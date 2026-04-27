@@ -16,7 +16,7 @@ import { sha256Normalized } from './hash.js';
 import { insertIntoChatInput, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
 import { describeRequestHookStatus } from './request-injection-state.js';
 import {
-  describeBatchFailure,
+  deriveBatchDeliveryOutcome,
   deliverResult,
   deriveDeliveryPanelState,
   formatBatchToolResult,
@@ -185,6 +185,7 @@ async function runPending(): Promise<void> {
   }
   state.status = 'executing';
   state.lastError = undefined;
+  state.lastDeliveryRecovery = undefined;
   addLogEntry('info', `Running tool: ${pending.block.tool}`);
   renderPanel();
 
@@ -268,6 +269,7 @@ async function runStoredBatch(batch: StoredBatch): Promise<void> {
   state.status = 'batch_executing';
   state.progress = { current: 1, total: blocks.length, tool: blocks[0]?.block.tool ?? 'unknown' };
   state.lastError = undefined;
+  state.lastDeliveryRecovery = undefined;
   addLogEntry('info', `Running batch with ${blocks.length} tool calls.`);
   renderPanel();
 
@@ -288,29 +290,16 @@ async function runStoredBatch(batch: StoredBatch): Promise<void> {
   applyPendingSelectionUpdate(clearPendingSelectionRuntime());
   state.progress = undefined;
   state.lastResult = formatBatchToolResult(response);
-
-  if (!response.ok && response.summary.stoppedOnFailure) {
-    const failurePresentation = describeBatchFailure(response.items, true, response.summary.failed);
-    state.retryableBatch = {
-      blocks,
-      batchId,
-      messageId
-    };
-    state.lastError = failurePresentation.lastError;
-    addLogEntry('warn', failurePresentation.logMessage);
-    state.status = await deliverLastResult('batch_stopped_on_failure');
-  } else if (!response.ok) {
-    const failurePresentation = describeBatchFailure(response.items, false, response.summary.failed);
-    state.retryableBatch = undefined;
-    state.lastError = failurePresentation.lastError;
-    addLogEntry('warn', failurePresentation.logMessage);
-    state.status = await deliverLastResult('batch_result_ready');
-  } else {
-    state.retryableBatch = undefined;
-    state.lastError = undefined;
-    addLogEntry('success', `Batch completed: ${response.summary.completed} tool call(s).`);
-    state.status = await deliverLastResult('batch_result_ready');
-  }
+  const batchDelivery = deriveBatchDeliveryOutcome({
+    response,
+    blocks,
+    batchId,
+    messageId
+  });
+  state.retryableBatch = batchDelivery.retryableBatch;
+  state.lastError = batchDelivery.lastError;
+  addLogEntry(batchDelivery.logEvent.level, batchDelivery.logEvent.message);
+  state.status = await deliverLastResult(batchDelivery.readyStatus);
   renderPanel();
 }
 
@@ -438,6 +427,7 @@ async function deliverLastResult(
   readyStatus: ReadyDeliveryStatus
 ): Promise<BridgeStatus> {
   if (!state.autoInsertResult || !state.lastResult) {
+    state.lastDeliveryRecovery = undefined;
     return readyStatus;
   }
 
@@ -535,6 +525,7 @@ async function performLastResultDelivery(readyStatus: ReadyDeliveryStatus): Prom
   });
 
   state.lastError = outcome.nextError;
+  state.lastDeliveryRecovery = outcome.recovery;
   for (const event of outcome.events) {
     addLogEntry(event.level, event.message);
   }

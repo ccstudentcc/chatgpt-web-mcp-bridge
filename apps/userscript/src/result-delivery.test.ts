@@ -35,6 +35,10 @@ describe('deliverResult', () => {
 
     expect(outcome.phase).toBe('ready');
     expect(outcome.nextError).toBe('Chat input not found. Result copied to clipboard fallback.');
+    expect(outcome.recovery).toEqual({
+      kind: 'clipboard_fallback',
+      message: 'Tool result was preserved in the clipboard. Use Insert result to retry after the chat composer is available again.'
+    });
     expect(outcome.events).toEqual([
       { level: 'warn', message: 'Could not find chat input. Result copied to clipboard fallback.' }
     ]);
@@ -54,6 +58,10 @@ describe('deliverResult', () => {
 
     expect(outcome.phase).toBe('inserted');
     expect(outcome.nextError).toBe('Batch completed with failures. First failed tool: `grep_files` (Blocked path.)');
+    expect(outcome.recovery).toEqual({
+      kind: 'send_button_missing',
+      message: 'Batch result is still preserved in the ChatGPT composer. Review it there and send it manually, or copy it again from the panel.'
+    });
     expect(outcome.events).toEqual([
       { level: 'success', message: 'Inserted batch result into ChatGPT composer.' },
       { level: 'warn', message: 'Batch result inserted, but the send button was not found.' }
@@ -81,6 +89,7 @@ describe('deliverResult', () => {
 
     expect(outcome.phase).toBe('sent');
     expect(outcome.nextError).toBeUndefined();
+    expect(outcome.recovery).toBeUndefined();
     expect(outcome.events).toEqual([
       { level: 'success', message: 'Inserted result into ChatGPT composer.' },
       { level: 'success', message: 'Sent result back to ChatGPT.' }

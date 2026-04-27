@@ -6,18 +6,23 @@ export interface DeliveryPanelCopy {
   pendingDisclosureLabel: string;
   resultDisclosureLabel: string;
   resultEmptyState: string;
+  recoveryCallout?: string;
 }
 
 export function getDeliveryPanelCopy({
   activeCount,
   hasRetryableBatch,
   canInsertResult,
-  hasError
+  hasError,
+  recoveryKind,
+  recoveryMessage
 }: {
   activeCount: number;
   hasRetryableBatch: boolean;
   canInsertResult: boolean;
   hasError: boolean;
+  recoveryKind?: 'clipboard_fallback' | 'send_button_missing' | 'submission_not_confirmed';
+  recoveryMessage?: string;
 }): DeliveryPanelCopy {
   return {
     collapsedSummary: getCollapsedSummary({
@@ -27,11 +32,14 @@ export function getDeliveryPanelCopy({
       hasError
     }),
     retryBatchLabel: 'Retry whole batch',
-    insertResultLabel: 'Insert result',
-    copyResultLabel: 'Copy result',
+    insertResultLabel: recoveryKind === 'clipboard_fallback' ? 'Retry insert' : 'Insert result',
+    copyResultLabel: recoveryKind === 'send_button_missing' || recoveryKind === 'submission_not_confirmed'
+      ? 'Copy result again'
+      : 'Copy result',
     pendingDisclosureLabel: 'Batch / pending details',
     resultDisclosureLabel: 'Last result payload',
-    resultEmptyState: 'No result payload yet.'
+    resultEmptyState: 'No result payload yet.',
+    recoveryCallout: recoveryMessage
   };
 }
 
