@@ -70,7 +70,7 @@ describe('analyzeMcpTurn', () => {
     expect(result.blocks).toHaveLength(0);
   });
 
-  it('rejects a rendered MCP turn mixed with natural language', async () => {
+  it('accepts a rendered MCP turn with natural-language context before the first MCP block', async () => {
     const codeText = 'mcp\n{\n  "tool": "read_file",\n  "args": {\n    "path": "SPEC.md"\n  }\n}';
     const visibleText = `读取 SPEC.md，总结一下\n\n${codeText}`;
     const fakeContainer = {
@@ -78,8 +78,7 @@ describe('analyzeMcpTurn', () => {
     } as unknown as ParentNode;
 
     const result = await analyzeMcpTurn(fakeContainer, visibleText);
-    expect(result.status).toBe('invalid');
-    expect(result.violationReason).toContain('natural language');
+    expect(result.status).toBe('valid');
   });
 
   it('recovers when a valid MCP block is mixed only with unfenced MCP-like json noise', async () => {
@@ -106,7 +105,7 @@ describe('analyzeMcpTurn', () => {
     expect(result.blocks[0]?.block.tool).toBe('read_file');
   });
 
-  it('rejects a fenced MCP turn mixed with extra text', async () => {
+  it('accepts a fenced MCP turn with a natural-language prefix', async () => {
     const visibleText = [
       '请先确认文件是否存在。',
       '```mcp',
@@ -118,8 +117,45 @@ describe('analyzeMcpTurn', () => {
     } as unknown as ParentNode;
 
     const result = await analyzeMcpTurn(fakeContainer, visibleText);
+    expect(result.status).toBe('valid');
+  });
+
+  it('rejects a fenced MCP turn with extra text after the block', async () => {
+    const visibleText = [
+      '```mcp',
+      '{"tool":"read_file","args":{"path":"SPEC.md"}}',
+      '```',
+      '',
+      '然后总结一下。'
+    ].join('\n');
+    const fakeContainer = {
+      querySelectorAll: () => []
+    } as unknown as ParentNode;
+
+    const result = await analyzeMcpTurn(fakeContainer, visibleText);
     expect(result.status).toBe('invalid');
-    expect(result.violationReason).toContain('natural language');
+    expect(result.violationReason).toContain('after MCP tool-call blocks');
+  });
+
+  it('rejects prose between two fenced MCP blocks', async () => {
+    const visibleText = [
+      '```mcp',
+      '{"tool":"read_file","args":{"path":"SPEC.md"}}',
+      '```',
+      '',
+      '接着再调一次。',
+      '',
+      '```mcp',
+      '{"tool":"grep_files","args":{"query":"mcp"}}',
+      '```'
+    ].join('\n');
+    const fakeContainer = {
+      querySelectorAll: () => []
+    } as unknown as ParentNode;
+
+    const result = await analyzeMcpTurn(fakeContainer, visibleText);
+    expect(result.status).toBe('invalid');
+    expect(result.violationReason).toContain('after MCP tool-call blocks');
   });
 
   it('prefers a valid fenced MCP block over malformed rendered candidates', async () => {

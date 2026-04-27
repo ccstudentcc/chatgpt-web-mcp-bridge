@@ -82,9 +82,9 @@ export function buildToolCatalogPrompt(tools: ToolDescriptor[]): string {
     '```',
     '',
     'Output rules:',
-    '- Every tool-call reply must contain only fenced `mcp` block or blocks.',
+    '- Natural-language context may appear before the first fenced `mcp` block when needed.',
     '- Never output raw JSON outside fenced `mcp` blocks.',
-    '- Do not add prose, analysis, or thinking text before, between, or after tool-call blocks.',
+    '- After the first fenced `mcp` block appears, do not add prose, analysis, or thinking text between or after tool-call blocks.',
     '',
     'If a needed local action is not possible, explain which specific bridge tool is disabled or missing instead of saying that no local bridge tools are available.',
     'Use `mcp_list` whenever you need to refresh the catalog in the middle of the conversation.'
@@ -150,9 +150,9 @@ export function buildInjectedToolPrompt(tools: ToolDescriptor[]): string {
     '```',
     '',
     'Output rules:',
-    '- Every tool-call reply must contain only fenced `mcp` block or blocks.',
+    '- Natural-language context may appear before the first fenced `mcp` block when needed.',
     '- Never output raw JSON outside fenced `mcp` blocks.',
-    '- Do not add prose, analysis, or thinking text before, between, or after tool-call blocks.'
+    '- After the first fenced `mcp` block appears, do not add prose, analysis, or thinking text between or after tool-call blocks.'
   );
 
   return lines.join('\n');

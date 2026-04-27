@@ -18,6 +18,17 @@ export interface McpTurnAnalysis extends ParseResult {
   warningReason?: string;
 }
 
+interface TextRange {
+  start: number;
+  end: number;
+}
+
+interface TurnResidualSegments {
+  prefix: string;
+  middles: string[];
+  suffix: string;
+}
+
 const fencedBlockPattern = /```mcp\s*\n([\s\S]*?)\n```/g;
 const renderedBlockSelector = [
   'pre code',
@@ -45,9 +56,10 @@ export async function analyzeMcpTurn(container: ParentNode, visibleText: string)
   if (renderedCandidates.length > 0) {
     const parsed = await parseMcpCandidateStrings(Array.from(new Set(renderedCandidates.map((candidate) => candidate.normalized))));
     if (parsed.blocks.length > 0) {
+      const ranges = locateRenderedCandidateRanges(visibleText, renderedCandidates);
       return finalizeTurnAnalysis(
         parsed,
-        normalizeTurnResidual(removeRenderedCandidateText(visibleText, renderedCandidates)),
+        splitResidualSegments(visibleText, ranges),
         true
       );
     }
@@ -56,12 +68,17 @@ export async function analyzeMcpTurn(container: ParentNode, visibleText: string)
     }
   }
 
-  const fencedBodies = extractFencedBlockBodies(visibleText);
+  const fencedMatches = extractFencedBlockMatches(visibleText);
+  const fencedBodies = fencedMatches.map((match) => match.body);
   let fencedFailure: ParseResult | null = null;
   if (fencedBodies.length > 0) {
     const parsed = await parseMcpCandidateStrings(fencedBodies);
     if (parsed.blocks.length > 0) {
-      return finalizeTurnAnalysis(parsed, normalizeTurnResidual(stripFencedMcpBlocks(visibleText)), true);
+      return finalizeTurnAnalysis(
+        parsed,
+        splitResidualSegments(visibleText, fencedMatches.map(({ start, end }) => ({ start, end }))),
+        true
+      );
     }
     if (parsed.errors.length > 0) {
       fencedFailure = parsed;
@@ -70,7 +87,11 @@ export async function analyzeMcpTurn(container: ParentNode, visibleText: string)
 
   const fallbackFailure = renderedFailure ?? fencedFailure;
   if (fallbackFailure) {
-    return finalizeTurnAnalysis(fallbackFailure, normalizeTurnResidual(visibleText), true);
+    return finalizeTurnAnalysis(fallbackFailure, {
+      prefix: normalizeResidualText(visibleText),
+      middles: [],
+      suffix: ''
+    }, true);
   }
 
   return {
@@ -100,6 +121,19 @@ function extractFencedBlockBodies(text: string): string[] {
   return Array.from(text.matchAll(fencedBlockPattern), (match) => (match[1] ?? '').trim()).filter((body) => body.length > 0);
 }
 
+function extractFencedBlockMatches(text: string): Array<TextRange & { body: string }> {
+  return Array.from(text.matchAll(fencedBlockPattern), (match) => {
+    const fullText = match[0] ?? '';
+    const body = (match[1] ?? '').trim();
+    const start = match.index ?? -1;
+    return {
+      body,
+      start,
+      end: start >= 0 ? start + fullText.length : -1
+    };
+  }).filter((match) => match.body.length > 0 && match.start >= 0 && match.end >= 0);
+}
+
 function extractRenderedCandidates(container: ParentNode): Array<{ rawText: string; normalized: string }> {
   const seen = new Set<string>();
   const results: Array<{ rawText: string; normalized: string }> = [];
@@ -123,6 +157,28 @@ function extractRenderedCandidates(container: ParentNode): Array<{ rawText: stri
   }
 
   return results;
+}
+
+function locateRenderedCandidateRanges(text: string, candidates: Array<{ rawText: string }>): TextRange[] {
+  const ranges: TextRange[] = [];
+  let cursor = 0;
+
+  for (const candidate of candidates) {
+    if (!candidate.rawText) {
+      continue;
+    }
+
+    const start = text.indexOf(candidate.rawText, cursor);
+    if (start === -1) {
+      continue;
+    }
+
+    const end = start + candidate.rawText.length;
+    ranges.push({ start, end });
+    cursor = end;
+  }
+
+  return ranges;
 }
 
 function looksLikeExplicitMcpRenderedBlock(text: string): boolean {
@@ -167,38 +223,42 @@ function normalizeRenderedCandidate(text: string): string {
   return trimmed.slice(firstBrace, lastBrace + 1).trim();
 }
 
-function removeRenderedCandidateText(text: string, candidates: Array<{ rawText: string }>): string {
-  let remaining = text;
-  for (const candidate of candidates) {
-    if (!candidate.rawText) {
-      continue;
-    }
+function normalizeResidualText(text: string): string {
+  return text.replace(/\u00a0/g, ' ').trim();
+}
 
-    const index = remaining.indexOf(candidate.rawText);
-    if (index === -1) {
-      continue;
-    }
-
-    remaining = `${remaining.slice(0, index)}${remaining.slice(index + candidate.rawText.length)}`;
+function splitResidualSegments(text: string, ranges: TextRange[]): TurnResidualSegments {
+  if (ranges.length === 0) {
+    return {
+      prefix: normalizeResidualText(text),
+      middles: [],
+      suffix: ''
+    };
   }
 
-  return remaining;
+  const sorted = [...ranges].sort((left, right) => left.start - right.start);
+  const prefix = normalizeResidualText(text.slice(0, sorted[0]?.start ?? 0));
+  const middles: string[] = [];
+
+  for (let index = 0; index < sorted.length - 1; index += 1) {
+    const current = sorted[index];
+    const next = sorted[index + 1];
+    if (!current || !next) {
+      continue;
+    }
+
+    middles.push(normalizeResidualText(text.slice(current.end, next.start)));
+  }
+
+  const last = sorted[sorted.length - 1];
+  return {
+    prefix,
+    middles,
+    suffix: last ? normalizeResidualText(text.slice(last.end)) : ''
+  };
 }
 
-function stripFencedMcpBlocks(text: string): string {
-  return text.replace(fencedBlockPattern, '').trim();
-}
-
-function normalizeTurnResidual(text: string): string {
-  return text
-    .replace(/```mcp/gi, '')
-    .replace(/```/g, '')
-    .replace(/\bmcp\b/gi, '')
-    .replace(/\u00a0/g, ' ')
-    .trim();
-}
-
-function finalizeTurnAnalysis(parsed: ParseResult, residualText: string, hasExplicitMcpBlock: boolean): McpTurnAnalysis {
+function finalizeTurnAnalysis(parsed: ParseResult, residual: TurnResidualSegments, hasExplicitMcpBlock: boolean): McpTurnAnalysis {
   if (parsed.blocks.length === 0) {
     return {
       ...parsed,
@@ -215,29 +275,51 @@ function finalizeTurnAnalysis(parsed: ParseResult, residualText: string, hasExpl
     };
   }
 
-  if (residualText.length > 0) {
-    const recoverableResidual = parseLooseMcpResidual(residualText);
+  const trailingResidual = [...residual.middles, residual.suffix].filter((segment) => segment.length > 0).join('\n\n');
+  if (trailingResidual.length > 0) {
+    const recoverableResidual = parseLooseMcpResidual(trailingResidual);
     if (hasExplicitMcpBlock && recoverableResidual.ok) {
       return {
         ...parsed,
         status: 'recoverable',
-        warningReason: 'Assistant reply included unfenced MCP-like JSON before or around a valid MCP block. Ignoring the unfenced fragment and using only the valid MCP block(s).'
+        warningReason: 'Assistant reply included unfenced MCP-like JSON between or after valid MCP blocks. Ignoring the unfenced fragment and using only the valid MCP block(s).'
       };
     }
 
     return {
       ...parsed,
       status: 'invalid',
-      violationReason: hasExplicitMcpBlock
-        ? 'Assistant reply mixed valid MCP blocks with natural language or other non-block content. Tool-call turns must contain only fenced `mcp` blocks.'
-        : 'Assistant reply mixed MCP tool calls with extra prose or unfenced content. Tool-call turns must contain only fenced `mcp` blocks.'
+      violationReason: 'Assistant reply added natural language or other non-block content after MCP tool-call blocks. Once the first fenced `mcp` block appears, the rest of the reply must stay MCP-only.'
     };
+  }
+
+  if (residual.prefix.length > 0) {
+    const recoverablePrefix = parseLooseMcpResidual(residual.prefix);
+    if (hasExplicitMcpBlock && recoverablePrefix.ok) {
+      return {
+        ...parsed,
+        status: 'recoverable',
+        warningReason: 'Assistant reply included unfenced MCP-like JSON before a valid MCP block. Ignoring the unfenced fragment and using only the valid MCP block(s).'
+      };
+    }
+
+    if (looksLikeMcpLikeResidual(residual.prefix)) {
+      return {
+        ...parsed,
+        status: 'invalid',
+        violationReason: 'Assistant reply contained malformed or unfenced MCP-like content before a valid MCP block.'
+      };
+    }
   }
 
   return {
     ...parsed,
     status: 'valid'
   };
+}
+
+function looksLikeMcpLikeResidual(text: string): boolean {
+  return text.includes('"tool"') || text.includes('"args"');
 }
 
 function parseLooseMcpResidual(text: string): { ok: boolean } {
@@ -260,7 +342,7 @@ function parseLooseMcpResidual(text: string): { ok: boolean } {
     remaining = `${remaining.slice(0, index)}${remaining.slice(index + candidate.length)}`;
   }
 
-  const normalizedRemainder = normalizeTurnResidual(remaining);
+  const normalizedRemainder = normalizeResidualText(remaining);
   if (normalizedRemainder.length > 0) {
     return { ok: false };
   }

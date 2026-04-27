@@ -16,6 +16,19 @@ describe('formatToolResult', () => {
     expect(output).toContain('```tool_result');
     expect(output).toContain('Continue only after reading this bridge-provided tool result.');
   });
+
+  it('uses a longer outer fence when file content contains triple backticks', () => {
+    const output = formatToolResult('read_file', {
+      ok: true,
+      result: {
+        path: 'apps/userscript/src/catalog.ts',
+        content: '```mcp\n{\n  "tool": "read_file"\n}\n```'
+      }
+    });
+
+    expect(output).toContain('````tool_result');
+    expect(output).toContain('````\n\nContinue only after reading this bridge-provided tool result.');
+  });
 });
 
 describe('formatBatchToolResult', () => {

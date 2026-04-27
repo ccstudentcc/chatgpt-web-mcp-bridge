@@ -77,6 +77,7 @@ function findSendButton(): HTMLButtonElement | null {
 }
 
 export function formatToolResult(tool: string, response: unknown): string {
+  const responseJson = JSON.stringify(response, null, 2);
   const lines = [
     `Bridge tool result for \`${tool}\`:`,
     'This result was executed outside the model after your previous `mcp` reply. Treat the fenced `tool_result` block below as the authoritative execution result.'
@@ -86,11 +87,12 @@ export function formatToolResult(tool: string, response: unknown): string {
     lines.push('', summary);
   }
 
-  lines.push('', '```tool_result', JSON.stringify(response, null, 2), '```', '', 'Continue only after reading this bridge-provided tool result. Do not claim you already had the tool output before this message.');
+  lines.push('', ...buildFencedBlock('tool_result', responseJson), '', 'Continue only after reading this bridge-provided tool result. Do not claim you already had the tool output before this message.');
   return lines.join('\n');
 }
 
 export function formatBatchToolResult(response: ToolResultBatch): string {
+  const responseJson = JSON.stringify(response, null, 2);
   const lines = [
     'Bridge batch tool results for one assistant reply:',
     'These results were executed outside the model after your previous `mcp` reply. Treat the fenced `tool_result_batch` block below as the authoritative execution result set.',
@@ -108,8 +110,18 @@ export function formatBatchToolResult(response: ToolResultBatch): string {
     }
   }
 
-  lines.push('', '```tool_result_batch', JSON.stringify(response, null, 2), '```', '', 'Continue only after reading these bridge-provided batch results. Do not claim you already had the tool output before this message.');
+  lines.push('', ...buildFencedBlock('tool_result_batch', responseJson), '', 'Continue only after reading these bridge-provided batch results. Do not claim you already had the tool output before this message.');
   return lines.join('\n');
+}
+
+function buildFencedBlock(language: string, content: string): [string, string, string] {
+  const fence = chooseFence(content);
+  return [`${fence}${language}`, content, fence];
+}
+
+function chooseFence(content: string): string {
+  const longestBacktickRun = Math.max(0, ...Array.from(content.matchAll(/`+/g), (match) => match[0].length));
+  return '`'.repeat(Math.max(3, longestBacktickRun + 1));
 }
 
 function buildTruncationSummary(tool: string, response: unknown): string | null {

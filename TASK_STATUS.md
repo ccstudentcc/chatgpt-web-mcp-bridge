@@ -16,8 +16,11 @@
 - The userscript now parses rendered ChatGPT code blocks from the real DOM instead of relying only on fenced markdown text, so automatic execution can start from actual ChatGPT replies where triple backticks are no longer visible.
 - The rendered-code parser now tolerates ChatGPT code blocks whose visible text includes the `mcp` label or extra wrapper text before the JSON body, reducing regressions where a visible `mcp` block stayed undetected.
 - The userscript now scans the current page once at startup, so an MCP block that is already rendered before the observer attaches still becomes runnable without waiting for a later DOM mutation.
+- Startup and history rescans now only consider the latest assistant turn that is still open; once a later bridge `tool_result` / `tool_result_batch` has been inserted, the older MCP turn is treated as closed and will not re-run on refresh or `.mhtml` replay.
+- MCP-turn validation now allows a natural-language prefix before the first fenced `mcp` block, while still rejecting prose or other non-block content between MCP blocks or after the first MCP block has appeared.
 - Single-tool deduplication is now scoped to the current assistant message identity instead of only the raw JSON body, so the same MCP request can appear again in a new conversation without being suppressed as already executed.
 - Result insertion now prefers the visible `#prompt-textarea` / contenteditable composer over hidden fallback textareas and waits briefly for the real send button state before declaring auto-send failure.
+- `tool_result` and `tool_result_batch` insertion now chooses an outer fence long enough to survive embedded triple-backtick content from files such as prompt templates, preventing composer/render corruption that previously broke auto-send.
 - The userscript now installs its request hook at `document-start`, then delays UI/DOM observers until `DOMContentLoaded`, so the first ChatGPT message request can still be patched without breaking panel startup.
 - The userscript now bootstraps the request-hook prompt from the last successful `/tools` snapshot before `DOMContentLoaded`, then warms it from a fresh gateway call in parallel so new-chat first turns do not depend solely on the current page's async panel sync.
 - The injected tool-catalog prompt now explicitly tells ChatGPT to prefer Local MCP Bridge tools for `workspaceRoot` file tasks over unrelated built-in connectors such as GitHub or Gmail, and to report specific disabled bridge tools instead of claiming local tools are unavailable.
@@ -50,7 +53,7 @@
 - Structured failure results now follow the same insert/send automation path as successful tool results.
 - Automatic result delivery now logs insert/send success and send-button misses explicitly, and waits longer for the real send button to enable before downgrading to "inserted but not sent".
 - Auto-send now requires post-click confirmation from the composer state before reporting `sent`; clicking the button alone no longer counts as a successful submission.
-- Assistant reply scanning now walks back through the newest assistant messages instead of only the single latest node, so older mixed text-plus-`mcp` replies can still surface unexecuted tool calls.
+- Assistant reply scanning now anchors on the latest open assistant turn instead of walking back through historical assistant replies, which prevents already-closed MCP history from being rediscovered after refreshes or archive playback.
 - `search_files` now preserves its case-insensitive path-substring semantics while using `rg` for candidate prefilter when available and falling back to the Node walker if `rg` is missing or fails.
 - `read_file` now blocks only high-confidence secret material and otherwise returns redacted content for lower-confidence assignment-style patterns such as `token = ...` or `api_key = ...`, avoiding full-file rejection during code review.
 - `grep_files` now follows the same two-tier sensitive-content policy as `read_file`: high-confidence secrets block the response, while lower-confidence assignment-style patterns are redacted inline.

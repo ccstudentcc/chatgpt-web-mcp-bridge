@@ -5,7 +5,7 @@ import type { ToolCallFailure, ToolCallRequest } from '@cwmb/protocol';
 import type { BatchFailureItem, BatchResultItem } from './batch.js';
 import { createBatchId, executeBatch } from './batch.js';
 import { callTool, health, listTools } from './gateway-client.js';
-import { extractVisibleText, findAssistantMessages, findLatestUserMessage, onChatMutation } from './dom.js';
+import { extractVisibleText, findLatestOpenAssistantMessage, findLatestUserMessage, onChatMutation } from './dom.js';
 import { sha256Normalized } from './hash.js';
 import { formatBatchToolResult, formatToolResult, insertIntoChatInput, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
 import { analyzeMcpTurn } from './parser.js';
@@ -71,19 +71,21 @@ async function refreshGatewayStatus(): Promise<void> {
 async function scanLatestAssistantMessage(): Promise<void> {
   if (state.status === 'executing' || state.status === 'batch_executing') return;
   const requestId = getCurrentRequestIdentity();
-  const messages = findAssistantMessages().slice(-8).reverse();
-  let firstInvalid: { messageId: string; invalidReason: string } | null = null;
-  for (const message of messages) {
-    const detection = await detectPendingBlocksFromMessage(message);
-    if (!detection) {
-      continue;
-    }
+  const latestMessage = findLatestOpenAssistantMessage();
+  if (!latestMessage) {
+    pendingInvalidTurn = null;
+    clearPendingDetection();
+    return;
+  }
 
-    if ('invalidReason' in detection) {
-      firstInvalid ??= detection;
-      continue;
-    }
+  const detection = await detectPendingBlocksFromMessage(latestMessage);
+  if (!detection) {
+    pendingInvalidTurn = null;
+    clearPendingDetection();
+    return;
+  }
 
+  if (!('invalidReason' in detection)) {
     const { next, messageId, batchId } = detection;
     pendingInvalidTurn = null;
     if ('warningReason' in detection) {
@@ -105,21 +107,11 @@ async function scanLatestAssistantMessage(): Promise<void> {
     return;
   }
 
-  if (!firstInvalid) {
-    pendingInvalidTurn = null;
-    return;
-  }
-
-  if (state.pending.length > 0 || state.retryableBatch) {
-    pendingInvalidTurn = null;
-    return;
-  }
-
   const now = Date.now();
-  if (!pendingInvalidTurn || pendingInvalidTurn.messageId !== firstInvalid.messageId || pendingInvalidTurn.reason !== firstInvalid.invalidReason) {
+  if (!pendingInvalidTurn || pendingInvalidTurn.messageId !== detection.messageId || pendingInvalidTurn.reason !== detection.invalidReason) {
     pendingInvalidTurn = {
-      messageId: firstInvalid.messageId,
-      reason: firstInvalid.invalidReason,
+      messageId: detection.messageId,
+      reason: detection.invalidReason,
       firstSeenAt: now
     };
     return;
@@ -129,14 +121,29 @@ async function scanLatestAssistantMessage(): Promise<void> {
     return;
   }
 
-  const isNewInvalidTurn = state.lastInvalidMcpMessageId !== firstInvalid.messageId || state.lastError !== firstInvalid.invalidReason;
-  state.lastInvalidMcpMessageId = firstInvalid.messageId;
-  state.lastError = firstInvalid.invalidReason;
+  const isNewInvalidTurn = state.lastInvalidMcpMessageId !== detection.messageId || state.lastError !== detection.invalidReason;
+  state.lastInvalidMcpMessageId = detection.messageId;
+  state.lastError = detection.invalidReason;
   state.status = 'invalid_mcp_turn';
   if (isNewInvalidTurn) {
-    addLogEntry('warn', `Blocked invalid MCP reply: ${firstInvalid.invalidReason}`);
+    addLogEntry('warn', `Blocked invalid MCP reply: ${detection.invalidReason}`);
   }
   renderPanel();
+}
+
+function clearPendingDetection(): void {
+  if (state.status === 'executing' || state.status === 'batch_executing' || state.retryableBatch) {
+    return;
+  }
+
+  state.pending = [];
+  state.pendingBatchId = undefined;
+  state.pendingMessageId = undefined;
+  state.pendingRequestId = undefined;
+  state.progress = undefined;
+  if (state.status === 'detected' || state.status === 'detected_batch' || state.status === 'invalid_mcp_turn') {
+    state.status = 'idle';
+  }
 }
 
 async function runPending(): Promise<void> {
