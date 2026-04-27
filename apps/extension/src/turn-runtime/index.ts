@@ -34,6 +34,15 @@ export {
   type PendingTurnRuntimeStatus
 } from './pending-turn-runtime.js';
 export {
+  createInvalidTurnRuntimeUpdate,
+  createPendingDetectionUpdate,
+  resetPendingDetectionRuntime,
+  type InvalidTurnRuntimeUpdate,
+  type PendingDetectionReset,
+  type PendingDetectionUpdate,
+  type ScanRuntimeStatus
+} from './scan-runtime-effects.js';
+export {
   isSamePendingSelection
 } from './pending-selection.js';
 export {
