@@ -179,6 +179,7 @@ But the underlying DOM/request-shape observations still need to be centralized h
   - When a bridge result was inserted into the ChatGPT composer but not sent, refreshing the same thread preserved that composer text.
   - Without an explicit undelivered-result restore path, startup/history rescan could treat the same assistant `mcp` turn as open again and re-execute it, causing duplicate insertion attempts against the already preserved composer text.
   - During streaming or a stalled tail, ChatGPT reused `#composer-submit-button` for a stop action with `data-testid="stop-button"` and an `aria-label` equivalent to `停止流式传输`, so button id alone was not enough to prove that the composer was ready to send.
+  - When the composer was actually ready to send, the same `#composer-submit-button` selector appeared with `data-testid="send-button"` and an `aria-label` equivalent to `发送提示`, confirming that the stable discriminator is the button state metadata rather than the shared id alone.
 - Impact:
   - Result-delivery recovery must persist enough undelivered state to survive refresh on the same conversation and suppress re-execution of the already handled `mcp` turn when the preserved composer still matches the pending bridge result.
   - Send-button detection must explicitly reject stop-streaming variants and wait for a real send affordance instead of treating every `#composer-submit-button` as ready.
