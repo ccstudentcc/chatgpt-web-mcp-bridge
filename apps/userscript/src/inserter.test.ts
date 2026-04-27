@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   formatBatchToolResult,
   formatToolResult,
+  insertIntoChatInput,
   isChatInputSubmitting,
   readCurrentChatInputText,
   sendCurrentChatInput
@@ -121,6 +122,73 @@ describe('readCurrentChatInputText', () => {
     Object.defineProperty(globalThis, 'HTMLElement', { value: FakeHTMLElement, configurable: true });
 
     expect(readCurrentChatInputText()).toBe('Tool result for `mcp_list`');
+  });
+});
+
+describe('insertIntoChatInput', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(globalThis, 'document');
+    Reflect.deleteProperty(globalThis, 'window');
+    Reflect.deleteProperty(globalThis, 'HTMLElement');
+    Reflect.deleteProperty(globalThis, 'InputEvent');
+  });
+
+  it('falls back to plain-text replacement when execCommand round-trips extra blank lines', () => {
+    class FakeHTMLElement {
+      innerText = 'Bridge tool result for `read_file`:\n\nThis result was executed outside the model...';
+      textContent = 'Bridge tool result for `read_file`:\n\nThis result was executed outside the model...';
+      replaceChildren = vi.fn((node?: { data?: string }) => {
+        this.innerText = node?.data ?? '';
+        this.textContent = node?.data ?? '';
+      });
+      focus = vi.fn();
+      dispatchEvent = vi.fn();
+
+      getAttribute(): null {
+        return null;
+      }
+    }
+
+    const editable = new FakeHTMLElement();
+    const selection = {
+      removeAllRanges: vi.fn(),
+      addRange: vi.fn()
+    };
+
+    Object.defineProperty(globalThis, 'document', {
+      value: {
+        querySelectorAll: (selector: string) => selector.includes('contenteditable') ? [editable] : [],
+        execCommand: (command: string) => command === 'insertText',
+        createRange: () => ({
+          selectNodeContents: vi.fn(),
+          collapse: vi.fn()
+        }),
+        createTextNode: (value: string) => ({ data: value })
+      },
+      configurable: true
+    });
+    Object.defineProperty(globalThis, 'window', {
+      value: {
+        getSelection: () => selection,
+        getComputedStyle: () => ({ display: 'block', visibility: 'visible' })
+      },
+      configurable: true
+    });
+    Object.defineProperty(globalThis, 'HTMLElement', { value: FakeHTMLElement, configurable: true });
+    Object.defineProperty(globalThis, 'InputEvent', {
+      value: class FakeInputEvent extends Event {
+        constructor(type: string, _init?: EventInit) {
+          super(type, _init);
+        }
+      },
+      configurable: true
+    });
+
+    const inserted = insertIntoChatInput('Bridge tool result for `read_file`:\nThis result was executed outside the model...');
+
+    expect(inserted).toBe(true);
+    expect(editable.replaceChildren).toHaveBeenCalledTimes(1);
+    expect(editable.textContent).toBe('Bridge tool result for `read_file`:\nThis result was executed outside the model...');
   });
 });
 

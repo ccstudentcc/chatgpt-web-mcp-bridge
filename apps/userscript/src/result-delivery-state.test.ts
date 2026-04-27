@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   deriveDeliveryPanelState,
+  deriveRecoveredDeliveryRuntimeState,
   resolveDeliveredBridgeStatus
 } from '../../extension/src/result-delivery/index.js';
 
@@ -50,5 +51,69 @@ describe('resolveDeliveredBridgeStatus', () => {
 
   it('preserves failed single-result readiness when insertion still falls back', () => {
     expect(resolveDeliveredBridgeStatus('failed', 'ready')).toBe('failed');
+  });
+});
+
+describe('deriveRecoveredDeliveryRuntimeState', () => {
+  it('resumes authoritative send without deferring when the recovered composer is empty', () => {
+    const recovered = deriveRecoveredDeliveryRuntimeState({
+      status: 'inserted',
+      lastResult: 'tool-result',
+      autoSend: true,
+      currentComposerText: '',
+      composerSnapshot: undefined,
+      preservedDraft: undefined,
+      hasMatchingPersistedSession: false
+    });
+
+    expect(recovered.shouldResume).toBe(true);
+    expect(recovered.shouldDeferPendingDetection).toBe(false);
+    expect(recovered.nextPreservedDraft).toBeUndefined();
+  });
+
+  it('preserves unrelated drafts for recovered send while allowing new detection after the composer diverges', () => {
+    const recovered = deriveRecoveredDeliveryRuntimeState({
+      status: 'inserted',
+      lastResult: [
+        'Bridge tool result for `read_file`:',
+        'This result was executed outside the model after your previous `mcp` reply.',
+        '',
+        '```tool_result',
+        '{}',
+        '```'
+      ].join('\n'),
+      autoSend: true,
+      currentComposerText: 'my unrelated draft',
+      composerSnapshot: undefined,
+      preservedDraft: undefined,
+      hasMatchingPersistedSession: false
+    });
+
+    expect(recovered.shouldResume).toBe(true);
+    expect(recovered.shouldDeferPendingDetection).toBe(false);
+    expect(recovered.nextPreservedDraft).toBe('my unrelated draft');
+  });
+
+  it('keeps defer active only while the composer still matches bridge-owned residue', () => {
+    const recovered = deriveRecoveredDeliveryRuntimeState({
+      status: 'inserted',
+      lastResult: [
+        'Bridge tool result for `read_file`:',
+        'This result was executed outside the model after your previous `mcp` reply.',
+        '',
+        '```tool_result',
+        '{}',
+        '```'
+      ].join('\n'),
+      autoSend: false,
+      currentComposerText: 'This result was executed outside the model after your previous `mcp` reply.',
+      composerSnapshot: 'This result was executed outside the model after your previous `mcp` reply.',
+      preservedDraft: 'kept draft',
+      hasMatchingPersistedSession: true
+    });
+
+    expect(recovered.shouldResume).toBe(false);
+    expect(recovered.shouldDeferPendingDetection).toBe(true);
+    expect(recovered.nextPreservedDraft).toBe('kept draft');
   });
 });

@@ -311,4 +311,44 @@ describe('state runtime snapshot helpers', () => {
     expect(hasPersistedUndeliveredResultSession('/c/test-thread')).toBe(true);
     expect(hasPersistedUndeliveredResultSession('/c/other-thread')).toBe(false);
   });
+
+  it('only treats persisted bridge-like composer text as an active undelivered-result match', async () => {
+    vi.stubGlobal('GM_getValue', vi.fn((key: string, defaultValue = '') => {
+      if (key === 'cwmb_undelivered_result_session') {
+        return JSON.stringify({
+          conversationPath: '/c/test-thread',
+          status: 'inserted',
+          lastResult: [
+            'Bridge tool result for `read_file`:',
+            'This result was executed outside the model after your previous `mcp` reply.',
+            '',
+            '```tool_result',
+            '{}',
+            '```'
+          ].join('\n'),
+          executedCallIds: ['call-1'],
+          executedBatchIds: []
+        });
+      }
+      return defaultValue;
+    }));
+    vi.stubGlobal('GM_setValue', vi.fn());
+
+    const {
+      matchesPersistedUndeliveredResultSession
+    } = await import('./state.js');
+
+    expect(matchesPersistedUndeliveredResultSession({
+      conversationPath: '/c/test-thread',
+      currentComposerText: 'This result was executed outside the model after your previous `mcp` reply.'
+    })).toBe(true);
+    expect(matchesPersistedUndeliveredResultSession({
+      conversationPath: '/c/test-thread',
+      currentComposerText: 'my unrelated draft'
+    })).toBe(false);
+    expect(matchesPersistedUndeliveredResultSession({
+      conversationPath: '/c/test-thread',
+      currentComposerText: ''
+    })).toBe(false);
+  });
 });

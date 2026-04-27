@@ -19,11 +19,10 @@ import {
   deriveBatchDeliveryOutcome,
   deliverResult,
   deriveDeliveryPanelState,
+  deriveRecoveredDeliveryRuntimeState,
   formatBatchToolResult,
   formatToolResult,
   isBatchReadyDeliveryStatus,
-  matchesRecoveredComposerState,
-  resolveRecoveredComposerDraft,
   resolveDeliveredBridgeStatus,
   type ReadyDeliveryStatus
 } from './result-delivery.js';
@@ -45,7 +44,7 @@ import {
   clearGatewayCatalog,
   clearGatewayRuntime,
   getCatalogTools,
-  hasPersistedUndeliveredResultSession,
+  matchesPersistedUndeliveredResultSession,
   hasLiveCatalog,
   restorePersistedUndeliveredResultSession,
   setGatewayCatalog,
@@ -608,7 +607,7 @@ async function startBridge(): Promise<void> {
     addLogEntry('info', 'Restored the undelivered bridge result from the current composer after refresh.');
   }
   renderPanel();
-  void maybeResumeRecoveredResultDelivery();
+  await maybeResumeRecoveredResultDelivery();
   void refreshGatewayStatus();
   void scanLatestAssistantMessage();
   onChatMutation(() => void scanLatestAssistantMessage());
@@ -665,11 +664,21 @@ async function restoreUndeliveredResultSessionOnStartup(): Promise<boolean> {
 
 function shouldDeferPendingDetectionForComposerDraft(): boolean {
   const composerText = readCurrentChatInputText();
-  if (normalizeStartupComposerText(composerText).length === 0) {
-    return false;
-  }
+  const hasMatchingRecoveredSession = normalizeStartupComposerText(composerText).length > 0
+    && matchesPersistedUndeliveredResultSession({
+      conversationPath: window.location.pathname,
+      currentComposerText: composerText
+    });
 
-  return hasPersistedUndeliveredResultSession(window.location.pathname);
+  return deriveRecoveredDeliveryRuntimeState({
+    status: state.status,
+    lastResult: state.lastResult,
+    autoSend: state.autoSendResult,
+    currentComposerText: composerText,
+    composerSnapshot: state.recoveredComposerSnapshot,
+    preservedDraft: state.preservedDraft,
+    hasMatchingPersistedSession: hasMatchingRecoveredSession
+  }).shouldDeferPendingDetection;
 }
 
 function normalizeStartupComposerText(value: string): string {
@@ -677,21 +686,25 @@ function normalizeStartupComposerText(value: string): string {
 }
 
 async function maybeResumeRecoveredResultDelivery(): Promise<void> {
-  if (!state.autoSendResult || !state.lastResult) {
-    return;
-  }
-
-  if (state.status !== 'inserted' && state.status !== 'batch_inserted') {
-    return;
-  }
-
   const currentComposerText = readCurrentChatInputText();
-  state.preservedDraft = resolveRecoveredComposerDraft({
-    currentText: currentComposerText,
-    payload: state.lastResult,
+  const recovered = deriveRecoveredDeliveryRuntimeState({
+    status: state.status,
+    lastResult: state.lastResult,
+    autoSend: state.autoSendResult,
+    currentComposerText,
     composerSnapshot: state.recoveredComposerSnapshot,
-    preservedDraft: state.preservedDraft
+    preservedDraft: state.preservedDraft,
+    hasMatchingPersistedSession: normalizeStartupComposerText(currentComposerText).length > 0
+      && matchesPersistedUndeliveredResultSession({
+      conversationPath: window.location.pathname,
+      currentComposerText
+    })
   });
+  state.preservedDraft = recovered.nextPreservedDraft;
+
+  if (!recovered.shouldResume) {
+    return;
+  }
 
   state.status = await performLastResultDelivery(getCurrentReadyDeliveryStatus());
   syncUndeliveredResultSession();

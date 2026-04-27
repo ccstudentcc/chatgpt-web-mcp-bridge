@@ -7,6 +7,7 @@ export {
   type DeliveryRecoveryKind,
   type DeliveryRecoveryNotice,
   deriveDeliveryPanelState,
+  deriveRecoveredDeliveryRuntimeState,
   deriveReadyDeliveryStatus,
   formatBatchToolResult,
   formatToolResult,

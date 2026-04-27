@@ -5,13 +5,15 @@ export function insertIntoChatInput(value: string): boolean {
   const editable = findVisibleEditable();
   if (editable) {
     editable.focus();
-    if (tryExecCommandInsert(editable, value)) {
+    if (tryExecCommandInsert(editable, value) && matchesEditableText(editable, value)) {
       dispatchInput(editable, value);
+      dispatchChange(editable);
       return true;
     }
 
     replaceEditableContent(editable, value);
     dispatchInput(editable, value);
+    dispatchChange(editable);
     return true;
   }
 
@@ -20,6 +22,7 @@ export function insertIntoChatInput(value: string): boolean {
     const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
     setter?.call(textarea, value);
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    textarea.dispatchEvent(new Event('change', { bubbles: true }));
     textarea.focus();
     return true;
   }
@@ -134,22 +137,13 @@ function tryExecCommandInsert(editable: HTMLElement, value: string): boolean {
   selection?.removeAllRanges();
   selection?.addRange(range);
 
+  editable.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertText', data: value }));
   execCommand('selectAll', false);
   return execCommand('insertText', false, value);
 }
 
 function replaceEditableContent(editable: HTMLElement, value: string): void {
-  editable.replaceChildren();
-  for (const line of value.split('\n')) {
-    const paragraph = document.createElement('p');
-    if (line.length === 0) {
-      paragraph.appendChild(document.createElement('br'));
-    } else {
-      paragraph.textContent = line;
-    }
-    editable.appendChild(paragraph);
-  }
-
+  editable.replaceChildren(document.createTextNode(value));
   placeCaretAtEnd(editable);
 }
 
@@ -166,6 +160,10 @@ function dispatchInput(target: HTMLElement | HTMLTextAreaElement, value: string)
   target.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
 }
 
+function dispatchChange(target: HTMLElement | HTMLTextAreaElement): void {
+  target.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
 function isVisible(el: Element): boolean {
   const style = window.getComputedStyle(el);
   if (style.display === 'none' || style.visibility === 'hidden') {
@@ -180,6 +178,18 @@ function isVisible(el: Element): boolean {
 
 function normalizeChatInputText(value: string): string {
   return value.replace(/\u00a0/g, ' ').trim();
+}
+
+function matchesEditableText(editable: HTMLElement, expected: string): boolean {
+  return normalizeEditableRoundTripText(editable.innerText || editable.textContent || '')
+    === normalizeEditableRoundTripText(expected);
+}
+
+function normalizeEditableRoundTripText(value: string): string {
+  return value
+    .replace(/\r\n/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .trimEnd();
 }
 
 function wait(ms: number): Promise<void> {

@@ -348,6 +348,21 @@ export function hasPersistedUndeliveredResultSession(conversationPath: string): 
   return readPersistedUndeliveredResultSession(conversationPath) !== null;
 }
 
+export function matchesPersistedUndeliveredResultSession({
+  conversationPath,
+  currentComposerText
+}: {
+  conversationPath: string;
+  currentComposerText: string;
+}): boolean {
+  const restored = readPersistedUndeliveredResultSession(conversationPath);
+  if (!restored) {
+    return false;
+  }
+
+  return matchesPersistedComposerState(restored, currentComposerText);
+}
+
 function shouldPersistUndeliveredResult(status: BridgeStatus): status is PersistedUndeliveredResultStatus {
   return status === 'failed'
     || status === 'result_ready'

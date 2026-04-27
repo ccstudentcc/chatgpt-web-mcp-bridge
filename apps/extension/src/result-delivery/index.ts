@@ -25,6 +25,7 @@ export {
 } from './composer-delivery.js';
 export {
   deriveDeliveryPanelState,
+  deriveRecoveredDeliveryRuntimeState,
   deriveReadyDeliveryStatus,
   isBatchReadyDeliveryStatus,
   isReadyDeliveryStatus,
