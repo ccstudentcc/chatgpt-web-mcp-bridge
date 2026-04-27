@@ -82,7 +82,7 @@ export function buildToolCatalogPrompt(tools: ToolDescriptor[]): string {
     '```',
     '',
     'Output rules:',
-    '- Natural-language context may appear before the first fenced `mcp` block when needed.',
+    '- If you emit any fenced `mcp` block, do not add natural-language context before it.',
     '- Never output raw JSON outside fenced `mcp` blocks.',
     '- After the first fenced `mcp` block appears, do not add prose, analysis, or thinking text between or after tool-call blocks.',
     '',
@@ -150,7 +150,7 @@ export function buildInjectedToolPrompt(tools: ToolDescriptor[]): string {
     '```',
     '',
     'Output rules:',
-    '- Natural-language context may appear before the first fenced `mcp` block when needed.',
+    '- If you emit any fenced `mcp` block, do not add natural-language context before it.',
     '- Never output raw JSON outside fenced `mcp` blocks.',
     '- After the first fenced `mcp` block appears, do not add prose, analysis, or thinking text between or after tool-call blocks.'
   );

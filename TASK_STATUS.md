@@ -48,6 +48,7 @@
 - Pending scan-result application now also flows through extension-owned `scan-runtime-effects.ts`, so userscript no longer owns the pure clear/pending/invalid runtime update semantics for startup/history rescan.
 - Latest assistant/user turn-source orchestration now also flows through extension-owned `turn-source.ts`, so userscript no longer owns the request-identity fallback or latest-open-turn source assembly around the shared scan pipeline.
 - Pending selection clear/consume/ignore transitions now also flow through extension-owned `pending-runtime-effects.ts`, so userscript no longer owns the pure pending-selection mutation rules for detection reset, single-call consumption, batch completion, or ignore actions.
+- Invalid-turn enforcement now also treats natural-language prefix text before the first fenced `mcp` block as a hard block, aligning runtime detection with the hidden prompt contract instead of allowing prose-wrapped MCP turns through execution.
 - The userscript build now resolves `@cwmb/protocol` explicitly for extension-owned turn-runtime source pulled into the bundle, so Phase 2 owner shifts do not depend on pnpm package-boundary luck during esbuild resolution.
 - Shared protocol now owns the current `tool_result_batch` item union and batch envelope helper, including the compat `source.messageId` field used by userscript result insertion.
 - Userscript single-result insertion now formats shared `inline_tool_result` / `execution_error` envelopes instead of serializing raw legacy single-call payloads directly.
@@ -86,6 +87,7 @@
 - After moving pending scan-result runtime effects onto extension-owned turn-runtime helpers, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After moving latest assistant/user turn-source orchestration onto extension-owned turn-runtime helpers, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After moving pending selection clear/consume/ignore transitions onto extension-owned turn-runtime helpers, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After tightening invalid-turn enforcement so prose before the first fenced `mcp` block is blocked instead of executed, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 
 ## Active Stop Line
 

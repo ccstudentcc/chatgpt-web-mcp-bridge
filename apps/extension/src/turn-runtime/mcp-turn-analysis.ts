@@ -361,6 +361,12 @@ function finalizeTurnAnalysis(parsed: ParseResult, residual: TurnResidualSegment
         violationReason: 'Assistant reply contained malformed or unfenced MCP-like content before a valid MCP block.'
       };
     }
+
+    return {
+      ...parsed,
+      status: 'invalid',
+      violationReason: 'Assistant reply added natural language or other non-block content before MCP tool-call blocks. If a fenced `mcp` block is needed, the reply must start with MCP-only content.'
+    };
   }
 
   return {

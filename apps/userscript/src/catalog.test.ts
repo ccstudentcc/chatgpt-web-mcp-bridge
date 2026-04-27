@@ -57,7 +57,7 @@ describe('buildInjectedToolPrompt', () => {
     expect(prompt).toContain('Never invent, simulate, restate, or paraphrase `tool_result` or `tool_result_batch` payloads yourself.');
     expect(prompt).toContain('Output template:');
     expect(prompt).toContain('Output rules:');
-    expect(prompt).toContain('Natural-language context may appear before the first fenced `mcp` block when needed.');
+    expect(prompt).toContain('If you emit any fenced `mcp` block, do not add natural-language context before it.');
     expect(prompt).toContain('Never output raw JSON outside fenced `mcp` blocks.');
     expect(prompt).toContain('After the first fenced `mcp` block appears, do not add prose, analysis, or thinking text between or after tool-call blocks.');
     expect(prompt).toContain('"tool": "mcp_list"');

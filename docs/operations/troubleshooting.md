@@ -83,7 +83,7 @@ Check first:
 
 Current rule:
 
-- prose or reasoning mixed into the tool-call turn is a hard block
+- prose or reasoning mixed into the tool-call turn is a hard block, including before the first fenced `mcp` block
 - a short UI thinking/status residue is recoverable with a warning
 - unfenced MCP-like JSON noise without prose is recoverable only if a valid fenced `mcp` block is already present
 

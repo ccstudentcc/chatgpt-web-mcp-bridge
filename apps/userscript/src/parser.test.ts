@@ -79,7 +79,7 @@ describe('analyzeMcpTurn', () => {
     expect(result.blocks).toHaveLength(0);
   });
 
-  it('accepts a rendered MCP turn with natural-language context before the first MCP block', async () => {
+  it('rejects a rendered MCP turn with natural-language context before the first MCP block', async () => {
     const codeText = 'mcp\n{\n  "tool": "read_file",\n  "args": {\n    "path": "SPEC.md"\n  }\n}';
     const visibleText = `读取 SPEC.md，总结一下\n\n${codeText}`;
     const fakeContainer = {
@@ -87,7 +87,8 @@ describe('analyzeMcpTurn', () => {
     } as unknown as ParentNode;
 
     const result = await analyzeMcpTurn(fakeContainer, visibleText);
-    expect(result.status).toBe('valid');
+    expect(result.status).toBe('invalid');
+    expect(result.violationReason).toContain('before MCP tool-call blocks');
   });
 
   it('recovers when a valid MCP block is mixed only with unfenced MCP-like json noise', async () => {
@@ -114,7 +115,7 @@ describe('analyzeMcpTurn', () => {
     expect(result.blocks[0]?.block.tool).toBe('read_file');
   });
 
-  it('accepts a fenced MCP turn with a natural-language prefix', async () => {
+  it('rejects a fenced MCP turn with a natural-language prefix', async () => {
     const visibleText = [
       '请先确认文件是否存在。',
       '```mcp',
@@ -126,7 +127,8 @@ describe('analyzeMcpTurn', () => {
     } as unknown as ParentNode;
 
     const result = await analyzeMcpTurn(fakeContainer, visibleText);
-    expect(result.status).toBe('valid');
+    expect(result.status).toBe('invalid');
+    expect(result.violationReason).toContain('before MCP tool-call blocks');
   });
 
   it('rejects a fenced MCP turn with extra text after the block', async () => {
@@ -185,6 +187,30 @@ describe('analyzeMcpTurn', () => {
     expect(result.violationReason).toContain('after MCP tool-call blocks');
   });
 
+  it('rejects the exact pattern of prose before and after a fenced MCP block', async () => {
+    const visibleText = [
+      '我准备读取项目根目录下的 `README.md` 文件内容。',
+      '',
+      '```mcp',
+      '{',
+      '  "tool": "read_file",',
+      '  "args": {',
+      '    "path": "README.md"',
+      '  }',
+      '}',
+      '```',
+      '',
+      '已完成。'
+    ].join('\n');
+    const fakeContainer = {
+      querySelectorAll: () => []
+    } as unknown as ParentNode;
+
+    const result = await analyzeMcpTurn(fakeContainer, visibleText);
+    expect(result.status).toBe('invalid');
+    expect(result.violationReason).toContain('non-block content');
+  });
+
   it('prefers a valid fenced MCP block over malformed rendered candidates', async () => {
     const visibleText = [
       '```mcp',
@@ -201,7 +227,7 @@ describe('analyzeMcpTurn', () => {
     expect(result.blocks[0]?.block.tool).toBe('read_file');
   });
 
-  it('falls back cleanly when rendered MCP text cannot be matched exactly in visible text', async () => {
+  it('still blocks rendered fallback cases when natural-language prefix appears before the fenced MCP block', async () => {
     const visibleText = [
       '好的，我们先从 `catalog.ts` 开始，逐步分析每个模块的源码，并提炼优化点和重构策略。首先读取 `catalog.ts` 的完整内容。',
       '',
@@ -221,9 +247,8 @@ describe('analyzeMcpTurn', () => {
     } as unknown as ParentNode;
 
     const result = await analyzeMcpTurn(fakeContainer, visibleText);
-    expect(result.status).toBe('valid');
-    expect(result.blocks).toHaveLength(1);
-    expect(result.blocks[0]?.block.args.path).toBe('apps/userscript/src/catalog.ts');
+    expect(result.status).toBe('invalid');
+    expect(result.violationReason).toContain('before MCP tool-call blocks');
   });
 
   it('accepts a pure rendered MCP turn when the label line is separated from the json body by a newline', async () => {
