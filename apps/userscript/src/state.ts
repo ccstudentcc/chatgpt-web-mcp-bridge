@@ -1,4 +1,4 @@
-import type { ToolDescriptor } from '@cwmb/protocol';
+import type { CatalogContract } from '@cwmb/protocol';
 import type { ParsedMcpBlock } from './parser.js';
 import type { RequestInjectionMode } from './request-hook.js';
 
@@ -58,7 +58,7 @@ export interface BridgeState {
   continueBatchOnError: boolean;
   panelCollapsed: boolean;
   panelPosition?: PanelPosition;
-  tools: ToolDescriptor[];
+  catalog?: CatalogContract;
   toolCatalogLoaded: boolean;
   pending: ParsedMcpBlock[];
   pendingBatchId?: string;
@@ -116,7 +116,6 @@ export const state: BridgeState = {
   panelPosition: typeof panelLeftStored === 'number' && typeof panelTopStored === 'number'
     ? { left: panelLeftStored, top: panelTopStored }
     : undefined,
-  tools: [],
   toolCatalogLoaded: false,
   pending: [],
   autoRoundCount: 0,

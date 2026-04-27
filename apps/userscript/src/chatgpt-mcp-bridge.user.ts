@@ -11,7 +11,7 @@ import {
   type ToolCallFailure
 } from '@cwmb/protocol';
 import { createBatchId, executeBatch } from './batch.js';
-import { callTool, health, listTools } from './gateway-client.js';
+import { callTool, health, listCatalog } from './gateway-client.js';
 import { extractVisibleText, findLatestOpenAssistantMessage, findLatestUserMessage, onChatMutation } from './dom.js';
 import { isSamePendingSelection, updatePendingInvalidTurn, type PendingInvalidTurnState } from './detection-state.js';
 import { sha256Normalized } from './hash.js';
@@ -59,14 +59,14 @@ async function refreshGatewayStatus(): Promise<void> {
     if (errorCode === 'UNAUTHORIZED') {
       state.status = 'unauthorized';
       state.toolCatalogLoaded = false;
-      state.tools = [];
+      state.catalog = undefined;
       syncRequestPrompt('', state.requestInjectionMode);
       state.lastError = err instanceof Error ? err.message : 'Gateway authorization failed.';
       addLogEntry('error', `Gateway unauthorized: ${state.lastError}`);
     } else {
       state.status = 'disconnected';
       state.toolCatalogLoaded = false;
-      state.tools = [];
+      state.catalog = undefined;
       syncRequestPrompt('', state.requestInjectionMode);
       state.lastError = err instanceof Error ? err.message : 'Gateway disconnected';
       addLogEntry('error', `Gateway disconnected: ${state.lastError}`);
@@ -164,7 +164,7 @@ async function runPending(): Promise<void> {
 
   const pending = state.pending[0];
   if (!pending) return;
-  const capability = assessPendingTools([pending], state.tools, state.toolCatalogLoaded);
+  const capability = assessPendingTools([pending], state.catalog?.tools ?? [], state.toolCatalogLoaded);
   if (!capability.runnable) {
     state.lastError = capability.blockedReason ?? 'Tool is not runnable with the current gateway capabilities.';
     renderPanel();
@@ -245,7 +245,7 @@ async function retryStoppedBatch(): Promise<void> {
 async function runStoredBatch(batch: StoredBatch): Promise<void> {
   const { blocks, batchId, messageId } = batch;
   if (blocks.length < 2) return;
-  const capability = assessPendingTools(blocks, state.tools, state.toolCatalogLoaded);
+  const capability = assessPendingTools(blocks, state.catalog?.tools ?? [], state.toolCatalogLoaded);
   if (!capability.runnable) {
     state.lastError = capability.blockedReason ?? 'Batch is not runnable with the current gateway capabilities.';
     renderPanel();
@@ -406,13 +406,14 @@ async function insertLastResult(): Promise<void> {
 }
 
 function insertToolCatalog(): void {
-  if (!state.toolCatalogLoaded || state.tools.length === 0) {
+  const tools = state.catalog?.tools ?? [];
+  if (!state.toolCatalogLoaded || tools.length === 0) {
     state.lastError = 'Tool catalog unavailable. Refresh gateway capabilities.';
     renderPanel();
     return;
   }
 
-  const inserted = insertIntoChatInput(buildToolCatalogPrompt(state.tools));
+  const inserted = insertIntoChatInput(buildToolCatalogPrompt(tools));
   if (!inserted) {
     state.lastError = 'Chat input not found. Copied the MCP list to clipboard instead.';
     addLogEntry('warn', 'Could not insert MCP list into chat input.');
@@ -430,7 +431,7 @@ async function maybeAutoRunPending(): Promise<void> {
 
   const requestId = state.pendingRequestId ?? getCurrentRequestIdentity();
   syncRoundGuard(requestId);
-  const capability = assessPendingTools(state.pending, state.tools, state.toolCatalogLoaded);
+  const capability = assessPendingTools(state.pending, state.catalog?.tools ?? [], state.toolCatalogLoaded);
   if (!capability.autoRunnable) return;
 
   if (!canAutoRunForRequest(
@@ -516,32 +517,34 @@ async function deliverLastResult(
 }
 
 async function refreshToolCatalog(): Promise<void> {
-  const tools = await listTools();
-  state.tools = tools;
+  const catalog = await listCatalog();
+  state.catalog = catalog;
   state.toolCatalogLoaded = true;
-  const prompt = buildInjectedToolPrompt(tools);
-  writeStoredToolCatalog(tools);
+  const prompt = buildInjectedToolPrompt(catalog.tools);
+  writeStoredToolCatalog(catalog);
   syncRequestPrompt(prompt, state.requestInjectionMode);
 }
 
 function bootstrapRequestPrompt(): void {
-  const cachedTools = readStoredToolCatalog();
-  if (cachedTools.length === 0) {
+  const cachedCatalog = readStoredToolCatalog();
+  if (!cachedCatalog || cachedCatalog.tools.length === 0) {
     return;
   }
 
-  syncRequestPrompt(buildInjectedToolPrompt(cachedTools), state.requestInjectionMode);
+  state.catalog = cachedCatalog;
+  syncRequestPrompt(buildInjectedToolPrompt(cachedCatalog.tools), state.requestInjectionMode);
 }
 
 async function warmRequestPromptFromGateway(): Promise<void> {
   try {
-    const tools = await listTools();
-    if (tools.length === 0) {
+    const catalog = await listCatalog();
+    if (catalog.tools.length === 0) {
       return;
     }
 
-    writeStoredToolCatalog(tools);
-    syncRequestPrompt(buildInjectedToolPrompt(tools), state.requestInjectionMode);
+    state.catalog = catalog;
+    writeStoredToolCatalog(catalog);
+    syncRequestPrompt(buildInjectedToolPrompt(catalog.tools), state.requestInjectionMode);
   } catch {
     // Keep the cached bootstrap prompt until the regular UI-driven sync runs.
   }

@@ -59,7 +59,8 @@ export function renderPanel(): void {
   const visibleBatch = isBatch ? state.pending : state.retryableBatch?.blocks ?? [];
   const hasRetryableBatch = Boolean(state.retryableBatch);
   const activeBlocks = state.pending.length > 0 ? state.pending : visibleBatch;
-  const capability = assessPendingTools(activeBlocks, state.tools, state.toolCatalogLoaded);
+  const tools = state.catalog?.tools ?? [];
+  const capability = assessPendingTools(activeBlocks, tools, state.toolCatalogLoaded);
   const manualRunReason = state.autoExecuteEnabled && capability.runnable && !capability.autoRunnable
     ? capability.autoBlockedReason
     : '';
@@ -74,8 +75,10 @@ export function renderPanel(): void {
   const capabilityHint = capability.blockedReason ? `<div class="cwmb-callout cwmb-callout-danger">${escapeHtml(capability.blockedReason)}</div>` : '';
   const manualRunHint = manualRunReason ? `<div class="cwmb-callout cwmb-callout-info">${escapeHtml(manualRunReason)}</div>` : '';
   const progress = state.progress ? `<div class="cwmb-callout cwmb-callout-info">Running ${state.progress.current}/${state.progress.total}: <code>${escapeHtml(state.progress.tool)}</code></div>` : '';
-  const catalogSummary = summarizeToolCatalog(state.tools);
-  const toolCatalogPrompt = buildToolCatalogPrompt(state.tools);
+  const catalogSummary = summarizeToolCatalog(tools);
+  const toolCatalogPrompt = buildToolCatalogPrompt(tools);
+  const catalogVersionLabel = state.catalog?.catalogVersion ?? 'Unavailable';
+  const workspaceRootLabel = state.catalog?.workspaceRoot ?? 'Unknown';
   const statusTone = getStatusTone(state.status);
   const statusLabel = getStatusLabel(state.status);
   const tokenLabel = state.trustedLocalMode ? 'Trusted local' : state.token ? 'Token set' : 'Token missing';
@@ -135,6 +138,10 @@ export function renderPanel(): void {
               <div class="cwmb-stat-value">${state.toolCatalogLoaded ? `${catalogSummary.enabled} / ${catalogSummary.total}` : 'Unavailable'}</div>
             </div>
             <div class="cwmb-stat">
+              <div class="cwmb-stat-label">Catalog ver</div>
+              <div class="cwmb-stat-value">${escapeHtml(catalogVersionLabel)}</div>
+            </div>
+            <div class="cwmb-stat">
               <div class="cwmb-stat-label">Auth</div>
               <div class="cwmb-stat-value">${escapeHtml(tokenLabel)}</div>
             </div>
@@ -145,6 +152,10 @@ export function renderPanel(): void {
             <div class="cwmb-stat">
               <div class="cwmb-stat-label">Injection</div>
               <div class="cwmb-stat-value">${escapeHtml(injectionModeLabel)}</div>
+            </div>
+            <div class="cwmb-stat">
+              <div class="cwmb-stat-label">Workspace</div>
+              <div class="cwmb-stat-value">${escapeHtml(workspaceRootLabel)}</div>
             </div>
           </div>
         </div>
