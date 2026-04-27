@@ -171,6 +171,43 @@ describe('deliverResult', () => {
     expect(outcome.phase).toBe('sent');
   });
 
+  it('does not confirm recovered send when the composer falls back to truncated bridge residue without submission', async () => {
+    let currentTime = 0;
+    let composerText = [
+      'Bridge tool result for `read_file`:',
+      'This result was executed outside the model after your previous `mcp` reply.',
+      '',
+      '```tool_result',
+      '{}',
+      '```'
+    ].join('\n');
+
+    const outcome = await deliverResult({
+      kind: 'single',
+      payload: composerText,
+      autoSend: true,
+      allowReuseCurrentComposer: true,
+      insert: () => true,
+      restore: () => true,
+      send: async () => true,
+      isSubmitting: () => false,
+      readCurrentInput: () => composerText,
+      wait: async (ms) => {
+        currentTime += ms;
+        if (currentTime >= 100) {
+          composerText = 'This result was executed outside the model after your previous `mcp` reply.';
+        }
+      },
+      now: () => currentTime,
+      insertionSettleTimeoutMs: 100,
+      submissionTimeoutMs: 200,
+      pollIntervalMs: 50
+    });
+
+    expect(outcome.phase).toBe('inserted');
+    expect(outcome.recovery?.kind).toBe('submission_not_confirmed');
+  });
+
   it('does not treat an already-submitting page state as successful send confirmation by itself', async () => {
     let currentTime = 0;
     const outcome = await deliverResult({

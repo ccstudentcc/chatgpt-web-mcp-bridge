@@ -224,7 +224,6 @@ async function waitForSubmittedComposer({
   pollIntervalMs: number;
 }): Promise<boolean> {
   const deadline = now() + submissionTimeoutMs;
-  const expected = normalizeComposerText(expectedText);
 
   while (now() < deadline) {
     if (isSubmitting?.() && requireSubmittingTransition) {
@@ -232,7 +231,7 @@ async function waitForSubmittedComposer({
     }
 
     const current = normalizeComposerText(readCurrentInput());
-    if (!current || current !== expected) {
+    if (!current) {
       return true;
     }
 
