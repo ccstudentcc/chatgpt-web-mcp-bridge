@@ -64,6 +64,24 @@ export function getMessageIdentity(
   };
 }
 
+export function trackMessageIdentity(
+  message: HTMLElement,
+  messageText: string,
+  context: PendingTurnDetectionIdentityContext
+): {
+  messageId: string;
+  nextState: PendingTurnDetectionIdentityContext;
+} {
+  const identity = getMessageIdentity(message, messageText, context);
+  return {
+    messageId: identity.messageId,
+    nextState: {
+      ephemeralMessageIds: context.ephemeralMessageIds,
+      nextEphemeralMessageId: identity.nextEphemeralMessageId
+    }
+  };
+}
+
 export function normalizeDetectionFingerprint(value: string): string {
   return value.replace(/\u00a0/g, ' ').trim();
 }

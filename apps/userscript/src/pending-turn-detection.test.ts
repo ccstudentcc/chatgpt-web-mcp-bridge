@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   detectPendingTurn,
   getMessageIdentity,
+  trackMessageIdentity,
   type PendingTurnBlock
 } from '../../extension/src/turn-runtime/pending-turn-detection.js';
 import type { McpTurnAnalysis } from '../../extension/src/turn-runtime/mcp-turn-analysis.js';
@@ -58,6 +59,23 @@ describe('getMessageIdentity', () => {
     expect(first.messageId).toContain('ephemeral-message-1');
     expect(second.messageId).toBe(first.messageId);
     expect(second.nextEphemeralMessageId).toBe(2);
+  });
+});
+
+describe('trackMessageIdentity', () => {
+  it('returns the message id together with the next identity context', () => {
+    const message = {
+      dataset: {},
+      id: ''
+    } as unknown as HTMLElement;
+
+    const result = trackMessageIdentity(message, 'request latest bridge status', {
+      ephemeralMessageIds: new WeakMap(),
+      nextEphemeralMessageId: 5
+    });
+
+    expect(result.messageId).toContain('ephemeral-message-5');
+    expect(result.nextState.nextEphemeralMessageId).toBe(6);
   });
 });
 

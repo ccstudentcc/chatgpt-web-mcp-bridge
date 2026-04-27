@@ -29,6 +29,7 @@
 - Keep ChatGPT Web DOM/request-shape/selectors evidence in one place only: `docs/operations/chatgpt-web-runtime-evidence.md`. Do not scatter the same runtime facts across task docs or neighboring runbooks.
 - Before changing ChatGPT Web DOM-sensitive behavior, collect or refresh the relevant real-page evidence in `docs/operations/chatgpt-web-runtime-evidence.md` first. If the evidence is missing, partial, or stale, do not promote the assumption into repo truth.
 - The canonical v0.9 code owner for ChatGPT Web page facts is `apps/extension/src/chatgpt-adapter/`. Current `apps/userscript` code may only consume or compat-re-export those facts; do not create a second page-facts source of truth under the frozen v0.1 implementation tree.
+- The v0.9 end state is `apps/extension` plus `apps/gateway`, not a polished or durable `apps/userscript` shell. Treat current userscript code only as the live compatibility carrier or reference baseline while behavior is still being replaced and re-verified.
 - Until an approved migration says otherwise, treat `/health`, `/tools`, `/call-tool`, hidden request-layer injection, invalid-turn enforcement, startup/history rescan, and execute/insert/send behavior as the active compatibility floor.
 - Do not start broad v0.9 capability rollout by default. Start from the currently active slice in `SPEC.md` / `IMPLEMENTATION_PLAN.md` / `TASK_STATUS.md`.
 - Keep repository execution rules in `AGENTS.md`; keep temporary scope, rollout status, and open questions in the task-control docs.

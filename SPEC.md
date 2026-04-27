@@ -163,6 +163,7 @@ Current stage intent:
   - invalid-turn enforcement
   - startup/history rescan
   - execute / insert / send runtime semantics
+- Phase 2 must keep converging runtime ownership into `apps/extension` and `apps/gateway`; it must not reframe `apps/userscript` as the intended final shell, product surface, or default landing zone for new long-term behavior.
 - ChatGPT Web DOM/request-shape facts must be recorded in `docs/operations/chatgpt-web-runtime-evidence.md` rather than duplicated across multiple docs.
 - If the active stage needs new page facts, the curated owner remains `apps/extension/src/chatgpt-adapter/*`; the stage must not mint a second page-facts source of truth.
 - Parser-level turn normalization must converge into `apps/extension/src/turn-runtime/*` rather than remaining a long-term truth source inside `apps/userscript/src/parser.ts`.

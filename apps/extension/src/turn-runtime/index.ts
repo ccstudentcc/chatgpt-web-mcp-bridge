@@ -22,11 +22,17 @@ export {
 export {
   detectPendingTurn,
   getMessageIdentity,
+  trackMessageIdentity,
   normalizeDetectionFingerprint,
   type PendingTurnBlock,
   type PendingTurnDetectionIdentityContext,
   type PendingTurnDetectionResult
 } from './pending-turn-detection.js';
+export {
+  getPendingTurnRuntimeStatus,
+  hasPendingTurnBatch,
+  type PendingTurnRuntimeStatus
+} from './pending-turn-runtime.js';
 export {
   isSamePendingSelection
 } from './pending-selection.js';

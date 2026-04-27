@@ -1,7 +1,7 @@
 import type { McpTurnAnalysis } from './mcp-turn-analysis.js';
 import {
   detectPendingTurn,
-  getMessageIdentity,
+  trackMessageIdentity,
   type PendingTurnBlock,
   type PendingTurnDetectionResult,
   type PendingTurnDetectionIdentityContext
@@ -73,10 +73,10 @@ export async function scanAssistantTurn({
   now: number;
   invalidGraceMs: number;
 }): Promise<AssistantTurnScanResult> {
-  const identity = getMessageIdentity(message, messageText, state);
+  const identity = trackMessageIdentity(message, messageText, state);
   const nextStateBase: AssistantTurnScanState = {
-    ephemeralMessageIds: state.ephemeralMessageIds,
-    nextEphemeralMessageId: identity.nextEphemeralMessageId,
+    ephemeralMessageIds: identity.nextState.ephemeralMessageIds,
+    nextEphemeralMessageId: identity.nextState.nextEphemeralMessageId,
     pendingInvalidTurn: null
   };
 

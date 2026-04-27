@@ -21,9 +21,11 @@ import { installPageRequestHook, syncRequestPrompt, type RequestHookStatus } fro
 import {
   analyzeMcpTurn,
   createAssistantTurnScanState,
+  getPendingTurnRuntimeStatus,
+  hasPendingTurnBatch,
+  trackMessageIdentity,
   scanAssistantTurn
 } from '../../extension/src/turn-runtime/index.js';
-import { getMessageIdentity as getTurnMessageIdentity } from '../../extension/src/turn-runtime/pending-turn-detection.js';
 import { renderPanel, setUiHandlers } from './ui.js';
 import {
   addLogEntry,
@@ -58,7 +60,7 @@ async function refreshGatewayStatus(): Promise<void> {
     setGatewayHealth(gatewayHealth);
     await refreshToolCatalog();
     if (state.status === 'disconnected' || state.status === 'unauthorized' || state.status === 'idle' || state.status === 'detected' || state.status === 'detected_batch') {
-      state.status = getDetectedStatus();
+      state.status = getPendingTurnRuntimeStatus(state.pending.length, state.pendingBatchId);
       state.lastError = undefined;
     }
     addLogEntry('success', `Gateway synced: ${state.baseUrl}`);
@@ -121,7 +123,7 @@ async function scanLatestAssistantMessage(): Promise<void> {
     state.progress = undefined;
     state.retryableBatch = undefined;
     state.lastError = undefined;
-    state.status = getDetectedStatus();
+    state.status = getPendingTurnRuntimeStatus(state.pending.length, state.pendingBatchId);
     addLogEntry('info', batchId ? `Detected batch with ${next.length} tool calls.` : `Detected tool call: ${next[0]?.block.tool ?? 'unknown'}`);
     renderPanel();
     void maybeAutoRunPending();
@@ -158,7 +160,7 @@ function clearPendingDetection(): void {
 }
 
 async function runPending(): Promise<void> {
-  if (hasPendingBatch()) {
+  if (hasPendingTurnBatch(state.pending.length, state.pendingBatchId)) {
     await runPendingBatch();
     return;
   }
@@ -304,7 +306,7 @@ async function runStoredBatch(batch: StoredBatch): Promise<void> {
 }
 
 function ignorePending(): void {
-  if (hasPendingBatch()) {
+  if (hasPendingTurnBatch(state.pending.length, state.pendingBatchId)) {
     if (state.pendingBatchId) state.executedBatchIds.add(state.pendingBatchId);
     for (const pending of state.pending) {
       state.executedCallIds.add(pending.callId);
@@ -330,25 +332,16 @@ function ignorePending(): void {
   state.pendingRequestId = undefined;
   state.progress = undefined;
   state.retryableBatch = undefined;
-  state.status = getDetectedStatus();
+  state.status = getPendingTurnRuntimeStatus(state.pending.length, state.pendingBatchId);
   addLogEntry('info', `Ignored tool call: ${pending?.block.tool ?? 'unknown'}`);
   renderPanel();
 }
 
-function getDetectedStatus() {
-  if (hasPendingBatch()) return 'detected_batch';
-  return state.pending.length > 0 ? 'detected' : 'idle';
-}
-
-function hasPendingBatch(): boolean {
-  return state.pending.length > 1 && Boolean(state.pendingBatchId);
-}
-
 function getTrackedMessageIdentity(message: HTMLElement, messageText: string): string {
-  const identity = getTurnMessageIdentity(message, messageText, turnScanState);
+  const identity = trackMessageIdentity(message, messageText, turnScanState);
   turnScanState = {
     ...turnScanState,
-    nextEphemeralMessageId: identity.nextEphemeralMessageId
+    nextEphemeralMessageId: identity.nextState.nextEphemeralMessageId
   };
   return identity.messageId;
 }
