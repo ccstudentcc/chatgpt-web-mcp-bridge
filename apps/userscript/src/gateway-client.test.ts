@@ -68,6 +68,64 @@ describe('gateway-client', () => {
     });
   });
 
+  it('parses the live catalog contract before returning tools', async () => {
+    vi.stubGlobal('GM_xmlhttpRequest', vi.fn((options: {
+      onload?: (response: { status: number; responseText: string }) => void;
+    }) => {
+      options.onload?.({
+        status: 200,
+        responseText: JSON.stringify({
+          catalogVersion: 'phase1.shared-contract-freeze.v1',
+          generatedAt: '2026-04-27T12:00:00.000Z',
+          workspaceRoot: '/workspace',
+          tools: [
+            {
+              name: 'read_file',
+              title: 'Read File',
+              description: 'Read a UTF-8 file under workspaceRoot.',
+              risk: 'low',
+              requiresConfirmation: false,
+              enabled: true,
+              exampleArgs: {},
+              displayName: 'Read File',
+              source: 'builtin'
+            }
+          ]
+        })
+      });
+    }));
+
+    const { listCatalog, listTools } = await import('./gateway-client.js');
+    await expect(listCatalog()).resolves.toMatchObject({
+      catalogVersion: 'phase1.shared-contract-freeze.v1',
+      workspaceRoot: '/workspace'
+    });
+    await expect(listTools()).resolves.toMatchObject([
+      { name: 'read_file', source: 'builtin' }
+    ]);
+  });
+
+  it('rejects malformed /tools payloads as invalid gateway responses', async () => {
+    vi.stubGlobal('GM_xmlhttpRequest', vi.fn((options: {
+      onload?: (response: { status: number; responseText: string }) => void;
+    }) => {
+      options.onload?.({
+        status: 200,
+        responseText: JSON.stringify({
+          tools: [
+            { name: 'read_file' }
+          ]
+        })
+      });
+    }));
+
+    const { listCatalog } = await import('./gateway-client.js');
+    await expect(listCatalog()).rejects.toMatchObject({
+      message: 'Gateway /tools response is not a valid catalog contract',
+      code: 'INVALID_GATEWAY_RESPONSE'
+    });
+  });
+
   it('rejects live responses that omit nested execute metadata', async () => {
     vi.stubGlobal('GM_xmlhttpRequest', vi.fn((options: {
       onload?: (response: { status: number; responseText: string }) => void;

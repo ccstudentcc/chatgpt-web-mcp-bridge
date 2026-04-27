@@ -25,6 +25,11 @@ At the current repo stage, the live catalog truth is served through `/tools`.
 
 Until product truth and task-control docs explicitly approve a dual-route migration, `/tools` remains the canonical live catalog contract. A future logical name such as `/catalog` may exist later, but it must not silently demote `/tools` while the current runtime still depends on it.
 
+Current implementation note:
+
+- The gateway already serves a materialized `CatalogContract` on `/tools`.
+- The userscript live client now validates that full contract before consuming `tools[]`, instead of silently treating malformed payloads as an empty catalog.
+
 ## 3. Minimum Contract Surface
 
 The materialized catalog response must include at least:

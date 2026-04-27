@@ -1,4 +1,14 @@
-import { TOKEN_HEADER, getExecuteResponseCompat, type ExecuteResponse, type ToolCallCompatResponse, type ToolCallLiveSuccess, type ToolCallRequest, type ToolDescriptor } from '@cwmb/protocol';
+import {
+  CatalogContractSchema,
+  TOKEN_HEADER,
+  getExecuteResponseCompat,
+  type CatalogContract,
+  type ExecuteResponse,
+  type ToolCallCompatResponse,
+  type ToolCallLiveSuccess,
+  type ToolCallRequest,
+  type ToolDescriptor
+} from '@cwmb/protocol';
 import { state } from './state.js';
 
 export interface GatewayHealthResponse {
@@ -20,9 +30,13 @@ export async function health(): Promise<GatewayHealthResponse> {
   return gmJson('GET', `${state.baseUrl}/health`) as Promise<GatewayHealthResponse>;
 }
 
+export async function listCatalog(): Promise<CatalogContract> {
+  const response = await gmJson('GET', `${state.baseUrl}/tools`, undefined, { [TOKEN_HEADER]: state.token });
+  return requireCatalogContract(response);
+}
+
 export async function listTools(): Promise<ToolDescriptor[]> {
-  const response = await gmJson('GET', `${state.baseUrl}/tools`, undefined, { [TOKEN_HEADER]: state.token }) as { tools?: ToolDescriptor[] };
-  return Array.isArray(response.tools) ? response.tools : [];
+  return (await listCatalog()).tools;
 }
 
 export async function callTool(req: ToolCallRequest): Promise<ToolCallLiveSuccess> {
@@ -87,6 +101,17 @@ function requireExecuteCompat(payload: unknown): ExecuteResponse {
 
   const error = new Error('Gateway /call-tool response is missing valid execute metadata');
   Object.assign(error, { code: 'INVALID_GATEWAY_RESPONSE' });
+  throw error;
+}
+
+function requireCatalogContract(payload: unknown): CatalogContract {
+  const parsed = CatalogContractSchema.safeParse(payload);
+  if (parsed.success) {
+    return parsed.data;
+  }
+
+  const error = new Error('Gateway /tools response is not a valid catalog contract');
+  Object.assign(error, { code: 'INVALID_GATEWAY_RESPONSE', details: parsed.error.flatten() });
   throw error;
 }
 
