@@ -22,7 +22,9 @@ import {
   deriveRecoveredDeliveryRuntimeState,
   formatBatchToolResult,
   formatToolResult,
+  hasStartupRecoveryComposerText,
   isBatchReadyDeliveryStatus,
+  restorePersistedUndeliveredResultSessionOnStartup,
   resolveDeliveredBridgeStatus,
   shouldKeepRecoveredDeliveryRetryWindow,
   type ReadyDeliveryStatus
@@ -662,26 +664,14 @@ function syncUndeliveredResultSession(): void {
 }
 
 async function restoreUndeliveredResultSessionOnStartup(): Promise<boolean> {
-  const deadline = Date.now() + 2_000;
-  let latestComposerText = '';
-
-  while (Date.now() < deadline) {
-    latestComposerText = readCurrentChatInputText();
-    if (restorePersistedUndeliveredResultSession({
+  return restorePersistedUndeliveredResultSessionOnStartup({
+    readCurrentComposerText: readCurrentChatInputText,
+    restorePersistedSession: ({ currentComposerText, clearOnMismatch }) => restorePersistedUndeliveredResultSession({
       conversationPath: window.location.pathname,
-      currentComposerText: latestComposerText,
-      clearOnMismatch: false
-    })) {
-      return true;
-    }
-
-    await wait(100);
-  }
-
-  return restorePersistedUndeliveredResultSession({
-    conversationPath: window.location.pathname,
-    currentComposerText: latestComposerText,
-    clearOnMismatch: normalizeStartupComposerText(latestComposerText).length > 0
+      currentComposerText,
+      clearOnMismatch
+    }),
+    wait
   });
 }
 
@@ -695,7 +685,7 @@ async function handleLiveChatMutation(): Promise<void> {
 
 function shouldDeferPendingDetectionForComposerDraft(): boolean {
   const composerText = readCurrentChatInputText();
-  const hasMatchingRecoveredSession = normalizeStartupComposerText(composerText).length > 0
+  const hasMatchingRecoveredSession = hasStartupRecoveryComposerText(composerText)
     && matchesPersistedUndeliveredResultSession({
       conversationPath: window.location.pathname,
       currentComposerText: composerText
@@ -710,10 +700,6 @@ function shouldDeferPendingDetectionForComposerDraft(): boolean {
     preservedDraft: state.preservedDraft,
     hasMatchingPersistedSession: hasMatchingRecoveredSession
   }).shouldDeferPendingDetection;
-}
-
-function normalizeStartupComposerText(value: string): string {
-  return value.replace(/\u00a0/g, ' ').trim();
 }
 
 async function maybeResumeRecoveredResultDelivery(): Promise<void> {
@@ -735,7 +721,7 @@ async function maybeResumeRecoveredResultDelivery(): Promise<void> {
     currentComposerText,
     composerSnapshot: state.recoveredComposerSnapshot,
     preservedDraft: state.preservedDraft,
-    hasMatchingPersistedSession: normalizeStartupComposerText(currentComposerText).length > 0
+    hasMatchingPersistedSession: hasStartupRecoveryComposerText(currentComposerText)
       && matchesPersistedUndeliveredResultSession({
       conversationPath: window.location.pathname,
       currentComposerText
@@ -781,7 +767,7 @@ async function maybeRestoreUndeliveredResultSessionAfterHydration(): Promise<voi
   }
 
   const currentComposerText = readCurrentChatInputText();
-  if (!normalizeStartupComposerText(currentComposerText)) {
+  if (!hasStartupRecoveryComposerText(currentComposerText)) {
     return;
   }
 

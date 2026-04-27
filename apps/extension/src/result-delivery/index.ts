@@ -47,3 +47,9 @@ export {
   formatBatchToolResult,
   formatToolResult
 } from './result-formatting.js';
+export {
+  hasStartupRecoveryComposerText,
+  normalizeStartupRecoveryComposerText,
+  restorePersistedUndeliveredResultSessionOnStartup,
+  type StartupRecoveryRestoreOptions
+} from './startup-recovery.js';

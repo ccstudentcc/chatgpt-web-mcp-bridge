@@ -8,7 +8,7 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage is now complete. Phase 2 remains a module-by-module Final Core refactor program, and the current active module stage is `result-delivery`.
+Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage and the Stage 8 `result-delivery` module stage are now complete. Phase 2 remains a module-by-module Final Core refactor program, and the current active module stage is `injection-runtime`.
 
 Phase 2 exists so the repo can finish `apps/extension` and `apps/gateway` one module at a time, keeping each stage narrow enough to improve ownership, timing, logic, stability, and test coverage without reopening multiple modules at once.
 
@@ -82,28 +82,29 @@ Exit gate for any Phase 2 stage:
 
 ## Current Active Stage
 
-Active module stage: `result-delivery`
+Active module stage: `injection-runtime`
 
 Current module-stage file surfaces:
 
-- `apps/extension/src/result-delivery/*`
-- `apps/userscript/src/inserter.ts`
-- `apps/userscript/src/batch.ts`
-- `apps/userscript/src/preview.ts`
-- `apps/userscript/src/chatgpt-mcp-bridge.user.ts`
-- `apps/userscript/src/inserter.test.ts`
-- `apps/userscript/src/batch.test.ts`
-- `apps/userscript/src/preview.test.ts`
-- `apps/userscript/src/ui.test.ts`
-- `packages/protocol/src/*` only if delivery consumes new shared result-envelope helpers
+- `apps/extension/src/injection-runtime/*`
+- `apps/userscript/src/catalog.ts`
+- `apps/userscript/src/catalog-cache.ts`
+- `apps/userscript/src/request-hook.ts`
+- `apps/userscript/src/request-injection-state.ts`
+- `apps/userscript/src/gateway-client.ts`
+- `apps/userscript/src/catalog.test.ts`
+- `apps/userscript/src/catalog-cache.test.ts`
+- `apps/userscript/src/request-hook.test.ts`
+- `apps/userscript/src/request-injection-state.test.ts`
+- `apps/userscript/src/gateway-client.test.ts`
 - `docs/operations/chatgpt-web-runtime-evidence.md`
 - the root task-control docs
 
 Current stage intent:
 
-- make `apps/extension/src/result-delivery/*` the long-term owner for result formatting, composer insertion, auto-send timing, and retry or copy fallback semantics
-- keep delivery semantics separate from turn detection and gateway execution meaning
-- reduce insertion and auto-send timing ambiguity while preserving the live runtime floor
+- make `apps/extension/src/injection-runtime/*` the long-term owner for catalog bootstrap consumption, hidden injection payload construction, fallback visible injection, and injection diagnostics timing
+- keep bootstrap-versus-live catalog timing explicit while preserving the live runtime floor
+- reduce first-message injection ambiguity without reopening delivery or turn-runtime semantics
 
 ## In Scope
 

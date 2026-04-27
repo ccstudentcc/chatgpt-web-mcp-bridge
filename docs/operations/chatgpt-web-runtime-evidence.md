@@ -192,3 +192,30 @@ But the underlying DOM/request-shape observations still need to be centralized h
   - `apps/userscript/src/inserter.ts`
   - `apps/userscript/src/state.ts`
   - `apps/userscript/src/chatgpt-mcp-bridge.user.ts`
+
+## Evidence: result-delivery acceptance passed on the real ChatGPT page after recovered-send hardening
+
+- Date: 2026-04-28
+- Method: manual repro on a real signed-in page, userscript activity log inspection, and follow-up runtime hardening based on repeated live regressions
+- Page state:
+  - existing thread
+  - `Send=off` single-result insertion, then switch `Send=on` and refresh
+  - preserved truncated bridge residue in the composer before refresh
+  - repeated auto-send attempts against the same ChatGPT conversation endpoint
+- Observation:
+  - Real-page validation ultimately passed for insert-only, insert-plus-send, insertion-failure recovery, `Send=off -> Send=on -> refresh`, and truncated residue refresh recovery after tightening recovered-send confirmation.
+  - A transient stop-button transition by itself was not a reliable submission proof; the trustworthy success signal on the live page was a real matched ChatGPT conversation request from the request hook.
+  - Repeated successful sends can hit the same ChatGPT `fetch/xhr` conversation endpoint shape multiple times in a row, so success signaling cannot depend on the hook-status log line changing.
+  - Composer text that still contains the same fenced `tool_result` payload can still be unsafe to reuse as authoritative send input if extra manual text is mixed around that block.
+- Impact:
+  - Recovered and normal auto-send confirmation should treat request-hook conversation events as the primary live success signal, with composer clearing as a fallback rather than the other way around.
+  - Submission signaling must advance for every real matched conversation request even when operator-facing hook logs are deduplicated.
+  - Authoritative composer reuse must require the whole composer to remain within a known bridge-managed shape; a matching fenced payload block alone is not enough.
+  - The result-delivery stage can be closed with these rules in place; the next live battleground shifts to injection-runtime timing rather than further delivery-state ownership extraction.
+- Affected surfaces:
+  - `apps/extension/src/result-delivery/composer-delivery.ts`
+  - `apps/extension/src/result-delivery/startup-recovery.ts`
+  - `apps/userscript/src/chatgpt-mcp-bridge.user.ts`
+  - `apps/userscript/src/result-delivery.test.ts`
+  - `TASK_STATUS.md`
+  - `IMPLEMENTATION_PLAN.md`

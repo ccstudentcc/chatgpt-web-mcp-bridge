@@ -267,7 +267,7 @@ Definition of done reached:
 
 ## Stage 8: Execute Module Stage - Result Delivery
 
-Status: in progress
+Status: complete
 
 Goal:
 
@@ -318,9 +318,16 @@ Definition of done:
 - auto-send remains a local delivery behavior rather than leaking into policy or execution-kernel logic
 - userscript delivery files, if still present, act only as compat adapters or local shell wiring
 
+Definition of done reached:
+
+- `apps/extension/src/result-delivery/*` now owns result formatting, composer insertion timing, recovered-send confirmation, retry-window semantics, startup recovery normalization, batch delivery outcomes, and panel-facing delivery presentation semantics.
+- `apps/userscript/src/chatgpt-mcp-bridge.user.ts`, `inserter.ts`, `preview.ts`, and `ui.ts` now act as compat/runtime wiring only; delivery-specific pure state and copy no longer hide in the userscript shell.
+- Real signed-in ChatGPT Web validation passed for insert-only, insert-plus-send, insertion-failure recovery, `Send=off -> Send=on -> refresh`, truncated residue refresh recovery, and repeated identical conversation-request submissions.
+- `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` all succeeded after the close-out slice.
+
 ## Stage 9: Execute Module Stage - Injection Runtime
 
-Status: pending
+Status: in progress
 
 Goal:
 
