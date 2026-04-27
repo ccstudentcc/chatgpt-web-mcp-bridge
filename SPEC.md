@@ -8,9 +8,9 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is complete. The active next slice is Phase 2 turn-runtime extraction.
+Phase 1 shared-contract freeze is complete. Phase 2 is now a module-by-module Final Core refactor program. The current active module stage is `turn-runtime`.
 
-This slice exists so the repo can make a larger structural move without reopening multiple axes at once.
+This program exists so the repo can finish `apps/extension` and `apps/gateway` one module at a time, keeping each stage narrow enough to optimize timing, logic, and stability without reopening multiple modules at once.
 
 Primary battleground:
 
@@ -22,9 +22,9 @@ Primary axis:
 
 Current goal:
 
-- move parser-level turn normalization and nearby turn-runtime seams behind the extension `turn-runtime` owner while preserving the proven live browser behavior
+- finish the active `turn-runtime` module stage while keeping later Phase 2 stages sequenced one module at a time
 
-Primary file surfaces:
+Current module-stage file surfaces:
 
 - `apps/extension/src/turn-runtime/*`
 - `apps/userscript/src/parser.ts`
@@ -37,15 +37,14 @@ Primary file surfaces:
 
 ## Slice Intent
 
-Create one explicit extension-owned turn-runtime boundary so the browser-side runtime stops behaving like a single giant userscript before gateway-kernel extraction or capability rollout begins.
+Run Phase 2 as a sequence of module stages so v0.9 can complete `apps/extension` and `apps/gateway` with clearer ownership, better execution order, and less cross-module churn.
 
 At minimum, this slice should make it possible to implement against a stable target for:
 
-- assistant turn normalization
-- invalid-turn classification
-- duplicate guard seams
-- latest-open-turn tracking and startup/history rescan
-- `ExecuteRequest` creation inputs owned by browser runtime turn truth
+- one active module stage at a time
+- explicit stage sequencing across extension modules first, then gateway modules
+- local optimization of logic, timing, and validation inside each module stage
+- preservation of the proven runtime floor while long-term ownership moves into extension and gateway
 
 ## In Scope
 
@@ -65,7 +64,8 @@ At minimum, this slice should make it possible to implement against a stable tar
 - Move parser-level turn analysis and normalization logic out of long-term userscript ownership and behind extension-owned seams.
 - Land durable implementation in `apps/extension` and `apps/gateway` when that shortens the path or improves runtime boundaries, instead of first recreating the same logic under userscript-shaped layers.
 - Keep userscript-side consumption on thin compatibility wiring only where the current live baseline still requires it during migration.
-- Allow a larger same-axis package across parser/analyze, latest-open-turn detection, startup/history rescan, duplicate guard, and nearby turn-runtime orchestration, as long as it stays inside this one extraction axis.
+- Sequence Phase 2 as one stage per module instead of treating the whole refactor as one large mixed package.
+- Allow optimization of logic and timing inside the current module stage, but do not let one stage absorb neighboring modules just for convenience.
 - Keep `docs/operations/chatgpt-web-runtime-evidence.md` as the only allowed repository source for ChatGPT Web DOM/request-shape/selectors evidence.
 
 ## Out of Scope
@@ -119,11 +119,11 @@ At minimum, this slice should make it possible to implement against a stable tar
 
 - Root task-control docs consistently state that v0.1 closed on April 27, 2026 and now serves as a reference baseline only.
 - `docs/v0.9-entrypoint.md`, `docs/prd_vnext.md`, and the root task docs all agree that v0.9 is the active mainline.
-- The active Phase 2 slice is explicit enough that implementation can begin without reopening which subsystem or battleground comes next.
+- The active Phase 2 program is explicit enough that implementation can begin without reopening the overall module order, and the current module stage is explicit enough that work can proceed without reopening which module is active now.
 - `IMPLEMENTATION_PLAN.md` contains concrete stage goals, battleground, and file surfaces for the current slice.
 - The current runtime contracts that must survive early migration work are clearly enumerated in repo docs.
 - No active task-control or v0.9 entry doc still says that v0.1 close-out is blocking v0.9 by default.
-- The active slice clearly limits itself to one larger `turn-runtime` extraction package instead of broad new capabilities or parallel extraction axes.
+- Phase 2 clearly limits itself to one active module stage at a time instead of broad new capabilities or parallel extraction axes.
 - The repo has one explicit source of truth for ChatGPT Web DOM/request-shape evidence, and the task docs point to it instead of duplicating its content.
-- The repo has one explicit v0.9 owner for parser-level turn normalization and nearby turn-runtime semantics, and userscript modules are treated as compat consumers rather than the long-term source of truth.
-- Phase 2 close-out requires both repo-root verification and at least one real ChatGPT Web validation pass because the slice changes browser-runtime ownership boundaries.
+- The current `turn-runtime` stage has one explicit v0.9 owner for parser-level turn normalization and nearby turn-runtime semantics, and userscript modules are treated as compat consumers rather than the long-term source of truth.
+- Each Phase 2 module stage requires repo-root verification, and the overall Phase 2 close-out still requires real ChatGPT Web validation because the program changes browser-runtime ownership boundaries.

@@ -9,10 +9,11 @@
 - The current codebase still implements the proven userscript + gateway baseline, so v0.9 work must preserve or explicitly migrate the current live contracts rather than pretending they no longer matter.
 - Userscript is now treated as a reference baseline only. It is not the desired v0.9 shell, and it is not a required long-term compat layer in the target architecture.
 - Phase 1 shared-contract freeze is now complete.
-- Phase 2 is now open as the active next slice: a larger but still single-axis `turn-runtime` extraction package inside Final Core.
-- Phase 2 may use larger extension + gateway rewrites when that improves efficiency, timing, or boundary clarity, as long as the live runtime floor remains preserved and the slice does not widen into capability rollout.
+- Phase 2 is now open as a module-by-module Final Core refactor program for completing `apps/extension` and `apps/gateway`.
+- Phase 2 execution rule is now explicit: one stage equals one module, and only one module stage may be active at a time.
+- Phase 2 may still use larger rewrites when they improve efficiency, timing, or boundary clarity, but only inside the currently active module stage.
 - Stage 3 slice-definition work is complete; Stage 4 compat-preserving execution is complete on the same Phase 1 boundary.
-- Stage 5 slice-selection work is now complete as Phase 2 definition; the next open gate is execution and verification of that slice rather than deciding what Phase 2 is.
+- Stage 5 execution-model definition is now complete; the next open gate is to finish the active `turn-runtime` module stage and then advance module-by-module through the declared order.
 - Draft v0.9 docs and draft contract shapes are reference truth only. They are not separate compatibility targets; compatibility work in the current slice applies to the proven live runtime floor and the still-live routes/behaviors it depends on.
 - ChatGPT Web DOM/request-shape/selectors evidence now has one intended home: `docs/operations/chatgpt-web-runtime-evidence.md`.
 - ChatGPT Web page-fact code truth now targets one v0.9 owner: `apps/extension/src/chatgpt-adapter/`; current userscript code should only consume or compat-re-export that truth.
@@ -75,7 +76,7 @@
 ## Active Stop Line
 
 - The v0.1 stop line is closed as of April 27, 2026.
-- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. The active gate is now to execute and verify the chosen Phase 2 turn-runtime extraction slice without accidentally broadening into parallel extraction or capability rollout.
+- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. The active gate is now to complete and verify the active `turn-runtime` module stage without accidentally opening neighboring Phase 2 modules or broad capability rollout.
 - Until explicitly migrated, the active compatibility floor includes:
   - `/health`
   - `/tools`
@@ -87,9 +88,10 @@
 
 ## Active Slice
 
-- Active slice: Phase 2 turn-runtime extraction
+- Active program: Phase 2 module-by-module Final Core refactor
 - Battleground: Final Core
 - Primary axis: extension runtime boundary extraction
+- Active module stage: `turn-runtime`
 - Phase 1 completed implementation surfaces:
   - `packages/protocol/*`
   - narrow gateway route adapters
@@ -100,7 +102,19 @@
   - `apps/extension/src/turn-runtime/*`
   - `docs/protocols/*`
   - `docs/operations/chatgpt-web-runtime-evidence.md`
-- Phase 2 planned implementation surfaces:
+- Phase 2 module order:
+  - `turn-runtime`
+  - `result-delivery`
+  - `injection-runtime`
+  - `operator-panel`
+  - `execution-kernel`
+  - `tool-registry`
+  - `tool-policy`
+  - `builtin-tools`
+  - `shell-runtime`
+  - `audit-log`
+  - `diagnostics`
+- Active module-stage implementation surfaces:
   - `apps/extension/src/turn-runtime/*`
   - `apps/userscript/src/parser.ts`
   - `apps/userscript/src/chatgpt-mcp-bridge.user.ts`
@@ -115,9 +129,11 @@
   - `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now delegates pending-turn classification instead of owning the full detection algorithm
   - userscript bundling now explicitly resolves `@cwmb/protocol` for extension-owned turn-runtime imports
 - Userscript files named in this slice are now reference or temporary bridge surfaces, not target-state ownership destinations by themselves.
-- Still explicitly not opened by Phase 2:
+- Still explicitly not opened while `turn-runtime` is the active module stage:
   - extension-first shell migration
-  - gateway execution-kernel extraction
+  - `result-delivery` as a primary module stage
+  - `injection-runtime` as a primary module stage
+  - gateway execution-kernel extraction as a primary module stage
   - `reviewed` / `yolo` rollout
   - proposal workflow rollout
   - external/custom MCP rollout
@@ -131,7 +147,7 @@
 - The active codebase is still userscript-first today; the v0.9 architecture and protocol docs are active target truth, not evidence that the refactor already happened.
 - That userscript-first reality is an implementation fact, not a migration obligation: future work may rewrite directly in extension + gateway rather than preserving userscript structure for symmetry.
 - The unified ChatGPT Web runtime evidence doc exists now, but it is not yet a fully populated evidence pack; DOM-heavy work should refresh or add evidence there before expanding.
-- Phase 2 is intentionally larger than the Phase 1 helper seeding work, but that is only because it stays inside one extraction axis; it is not permission to open gateway redesign or broad browser feature work in the same round.
+- Phase 2 may span many commits and substantial refactors, but the control rule is now stage isolation, not “one big package”: progress should come from completing one module cleanly before activating the next.
 - Later-scope capabilities remain target-state work rather than shipped behavior:
   - `reviewed` / `yolo`
   - full proposal workflow
@@ -143,11 +159,11 @@
 
 - Use `docs/v0.9-entrypoint.md` first when deciding where new v0.9 truth belongs.
 - Use `docs/prd.md` only as the closed reference baseline for the current proven runtime.
-- Do not reopen Phase 1 implicitly. Phase 2 is already chosen; start from the declared turn-runtime extraction boundary instead of re-deciding the slice.
+- Do not reopen Phase 1 implicitly. Phase 2 is already chosen; start from the declared active module stage and then advance through the module order instead of re-deciding the whole program.
 - If a change depends on ChatGPT Web DOM/request-shape/selectors facts, put the raw evidence in `docs/operations/chatgpt-web-runtime-evidence.md` instead of scattering it through task docs.
 - If code needs ChatGPT Web page facts, add or update them in `apps/extension/src/chatgpt-adapter/` first, then adapt current userscript consumers through compat wiring.
 - When a cleaner direct implementation exists in `apps/extension` or `apps/gateway`, prefer landing there over recreating new long-term logic in userscript-shaped files.
 - Do not add or keep adapters only to preserve draft-only field names, draft wording, or other reference-only shapes. Keep compatibility only where current live runtime behavior still depends on it.
 - Treat nested `execute` as the only active `/call-tool` execution-metadata compat surface unless a future task doc explicitly reopens that decision with live runtime evidence.
-- The next useful implementation step is to keep shrinking `apps/userscript/src/chatgpt-mcp-bridge.user.ts` around startup/history rescan orchestration without reopening result-delivery or gateway-kernel scope.
-- If a change tries to expand beyond this one extraction axis, stop and either narrow it back to Phase 2 or first update the task-control docs with a new active slice.
+- The next useful implementation step is to keep shrinking `apps/userscript/src/chatgpt-mcp-bridge.user.ts` around startup/history rescan orchestration without reopening `result-delivery` or gateway modules as new primary stages.
+- If a change tries to activate a second Phase 2 module at the same time, stop and either narrow it back to the active module stage or first update the task-control docs to resequence the program.

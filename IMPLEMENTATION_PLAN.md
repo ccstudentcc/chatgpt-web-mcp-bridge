@@ -134,33 +134,54 @@ Definition of done reached:
   - `apps/extension/src/turn-runtime/*` for invalid-turn state, pending-selection identity, and auto-round guard helper semantics
 - root `pnpm lint`, `pnpm test`, and `pnpm build` all pass after the completed Phase 1 slice
 
-## Stage 5: Define The Phase 2 Extraction Slice
+## Stage 5: Define The Phase 2 Module-By-Module Program
 
 Status: completed
 
-- Decide the first post-Phase-1 extraction-focused slice before opening broader capability work.
-- Keep the next slice inside Final Core unless task docs are deliberately retargeted.
-- Decision reached: Phase 2 is a larger but still single-axis `turn-runtime` extraction package.
+- Decide the first post-Phase-1 execution model before opening broader capability work.
+- Keep Phase 2 inside Final Core unless task docs are deliberately retargeted.
+- Decision reached: Phase 2 is a module-by-module refactor program across `apps/extension` and `apps/gateway`.
 - Primary battleground ring: Final Core.
 - Primary axis: extension runtime boundary extraction.
+- Phase 2 execution rule:
+  - one stage equals one module
+  - only one module stage is active at a time
+  - optimize logic, timing, and stability inside the active module before opening the next one
 - Phase 2 target:
-  - move parser-level turn normalization and nearby turn-runtime orchestration behind `apps/extension/src/turn-runtime/*`
+  - complete `apps/extension` and `apps/gateway` through ordered module stages
   - treat userscript as a reference baseline only, not as a target compat shell that must survive the migration
   - prefer direct extension + gateway implementation when that improves timing, logic, or ownership boundaries
 - Phase 2 must not expand into:
-  - gateway execution-kernel extraction
-  - `result-delivery` as a separate broad battleground
-  - operator-panel feature expansion
   - `reviewed` / `yolo` rollout
   - proposal or external MCP capability work
+  - multiple active module stages in parallel
 
-## Stage 6: Execute Phase 2 Turn-Runtime Extraction
+## Stage 6: Phase 2 Module Order
 
 Status: pending
 
-- Implement the chosen Phase 2 slice without opening a second structural axis.
+- Use this order unless current truth forces an explicit resequencing:
+  1. `turn-runtime`
+  2. `result-delivery`
+  3. `injection-runtime`
+  4. `operator-panel`
+  5. `execution-kernel`
+  6. `tool-registry`
+  7. `tool-policy`
+  8. `builtin-tools`
+  9. `shell-runtime`
+  10. `audit-log`
+  11. `diagnostics`
+- `chatgpt-adapter` stays as a shared dependency surface that may receive supporting updates during earlier stages, but Phase 2 should not reopen it as a separate primary module stage unless runtime evidence shows that current page-fact ownership is insufficient.
+- Resequence only when the active module reveals a hard dependency that would materially improve stability or validation order.
+
+## Stage 7: Execute Module Stage - Turn Runtime
+
+Status: in progress
+
+- Implement the current `turn-runtime` module stage without opening a second active module.
 - Preserve the current proven browser-runtime floor while shifting long-term ownership away from userscript.
-- Treat this stage as a bigger same-axis package for efficiency, not as permission to mix multiple slices.
+- Treat this stage as a complete module refactor, not as permission to absorb neighboring modules.
 - Use userscript as behavior evidence, not as a required intermediate landing zone for new long-term code.
 
 Concrete work in this stage:
@@ -170,13 +191,15 @@ Concrete work in this stage:
    - `apps/userscript/src/parser.ts` becomes a thin temporary adapter only if still needed by the live baseline
 2. Tighten latest-open-turn detection and startup/history rescan ownership so the turn-runtime flow no longer lives primarily inside `apps/userscript/src/chatgpt-mcp-bridge.user.ts`.
 3. Keep duplicate guard, invalid-turn blocking, and pending-selection behavior aligned with the extension `turn-runtime` owner instead of scattering fresh logic back into userscript files.
-4. When extraction pressure reveals cleaner boundaries in `apps/gateway`, allow same-slice gateway changes that simplify extension/runtime timing or contract ownership, as long as they still preserve the current live floor and do not expand into broad capability rollout.
-5. Update tests and task docs around the actual Phase 2 battleground:
+4. Allow narrow supporting changes outside `turn-runtime` only when they are strictly required to complete the `turn-runtime` module with cleaner timing or validation.
+5. Update tests and task docs around the actual active module stage:
    - userscript parser / detection / round-guard tests
-   - any new extension-side or gateway-side tests needed to make the ownership shift explicit
+   - any new extension-side tests needed to make the ownership shift explicit
    - root task-control docs
 6. Avoid opening:
-   - gateway execution-kernel extraction
+   - `result-delivery` as a primary module stage
+   - `injection-runtime` as a primary module stage
+   - gateway execution-kernel extraction as a primary module stage
    - proposal flow
    - mode rollout
    - panel feature expansion unrelated to extraction
@@ -202,9 +225,80 @@ Definition of done for this stage:
 - root `pnpm lint`, `pnpm test`, and `pnpm build` all pass after the Phase 2 slice
 - at least one real ChatGPT Web validation pass confirms the proven runtime baseline still works after the ownership shift
 
+## Stage 8: Execute Module Stage - Result Delivery
+
+Status: pending
+
+- Make `apps/extension/src/result-delivery/*` the long-term owner of result formatting, insertion, send timing, and recovery semantics.
+- Keep execution meaning, policy meaning, and runtime detection separate from delivery logic.
+- Do not open gateway-kernel or proposal flow while this stage is active.
+
+## Stage 9: Execute Module Stage - Injection Runtime
+
+Status: pending
+
+- Finish `apps/extension/src/injection-runtime/*` as the long-term owner of catalog bootstrap, hidden injection payload construction, and injection-state timing.
+- Keep current hidden request-layer behavior stable while reducing userscript-local orchestration.
+
+## Stage 10: Execute Module Stage - Operator Panel
+
+Status: pending
+
+- Finish `apps/extension/src/operator-panel/*` as the long-term owner of runtime display, operator intents, and diagnostics entrypoints.
+- Avoid turning panel work into a second execution state machine.
+
+## Stage 11: Execute Module Stage - Execution Kernel
+
+Status: pending
+
+- Make `apps/gateway/src/execution-kernel/*` the only execution orchestration entrypoint.
+- Keep route behavior stable while moving orchestration behind the kernel.
+
+## Stage 12: Execute Module Stage - Tool Registry
+
+Status: pending
+
+- Make `apps/gateway/src/tool-registry/*` the catalog truth owner.
+- Keep `/tools` stable while separating registry concerns from policy and execution.
+
+## Stage 13: Execute Module Stage - Tool Policy
+
+Status: pending
+
+- Make `apps/gateway/src/tool-policy/*` the explicit decision layer.
+- Keep allow/deny/proposal semantics stable while removing scattered policy logic.
+
+## Stage 14: Execute Module Stage - Builtin Tools
+
+Status: pending
+
+- Consolidate builtin tool implementations under `apps/gateway/src/builtin-tools/*`.
+- Keep tool behavior stable while reducing route-level or orchestration-level leakage.
+
+## Stage 15: Execute Module Stage - Shell Runtime
+
+Status: pending
+
+- Make `apps/gateway/src/shell-runtime/*` the single owner for shell execution semantics.
+- Keep `run_task` / `run_pwsh` timing and safety behavior explicit without reopening product-scope debate.
+
+## Stage 16: Execute Module Stage - Audit Log
+
+Status: pending
+
+- Move audit ownership into `apps/gateway/src/audit-log/*`.
+- Keep logging truthful and structured without turning this stage into broad diagnostics redesign.
+
+## Stage 17: Execute Module Stage - Diagnostics
+
+Status: pending
+
+- Move diagnostics ownership into `apps/gateway/src/diagnostics/*`.
+- Keep operator-facing and developer-facing runtime truth intact while separating diagnostics from core execution logic.
+
 ## Risks
 
 - The codebase still implements the proven userscript-first runtime, so the target docs are ahead of the structure.
 - Hidden request-layer injection, invalid-turn enforcement, and result delivery are still real-page behaviors; browser-only regressions cannot be dismissed by passing unit tests alone.
-- Phase 2 can still sprawl if turn-runtime extraction, result-delivery extraction, and gateway redesign are mixed together.
+- Phase 2 can still sprawl if multiple module stages are opened at once or if stage boundaries are ignored once a refactor gains momentum.
 - The repo still lacks browser-driven end-to-end automation, so major browser-runtime transitions will continue to depend on real ChatGPT Web manual verification.
