@@ -68,6 +68,66 @@ describe('gateway-client', () => {
     });
   });
 
+  it('parses the live health contract before returning gateway status', async () => {
+    vi.stubGlobal('GM_xmlhttpRequest', vi.fn((options: {
+      onload?: (response: { status: number; responseText: string }) => void;
+    }) => {
+      options.onload?.({
+        status: 200,
+        responseText: JSON.stringify({
+          ok: true,
+          version: '0.1.0',
+          platform: 'linux',
+          host: '127.0.0.1',
+          port: 8024,
+          workspaceRoot: '/workspace',
+          trustedLocalMode: false,
+          autoExecuteLowRisk: true,
+          autoInsertResult: true,
+          autoSendResult: false,
+          maxToolRounds: 3,
+          shell: {
+            preferred: 'pwsh',
+            resolved: 'pwsh',
+            available: true,
+            version: '7.5.0'
+          }
+        })
+      });
+    }));
+
+    const { health } = await import('./gateway-client.js');
+    await expect(health()).resolves.toMatchObject({
+      trustedLocalMode: false,
+      autoSendResult: false,
+      shell: {
+        resolved: 'pwsh',
+        available: true
+      }
+    });
+  });
+
+  it('rejects malformed /health payloads as invalid gateway responses', async () => {
+    vi.stubGlobal('GM_xmlhttpRequest', vi.fn((options: {
+      onload?: (response: { status: number; responseText: string }) => void;
+    }) => {
+      options.onload?.({
+        status: 200,
+        responseText: JSON.stringify({
+          ok: true,
+          version: '0.1.0',
+          shell: 'pwsh'
+        })
+      });
+    }));
+
+    const { health } = await import('./gateway-client.js');
+    await expect(health()).rejects.toMatchObject({
+      message: 'Gateway /health response is not a valid health contract',
+      code: 'INVALID_GATEWAY_RESPONSE'
+    });
+  });
+
   it('parses the live catalog contract before returning tools', async () => {
     vi.stubGlobal('GM_xmlhttpRequest', vi.fn((options: {
       onload?: (response: { status: number; responseText: string }) => void;

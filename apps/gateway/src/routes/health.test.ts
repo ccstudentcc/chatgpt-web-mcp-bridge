@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import { GatewayHealthContractSchema } from '@cwmb/protocol';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GatewayConfig } from '../config.js';
 import { registerHealthRoute } from './health.js';
@@ -27,12 +28,18 @@ describe('/health route', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({
+    expect(GatewayHealthContractSchema.parse(response.json())).toMatchObject({
       ok: true,
       autoExecuteLowRisk: true,
       autoInsertResult: true,
       autoSendResult: true,
-      maxToolRounds: 3
+      maxToolRounds: 3,
+      shell: {
+        preferred: 'pwsh',
+        resolved: 'pwsh',
+        available: true,
+        version: '7.5.0'
+      }
     });
 
     await server.close();

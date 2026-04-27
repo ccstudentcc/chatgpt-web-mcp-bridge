@@ -4,6 +4,14 @@ export type ExecutionProfile = 'legacy_auto' | 'reviewed' | 'yolo';
 export type DetectionSource = 'assistant_message_scan' | 'startup_history_rescan' | 'manual_retry';
 export type OperatorIntent = 'auto_flow' | 'manual_run' | 'manual_retry' | 'manual_approve';
 export type PolicyAction = 'execute' | 'proposal_required' | 'confirmation_required' | 'deny' | 'skip';
+export type CatalogSource = 'live' | 'cache';
+
+export interface GatewayShellInfo {
+  preferred: 'pwsh';
+  resolved: 'pwsh' | 'powershell.exe' | null;
+  available: boolean;
+  version?: string;
+}
 
 export interface ToolDescriptor {
   name: string;
@@ -27,6 +35,27 @@ export interface CatalogContract {
   generatedAt: string;
   workspaceRoot?: string;
   tools: CatalogToolDescriptor[];
+}
+
+export interface GatewayHealthContract {
+  ok: true;
+  version: string;
+  platform: string;
+  host: string;
+  port: number;
+  workspaceRoot: string;
+  shell: GatewayShellInfo;
+  trustedLocalMode: boolean;
+  autoExecuteLowRisk: boolean;
+  autoInsertResult: boolean;
+  autoSendResult: boolean;
+  maxToolRounds: number;
+}
+
+export interface GatewayRuntimeSnapshot {
+  health?: GatewayHealthContract;
+  catalog?: CatalogContract;
+  catalogSource?: CatalogSource;
 }
 
 export interface TurnSource {

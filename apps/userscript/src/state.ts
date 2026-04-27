@@ -1,4 +1,4 @@
-import type { CatalogContract } from '@cwmb/protocol';
+import type { CatalogContract, CatalogSource, GatewayHealthContract, GatewayRuntimeSnapshot } from '@cwmb/protocol';
 import type { ParsedMcpBlock } from './parser.js';
 import type { RequestInjectionMode } from './request-hook.js';
 
@@ -58,9 +58,7 @@ export interface BridgeState {
   continueBatchOnError: boolean;
   panelCollapsed: boolean;
   panelPosition?: PanelPosition;
-  catalog?: CatalogContract;
-  catalogSource?: 'live' | 'cache';
-  toolCatalogLoaded: boolean;
+  gatewayRuntime?: GatewayRuntimeSnapshot;
   pending: ParsedMcpBlock[];
   pendingBatchId?: string;
   pendingMessageId?: string;
@@ -117,8 +115,6 @@ export const state: BridgeState = {
   panelPosition: typeof panelLeftStored === 'number' && typeof panelTopStored === 'number'
     ? { left: panelLeftStored, top: panelTopStored }
     : undefined,
-  catalogSource: undefined,
-  toolCatalogLoaded: false,
   pending: [],
   autoRoundCount: 0,
   executedCallIds: new Set<string>(),
@@ -135,6 +131,45 @@ export function saveToken(token: string): void {
 export function saveBaseUrl(baseUrl: string): void {
   state.baseUrl = baseUrl;
   GM_setValue('cwmb_base_url', baseUrl);
+}
+
+export function hasLiveCatalog(runtime = state.gatewayRuntime): boolean {
+  return runtime?.catalogSource === 'live' && runtime.catalog !== undefined;
+}
+
+export function getCatalogTools(): CatalogContract['tools'] {
+  return state.gatewayRuntime?.catalog?.tools ?? [];
+}
+
+export function setGatewayHealth(health: GatewayHealthContract): void {
+  state.gatewayRuntime = {
+    ...state.gatewayRuntime,
+    health
+  };
+  applyAutomationSettings(health);
+}
+
+export function setGatewayCatalog(catalog: CatalogContract, source: CatalogSource): void {
+  state.gatewayRuntime = {
+    ...state.gatewayRuntime,
+    catalog,
+    catalogSource: source
+  };
+}
+
+export function clearGatewayCatalog(): void {
+  if (!state.gatewayRuntime?.health) {
+    state.gatewayRuntime = undefined;
+    return;
+  }
+
+  state.gatewayRuntime = {
+    health: state.gatewayRuntime.health
+  };
+}
+
+export function clearGatewayRuntime(): void {
+  state.gatewayRuntime = undefined;
 }
 
 export function applyAutomationSettings(settings: {

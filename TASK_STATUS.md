@@ -13,7 +13,9 @@
 - ChatGPT Web DOM/request-shape/selectors evidence now has one intended home: `docs/operations/chatgpt-web-runtime-evidence.md`.
 - ChatGPT Web page-fact code truth now targets one v0.9 owner: `apps/extension/src/chatgpt-adapter/`; current userscript code should only consume or compat-re-export that truth.
 - Phase 1 implementation has started in code, not only in docs: `@cwmb/protocol` now exports the first shared `CatalogContract`, `TurnContext`, `ExecuteRequest`, `ExecuteResponse`, `ToolDecision`, and `ResultEnvelope` surfaces with matching schemas/tests.
+- `@cwmb/protocol` now also exports a shared `GatewayHealthContract` and browser-local `GatewayRuntimeSnapshot`, so gateway reachability/config truth can live beside catalog truth without userscript-only field drift.
 - `/tools` now materializes Phase 1 catalog metadata (`catalogVersion`, `generatedAt`, `workspaceRoot`) while preserving the existing `tools` array that current userscript consumers already expect.
+- `/health` is now validated through the shared contract before userscript applies automation defaults; the earlier local `shell: string` typing drift is gone, and shell diagnostics now stay structured end-to-end.
 - `/call-tool` now attaches compatibility execution metadata under a nested `execute` object, so current userscript code keeps the legacy top-level `result` while Phase 1 consumers can still read `requestId`, `executionId`, `decisions`, and structured result-envelope metadata.
 - Shared compat parsing no longer accepts the earlier flat top-level `requestId` / `executionId` / `decisions` / `result` execute shape; that transition-only form was not part of the live runtime floor and is now intentionally inert.
 - Userscript-side request construction now goes through shared protocol compat helpers instead of repeating local `ToolCallRequest` assembly in multiple files.
@@ -23,6 +25,7 @@
 - Userscript `/tools` fetching now validates the full `CatalogContract` before reading `.tools`, so malformed catalog payloads fail as `INVALID_GATEWAY_RESPONSE` instead of silently degrading to an empty tool list.
 - Userscript cache/bootstrap/runtime state now retain the full catalog contract instead of only `tools[]`, so `catalogVersion` and `workspaceRoot` are available for diagnostics without another shape migration later.
 - Userscript panel/runtime state now also tracks whether the visible catalog came from the live gateway or cached bootstrap, so diagnostics can distinguish “catalog known” from “catalog freshly synced”.
+- Userscript runtime state now stores one shared runtime snapshot for validated `/health` plus current catalog truth, while still distinguishing live catalog sync from cached bootstrap catalog warmup.
 - Shared protocol now owns the current `tool_result_batch` item union and batch envelope helper, including the compat `source.messageId` field used by userscript result insertion.
 - Userscript single-result insertion now formats shared `inline_tool_result` / `execution_error` envelopes instead of serializing raw legacy single-call payloads directly.
 - Userscript batch execution now returns the shared batch envelope shape instead of a local duplicate interface, and batch result formatting consumes the shared envelope directly.
@@ -48,6 +51,7 @@
 - After requiring a valid `CatalogContract` on the live userscript `/tools` path, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After promoting the userscript cache/state layer from `tools[]` to the full catalog contract, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After surfacing live-vs-cache catalog provenance in userscript state/UI, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After introducing the shared `/health` contract and runtime snapshot state, `pnpm --filter @cwmb/protocol test`, `build`, `pnpm --filter @cwmb/gateway test`, and `pnpm --filter @cwmb/userscript lint`, `test`, `build` succeeded again.
 
 ## Active Stop Line
 
@@ -103,5 +107,5 @@
 - If code needs ChatGPT Web page facts, add or update them in `apps/extension/src/chatgpt-adapter/` first, then adapt current userscript consumers through compat wiring.
 - Do not add or keep adapters only to preserve draft-only field names, draft wording, or other reference-only shapes. Keep compatibility only where current live runtime behavior still depends on it.
 - Treat nested `execute` as the only active `/call-tool` execution-metadata compat surface unless a future task doc explicitly reopens that decision with live runtime evidence.
-- The next useful narrowing step is to decide whether gateway health and catalog contracts should share one validated runtime snapshot in userscript state, or whether that consolidation is beyond the current Phase 1 slice.
+- The next useful narrowing step is to decide whether the current userscript-owned runtime snapshot helpers should be promoted into an extension-compatible shared browser-runtime layer during Phase 1, or kept local until page-fact extraction advances further.
 - If a change tries to expand into extraction or capability rollout, stop and either narrow it back to this slice or first update the task-control docs with a new active slice.

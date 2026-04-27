@@ -33,6 +33,8 @@ Define one shared contract vocabulary for the future extension runtime and gatew
 At minimum, this slice should make it possible to implement against a stable target for:
 
 - catalog truth
+- gateway health truth
+- browser-local runtime snapshot truth
 - execution request/response
 - policy decisions
 - result envelopes
@@ -58,6 +60,8 @@ At minimum, this slice should make it possible to implement against a stable tar
 - Define the concrete Phase 1 shared-contract freeze so implementation can start without guessing the first slice.
 - Freeze target names and minimum payload surfaces for:
   - `CatalogContract`
+  - `GatewayHealthContract`
+  - `GatewayRuntimeSnapshot`
   - `ExecuteRequest`
   - `ExecuteResponse`
   - `PolicyDecision`

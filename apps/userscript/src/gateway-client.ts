@@ -1,9 +1,11 @@
 import {
   CatalogContractSchema,
+  GatewayHealthContractSchema,
   TOKEN_HEADER,
   getExecuteResponseCompat,
   type CatalogContract,
   type ExecuteResponse,
+  type GatewayHealthContract,
   type ToolCallCompatResponse,
   type ToolCallLiveSuccess,
   type ToolCallRequest,
@@ -11,23 +13,9 @@ import {
 } from '@cwmb/protocol';
 import { state } from './state.js';
 
-export interface GatewayHealthResponse {
-  ok: boolean;
-  version: string;
-  platform: string;
-  host: string;
-  port: number;
-  workspaceRoot: string;
-  shell: string;
-  trustedLocalMode?: boolean;
-  autoExecuteLowRisk?: boolean;
-  autoInsertResult?: boolean;
-  autoSendResult?: boolean;
-  maxToolRounds?: number;
-}
-
-export async function health(): Promise<GatewayHealthResponse> {
-  return gmJson('GET', `${state.baseUrl}/health`) as Promise<GatewayHealthResponse>;
+export async function health(): Promise<GatewayHealthContract> {
+  const response = await gmJson('GET', `${state.baseUrl}/health`);
+  return requireGatewayHealthContract(response);
 }
 
 export async function listCatalog(): Promise<CatalogContract> {
@@ -111,6 +99,17 @@ function requireCatalogContract(payload: unknown): CatalogContract {
   }
 
   const error = new Error('Gateway /tools response is not a valid catalog contract');
+  Object.assign(error, { code: 'INVALID_GATEWAY_RESPONSE', details: parsed.error.flatten() });
+  throw error;
+}
+
+function requireGatewayHealthContract(payload: unknown): GatewayHealthContract {
+  const parsed = GatewayHealthContractSchema.safeParse(payload);
+  if (parsed.success) {
+    return parsed.data;
+  }
+
+  const error = new Error('Gateway /health response is not a valid health contract');
   Object.assign(error, { code: 'INVALID_GATEWAY_RESPONSE', details: parsed.error.flatten() });
   throw error;
 }

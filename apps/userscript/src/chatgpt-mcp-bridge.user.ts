@@ -22,7 +22,12 @@ import { installPageRequestHook, syncRequestPrompt, type RequestHookStatus } fro
 import { renderPanel, setUiHandlers } from './ui.js';
 import {
   addLogEntry,
-  applyAutomationSettings,
+  clearGatewayCatalog,
+  clearGatewayRuntime,
+  getCatalogTools,
+  hasLiveCatalog,
+  setGatewayCatalog,
+  setGatewayHealth,
   type BridgeStatus,
   type StoredBatch,
   state,
@@ -47,7 +52,7 @@ const INVALID_TURN_GRACE_MS = 2_000;
 async function refreshGatewayStatus(): Promise<void> {
   try {
     const gatewayHealth = await health();
-    applyAutomationSettings(gatewayHealth);
+    setGatewayHealth(gatewayHealth);
     await refreshToolCatalog();
     if (state.status === 'disconnected' || state.status === 'unauthorized' || state.status === 'idle' || state.status === 'detected' || state.status === 'detected_batch') {
       state.status = getDetectedStatus();
@@ -58,17 +63,13 @@ async function refreshGatewayStatus(): Promise<void> {
     const errorCode = err && typeof err === 'object' && 'code' in err ? String((err as { code: unknown }).code) : '';
     if (errorCode === 'UNAUTHORIZED') {
       state.status = 'unauthorized';
-      state.toolCatalogLoaded = false;
-      state.catalog = undefined;
-      state.catalogSource = undefined;
+      clearGatewayCatalog();
       syncRequestPrompt('', state.requestInjectionMode);
       state.lastError = err instanceof Error ? err.message : 'Gateway authorization failed.';
       addLogEntry('error', `Gateway unauthorized: ${state.lastError}`);
     } else {
       state.status = 'disconnected';
-      state.toolCatalogLoaded = false;
-      state.catalog = undefined;
-      state.catalogSource = undefined;
+      clearGatewayRuntime();
       syncRequestPrompt('', state.requestInjectionMode);
       state.lastError = err instanceof Error ? err.message : 'Gateway disconnected';
       addLogEntry('error', `Gateway disconnected: ${state.lastError}`);
@@ -166,7 +167,7 @@ async function runPending(): Promise<void> {
 
   const pending = state.pending[0];
   if (!pending) return;
-  const capability = assessPendingTools([pending], state.catalog?.tools ?? [], state.toolCatalogLoaded);
+  const capability = assessPendingTools([pending], getCatalogTools(), hasLiveCatalog());
   if (!capability.runnable) {
     state.lastError = capability.blockedReason ?? 'Tool is not runnable with the current gateway capabilities.';
     renderPanel();
@@ -247,7 +248,7 @@ async function retryStoppedBatch(): Promise<void> {
 async function runStoredBatch(batch: StoredBatch): Promise<void> {
   const { blocks, batchId, messageId } = batch;
   if (blocks.length < 2) return;
-  const capability = assessPendingTools(blocks, state.catalog?.tools ?? [], state.toolCatalogLoaded);
+  const capability = assessPendingTools(blocks, getCatalogTools(), hasLiveCatalog());
   if (!capability.runnable) {
     state.lastError = capability.blockedReason ?? 'Batch is not runnable with the current gateway capabilities.';
     renderPanel();
@@ -408,8 +409,8 @@ async function insertLastResult(): Promise<void> {
 }
 
 function insertToolCatalog(): void {
-  const tools = state.catalog?.tools ?? [];
-  if (!state.toolCatalogLoaded || tools.length === 0) {
+  const tools = getCatalogTools();
+  if (!hasLiveCatalog() || tools.length === 0) {
     state.lastError = 'Tool catalog unavailable. Refresh gateway capabilities.';
     renderPanel();
     return;
@@ -433,7 +434,7 @@ async function maybeAutoRunPending(): Promise<void> {
 
   const requestId = state.pendingRequestId ?? getCurrentRequestIdentity();
   syncRoundGuard(requestId);
-  const capability = assessPendingTools(state.pending, state.catalog?.tools ?? [], state.toolCatalogLoaded);
+  const capability = assessPendingTools(state.pending, getCatalogTools(), hasLiveCatalog());
   if (!capability.autoRunnable) return;
 
   if (!canAutoRunForRequest(
@@ -520,9 +521,7 @@ async function deliverLastResult(
 
 async function refreshToolCatalog(): Promise<void> {
   const catalog = await listCatalog();
-  state.catalog = catalog;
-  state.catalogSource = 'live';
-  state.toolCatalogLoaded = true;
+  setGatewayCatalog(catalog, 'live');
   const prompt = buildInjectedToolPrompt(catalog.tools);
   writeStoredToolCatalog(catalog);
   syncRequestPrompt(prompt, state.requestInjectionMode);
@@ -534,8 +533,7 @@ function bootstrapRequestPrompt(): void {
     return;
   }
 
-  state.catalog = cachedCatalog;
-  state.catalogSource = 'cache';
+  setGatewayCatalog(cachedCatalog, 'cache');
   syncRequestPrompt(buildInjectedToolPrompt(cachedCatalog.tools), state.requestInjectionMode);
 }
 
@@ -546,8 +544,7 @@ async function warmRequestPromptFromGateway(): Promise<void> {
       return;
     }
 
-    state.catalog = catalog;
-    state.catalogSource = 'live';
+    setGatewayCatalog(catalog, 'live');
     writeStoredToolCatalog(catalog);
     syncRequestPrompt(buildInjectedToolPrompt(catalog.tools), state.requestInjectionMode);
   } catch {

@@ -6,6 +6,13 @@ export const ExecutionProfileSchema = z.enum(['legacy_auto', 'reviewed', 'yolo']
 export const DetectionSourceSchema = z.enum(['assistant_message_scan', 'startup_history_rescan', 'manual_retry']);
 export const OperatorIntentSchema = z.enum(['auto_flow', 'manual_run', 'manual_retry', 'manual_approve']);
 export const PolicyActionSchema = z.enum(['execute', 'proposal_required', 'confirmation_required', 'deny', 'skip']);
+export const CatalogSourceSchema = z.enum(['live', 'cache']);
+export const GatewayShellInfoSchema = z.object({
+  preferred: z.literal('pwsh'),
+  resolved: z.union([z.literal('pwsh'), z.literal('powershell.exe'), z.null()]),
+  available: z.boolean(),
+  version: z.string().min(1).optional()
+});
 
 export const ToolCallSourceSchema = z.object({
   page: z.literal('chatgpt'),
@@ -52,6 +59,27 @@ export const CatalogContractSchema = z.object({
   generatedAt: z.string().datetime(),
   workspaceRoot: z.string().min(1).optional(),
   tools: z.array(CatalogToolDescriptorSchema)
+});
+
+export const GatewayHealthContractSchema = z.object({
+  ok: z.literal(true),
+  version: z.string().min(1),
+  platform: z.string().min(1),
+  host: z.string().min(1),
+  port: z.number().int().nonnegative(),
+  workspaceRoot: z.string().min(1),
+  shell: GatewayShellInfoSchema,
+  trustedLocalMode: z.boolean(),
+  autoExecuteLowRisk: z.boolean(),
+  autoInsertResult: z.boolean(),
+  autoSendResult: z.boolean(),
+  maxToolRounds: z.number().int()
+});
+
+export const GatewayRuntimeSnapshotSchema = z.object({
+  health: GatewayHealthContractSchema.optional(),
+  catalog: CatalogContractSchema.optional(),
+  catalogSource: CatalogSourceSchema.optional()
 });
 
 export const TurnSourceSchema = z.object({

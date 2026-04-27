@@ -41,6 +41,8 @@ Concrete work in this stage:
 
 1. Define stable target shapes and ownership for:
    - `CatalogContract`
+   - `GatewayHealthContract`
+   - `GatewayRuntimeSnapshot`
    - `ExecuteRequest`
    - `ExecuteResponse`
    - `PolicyDecision`
@@ -95,6 +97,7 @@ Status: in progress
 - Use the v0.9 architecture ring discipline instead of mixing core extraction, mode rollout, and capability expansion in one pass.
 - Current execution inside this stage:
   - shared protocol compat helpers for current single-call bridge request/response shapes
+  - shared `GatewayHealthContract` plus browser-local `GatewayRuntimeSnapshot`, so userscript health/catalog state no longer relies on a loose local `/health` type or split catalog provenance fields
   - nested `/call-tool` `execute` metadata that preserves the legacy top-level `result`
   - removal of transition-only flat top-level execute-metadata parsing, so compat effort stays aligned to the live runtime floor instead of draft carryover
   - userscript request construction and execute-metadata reading moved onto shared helpers

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { CatalogContractSchema, ExecuteRequestSchema, ExecuteResponseSchema, McpBlockSchema, ToolDescriptorSchema } from './schemas.js';
+import {
+  CatalogContractSchema,
+  ExecuteRequestSchema,
+  ExecuteResponseSchema,
+  GatewayHealthContractSchema,
+  GatewayRuntimeSnapshotSchema,
+  McpBlockSchema,
+  ToolDescriptorSchema
+} from './schemas.js';
 
 describe('McpBlockSchema', () => {
   it('defaults args to an empty object', () => {
@@ -52,6 +60,54 @@ describe('CatalogContractSchema', () => {
     })).toMatchObject({
       catalogVersion: '2026-04-27.phase1',
       tools: [{ source: 'builtin', displayName: 'Read file' }]
+    });
+  });
+});
+
+describe('GatewayHealthContractSchema', () => {
+  it('accepts the live /health contract with shell details', () => {
+    expect(GatewayHealthContractSchema.parse({
+      ok: true,
+      version: '0.1.0',
+      platform: 'linux',
+      host: '127.0.0.1',
+      port: 8024,
+      workspaceRoot: '/workspace',
+      shell: {
+        preferred: 'pwsh',
+        resolved: 'pwsh',
+        available: true,
+        version: '7.5.0'
+      },
+      trustedLocalMode: true,
+      autoExecuteLowRisk: true,
+      autoInsertResult: true,
+      autoSendResult: true,
+      maxToolRounds: 3
+    })).toMatchObject({
+      shell: {
+        resolved: 'pwsh',
+        available: true
+      }
+    });
+  });
+});
+
+describe('GatewayRuntimeSnapshotSchema', () => {
+  it('accepts a cached-bootstrap snapshot before live health sync', () => {
+    expect(GatewayRuntimeSnapshotSchema.parse({
+      catalogSource: 'cache',
+      catalog: {
+        catalogVersion: '2026-04-27.phase1',
+        generatedAt: '2026-04-27T12:00:00.000Z',
+        workspaceRoot: '/workspace',
+        tools: []
+      }
+    })).toMatchObject({
+      catalogSource: 'cache',
+      catalog: {
+        workspaceRoot: '/workspace'
+      }
     });
   });
 });
