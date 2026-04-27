@@ -95,12 +95,14 @@ describe('readCurrentChatInputText', () => {
     Reflect.deleteProperty(globalThis, 'document');
     Reflect.deleteProperty(globalThis, 'window');
     Reflect.deleteProperty(globalThis, 'HTMLElement');
+    Reflect.deleteProperty(globalThis, 'Node');
   });
 
   it('reads the visible editable composer text', () => {
     class FakeHTMLElement {
       innerText = 'Tool result for `mcp_list`\u00a0';
       textContent = 'Tool result for `mcp_list`\u00a0';
+      childNodes: unknown[] = [];
 
       getAttribute(): null {
         return null;
@@ -131,15 +133,23 @@ describe('insertIntoChatInput', () => {
     Reflect.deleteProperty(globalThis, 'window');
     Reflect.deleteProperty(globalThis, 'HTMLElement');
     Reflect.deleteProperty(globalThis, 'InputEvent');
+    Reflect.deleteProperty(globalThis, 'Node');
   });
 
-  it('falls back to plain-text replacement when execCommand round-trips extra blank lines', () => {
+  it('falls back to block-structured replacement when execCommand round-trips extra blank lines', () => {
     class FakeHTMLElement {
+      tagName = 'DIV';
       innerText = 'Bridge tool result for `read_file`:\n\nThis result was executed outside the model...';
       textContent = 'Bridge tool result for `read_file`:\n\nThis result was executed outside the model...';
-      replaceChildren = vi.fn((node?: { data?: string }) => {
-        this.innerText = node?.data ?? '';
-        this.textContent = node?.data ?? '';
+      childNodes: unknown[] = [];
+      replaceChildren = vi.fn(() => {
+        this.childNodes = [];
+        this.innerText = '';
+        this.textContent = '';
+      });
+      appendChild = vi.fn((child: unknown) => {
+        this.childNodes.push(child);
+        return child;
       });
       focus = vi.fn();
       dispatchEvent = vi.fn();
@@ -150,6 +160,12 @@ describe('insertIntoChatInput', () => {
     }
 
     const editable = new FakeHTMLElement();
+    class FakeParagraphElement extends FakeHTMLElement {
+      constructor(public override tagName: string) {
+        super();
+        this.tagName = tagName;
+      }
+    }
     const selection = {
       removeAllRanges: vi.fn(),
       addRange: vi.fn()
@@ -163,7 +179,7 @@ describe('insertIntoChatInput', () => {
           selectNodeContents: vi.fn(),
           collapse: vi.fn()
         }),
-        createTextNode: (value: string) => ({ data: value })
+        createElement: (tagName: string) => new FakeParagraphElement(tagName.toUpperCase())
       },
       configurable: true
     });
@@ -175,6 +191,7 @@ describe('insertIntoChatInput', () => {
       configurable: true
     });
     Object.defineProperty(globalThis, 'HTMLElement', { value: FakeHTMLElement, configurable: true });
+    Object.defineProperty(globalThis, 'Node', { value: { TEXT_NODE: 3 }, configurable: true });
     Object.defineProperty(globalThis, 'InputEvent', {
       value: class FakeInputEvent extends Event {
         constructor(type: string, _init?: EventInit) {
@@ -188,7 +205,9 @@ describe('insertIntoChatInput', () => {
 
     expect(inserted).toBe(true);
     expect(editable.replaceChildren).toHaveBeenCalledTimes(1);
-    expect(editable.textContent).toBe('Bridge tool result for `read_file`:\nThis result was executed outside the model...');
+    expect(editable.appendChild).toHaveBeenCalledTimes(2);
+    expect((editable.childNodes[0] as FakeParagraphElement).textContent).toBe('Bridge tool result for `read_file`:');
+    expect((editable.childNodes[1] as FakeParagraphElement).textContent).toBe('This result was executed outside the model...');
   });
 });
 
@@ -196,35 +215,53 @@ describe('sendCurrentChatInput', () => {
   afterEach(() => {
     Reflect.deleteProperty(globalThis, 'document');
     Reflect.deleteProperty(globalThis, 'window');
+    Reflect.deleteProperty(globalThis, 'HTMLButtonElement');
+    Reflect.deleteProperty(globalThis, 'MouseEvent');
   });
 
   it('waits for a real send button instead of clicking the stop-streaming button', async () => {
-    const stopButton = {
-      id: 'composer-submit-button',
-      dataset: { testid: 'stop-button' },
-      disabled: false,
-      getAttribute: (name: string) => name === 'aria-label' ? '停止流式传输' : null,
-      click: vi.fn()
-    };
-    const sendButton = {
-      id: 'composer-submit-button',
-      dataset: { testid: 'send-button' },
-      disabled: false,
-      getAttribute: (name: string) => name === 'aria-label' ? '发送提示' : null,
-      click: vi.fn()
-    };
+    class FakeButtonElement {
+      id = 'composer-submit-button';
+      disabled = false;
+      dataset: Record<string, string>;
+      private label: string;
+      click = vi.fn();
+      focus = vi.fn();
+      dispatchEvent = vi.fn(() => true);
+
+      constructor(testid: string, label: string) {
+        this.dataset = { testid };
+        this.label = label;
+      }
+
+      getAttribute(name: string): string | null {
+        return name === 'aria-label' ? this.label : null;
+      }
+    }
+
+    const stopButton = new FakeButtonElement('stop-button', '停止流式传输');
+    const sendButton = new FakeButtonElement('send-button', '发送提示');
 
     let currentTime = 0;
-    let currentButton: typeof stopButton | typeof sendButton = stopButton;
+    let currentButtons: FakeButtonElement[] = [stopButton];
     Object.defineProperty(globalThis, 'document', {
       value: {
-        querySelector: () => currentButton
+        querySelectorAll: () => currentButtons
       },
       configurable: true
     });
     Object.defineProperty(globalThis, 'window', {
       value: {
         getComputedStyle: () => ({ display: 'block', visibility: 'visible' })
+      },
+      configurable: true
+    });
+    Object.defineProperty(globalThis, 'HTMLButtonElement', { value: FakeButtonElement, configurable: true });
+    Object.defineProperty(globalThis, 'MouseEvent', {
+      value: class FakeMouseEvent extends Event {
+        constructor(type: string, _init?: EventInit) {
+          super(type, _init);
+        }
       },
       configurable: true
     });
@@ -234,7 +271,7 @@ describe('sendCurrentChatInput', () => {
       now: () => currentTime,
       waitForNextPoll: async (ms) => {
         currentTime += ms;
-        currentButton = sendButton;
+        currentButtons = [stopButton, sendButton];
       }
     });
 
@@ -244,16 +281,21 @@ describe('sendCurrentChatInput', () => {
   });
 
   it('detects the visible stop-streaming button as an active submission state', () => {
-    const stopButton = {
-      id: 'composer-submit-button',
-      dataset: { testid: 'stop-button' },
-      disabled: false,
-      getAttribute: (name: string) => name === 'aria-label' ? '停止流式传输' : null
-    };
+    class FakeButtonElement {
+      id = 'composer-submit-button';
+      disabled = false;
+      dataset = { testid: 'stop-button' };
+
+      getAttribute(name: string): string | null {
+        return name === 'aria-label' ? '停止流式传输' : null;
+      }
+    }
+
+    const stopButton = new FakeButtonElement();
 
     Object.defineProperty(globalThis, 'document', {
       value: {
-        querySelector: () => stopButton
+        querySelectorAll: () => [stopButton]
       },
       configurable: true
     });
@@ -263,6 +305,7 @@ describe('sendCurrentChatInput', () => {
       },
       configurable: true
     });
+    Object.defineProperty(globalThis, 'HTMLButtonElement', { value: FakeButtonElement, configurable: true });
 
     expect(isChatInputSubmitting()).toBe(true);
   });

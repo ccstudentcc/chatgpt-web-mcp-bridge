@@ -44,7 +44,7 @@ export async function sendCurrentChatInput({
   while (now() < deadline) {
     const button = findSendButton();
     if (button) {
-      button.click();
+      pressComposerButton(button);
       return true;
     }
 
@@ -61,7 +61,7 @@ export function isChatInputSubmitting(): boolean {
 export function readCurrentChatInputText(): string {
   const editable = findVisibleEditable();
   if (editable) {
-    return normalizeChatInputText(editable.textContent || editable.innerText || '');
+    return normalizeChatInputText(readEditableText(editable));
   }
 
   const textarea = findVisibleTextarea();
@@ -82,18 +82,20 @@ function findSubmittingButton(): HTMLButtonElement | null {
 
 function findComposerButton(predicate: (button: HTMLButtonElement) => boolean): HTMLButtonElement | null {
   for (const selector of chatgptSelectors.sendButtons) {
-    const button = document.querySelector(selector) as HTMLButtonElement | null;
-    if (!button || button.disabled || button.getAttribute('aria-disabled') === 'true') {
-      continue;
-    }
-    if (!isVisible(button)) {
-      continue;
-    }
-    if (!predicate(button)) {
-      continue;
-    }
+    const matches = Array.from(document.querySelectorAll(selector)).filter((node): node is HTMLButtonElement => node instanceof HTMLButtonElement);
+    for (const button of matches) {
+      if (button.disabled || button.getAttribute('aria-disabled') === 'true') {
+        continue;
+      }
+      if (!isVisible(button)) {
+        continue;
+      }
+      if (!predicate(button)) {
+        continue;
+      }
 
-    return button;
+      return button;
+    }
   }
 
   return null;
@@ -143,7 +145,16 @@ function tryExecCommandInsert(editable: HTMLElement, value: string): boolean {
 }
 
 function replaceEditableContent(editable: HTMLElement, value: string): void {
-  editable.replaceChildren(document.createTextNode(value));
+  editable.replaceChildren();
+  for (const line of value.split('\n')) {
+    const paragraph = document.createElement('p');
+    if (line.length === 0) {
+      paragraph.appendChild(document.createElement('br'));
+    } else {
+      paragraph.textContent = line;
+    }
+    editable.appendChild(paragraph);
+  }
   placeCaretAtEnd(editable);
 }
 
@@ -181,7 +192,7 @@ function normalizeChatInputText(value: string): string {
 }
 
 function matchesEditableText(editable: HTMLElement, expected: string): boolean {
-  return normalizeEditableRoundTripText(editable.textContent || editable.innerText || '')
+  return normalizeEditableRoundTripText(readEditableText(editable))
     === normalizeEditableRoundTripText(expected);
 }
 
@@ -190,6 +201,65 @@ function normalizeEditableRoundTripText(value: string): string {
     .replace(/\r\n/g, '\n')
     .replace(/\u00a0/g, ' ')
     .trimEnd();
+}
+
+function readEditableText(editable: HTMLElement): string {
+  if (!editable.childNodes.length) {
+    return editable.textContent || editable.innerText || '';
+  }
+
+  const serialized = Array.from(editable.childNodes)
+    .map((node) => serializeEditableNode(node))
+    .join('');
+
+  return serialized.replace(/\n+$/u, '');
+}
+
+function serializeEditableNode(node: Node): string {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return node.textContent || '';
+  }
+
+  if (!(node instanceof HTMLElement)) {
+    return '';
+  }
+
+  if (node.tagName === 'BR') {
+    return '\n';
+  }
+
+  const text = Array.from(node.childNodes)
+    .map((child) => serializeEditableNode(child))
+    .join('');
+
+  if (node.tagName === 'P' || node.tagName === 'DIV') {
+    return `${text}\n`;
+  }
+
+  return text;
+}
+
+function pressComposerButton(button: HTMLButtonElement): void {
+  button.focus();
+  dispatchPointerLikeEvent(button, 'pointerdown');
+  dispatchMouseEvent(button, 'mousedown');
+  dispatchPointerLikeEvent(button, 'pointerup');
+  dispatchMouseEvent(button, 'mouseup');
+  button.click();
+}
+
+function dispatchPointerLikeEvent(target: HTMLButtonElement, type: 'pointerdown' | 'pointerup'): void {
+  const PointerEventCtor = window.PointerEvent;
+  if (typeof PointerEventCtor === 'function') {
+    target.dispatchEvent(new PointerEventCtor(type, { bubbles: true, cancelable: true, pointerId: 1, isPrimary: true, button: 0 }));
+    return;
+  }
+
+  dispatchMouseEvent(target, type === 'pointerdown' ? 'mousedown' : 'mouseup');
+}
+
+function dispatchMouseEvent(target: HTMLButtonElement, type: 'mousedown' | 'mouseup'): void {
+  target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, button: 0 }));
 }
 
 function wait(ms: number): Promise<void> {
