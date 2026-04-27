@@ -15,14 +15,14 @@ import { callTool, health, listCatalog } from './gateway-client.js';
 import { extractVisibleText, findLatestOpenAssistantMessage, findLatestUserMessage, onChatMutation } from './dom.js';
 import { sha256Normalized } from './hash.js';
 import { formatBatchToolResult, formatToolResult, insertIntoChatInput, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
-import { analyzeMcpTurn } from './parser.js';
 import { describeRequestHookStatus } from './request-injection-state.js';
 import { canAutoRunForRequest, recordAutoRunForRequest, syncAutoRoundRequest } from './round-guard.js';
 import { installPageRequestHook, syncRequestPrompt, type RequestHookStatus } from './request-hook.js';
 import {
+  analyzeMcpTurn,
   createAssistantTurnScanState,
   scanAssistantTurn
-} from '../../extension/src/turn-runtime/assistant-turn-scan.js';
+} from '../../extension/src/turn-runtime/index.js';
 import { getMessageIdentity as getTurnMessageIdentity } from '../../extension/src/turn-runtime/pending-turn-detection.js';
 import { renderPanel, setUiHandlers } from './ui.js';
 import {

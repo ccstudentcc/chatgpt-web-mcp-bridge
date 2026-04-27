@@ -42,6 +42,7 @@
 - The first Phase 2 extraction step is now in code: parser-level MCP turn analysis and normalization logic lives under `apps/extension/src/turn-runtime/mcp-turn-analysis.ts`, while `apps/userscript/src/parser.ts` is reduced to a thin compat wrapper that restores legacy `callId` semantics.
 - The next Phase 2 extraction step is now also in code: latest-open-turn message identity and pending-turn detection semantics live under `apps/extension/src/turn-runtime/pending-turn-detection.ts`, while `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now only supplies DOM text extraction, current runtime state, and userscript-local hashing/batch helpers.
 - The latest-open-turn scan state transition is now also in code: `apps/extension/src/turn-runtime/assistant-turn-scan.ts` owns the pure clear/pending/invalid-waiting/invalid decision flow for startup/history rescan, while `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now only supplies DOM discovery, visible-text extraction, and runtime side effects for the active turn-runtime path.
+- The live userscript rescan path now consumes extension-owned `analyzeMcpTurn()` directly instead of routing startup/history rescan through the userscript parser compat wrapper.
 - The userscript build now resolves `@cwmb/protocol` explicitly for extension-owned turn-runtime source pulled into the bundle, so Phase 2 owner shifts do not depend on pnpm package-boundary luck during esbuild resolution.
 - Shared protocol now owns the current `tool_result_batch` item union and batch envelope helper, including the compat `source.messageId` field used by userscript result insertion.
 - Userscript single-result insertion now formats shared `inline_tool_result` / `execution_error` envelopes instead of serializing raw legacy single-call payloads directly.
@@ -75,6 +76,7 @@
 - After moving MCP turn analysis ownership into `apps/extension/src/turn-runtime/mcp-turn-analysis.ts`, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` succeeded again.
 - After moving latest-open-turn message identity and pending-turn detection semantics into `apps/extension/src/turn-runtime/pending-turn-detection.ts`, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` succeeded again.
 - After moving the latest-open-turn scan decision state into `apps/extension/src/turn-runtime/assistant-turn-scan.ts`, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After switching the live userscript rescan path to extension-owned `analyzeMcpTurn()`, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 
 ## Active Stop Line
 
@@ -138,7 +140,7 @@
   - `apps/extension/src/turn-runtime/pending-turn-detection.ts` is now the long-term owner for latest-open-turn identity and pending-turn detection semantics
   - `apps/extension/src/turn-runtime/assistant-turn-scan.ts` is now the long-term owner for startup/history rescan scan-state decisions across clear, pending, invalid-waiting, and invalid outcomes
   - `apps/userscript/src/parser.ts` remains only as a compat wrapper for hashed `callId` output
-  - `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now delegates pending-turn classification and scan-state decisions instead of owning the full detection algorithm
+  - `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now delegates pending-turn classification, live turn analysis, and scan-state decisions instead of owning the full detection algorithm
   - userscript bundling now explicitly resolves `@cwmb/protocol` for extension-owned turn-runtime imports
 - Userscript files named in this slice are now reference or temporary bridge surfaces, not target-state ownership destinations by themselves.
 - Still explicitly not opened while `turn-runtime` is the active module stage:
