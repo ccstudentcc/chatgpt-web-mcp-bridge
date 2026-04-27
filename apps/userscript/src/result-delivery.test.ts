@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   deliverResult,
+  matchesAuthoritativeComposerState,
   matchesRecoveredComposerState,
   resolveRecoveredComposerDraft
 } from '../../extension/src/result-delivery/index.js';
@@ -292,5 +293,63 @@ describe('deliverResult', () => {
       payload,
       preservedDraft: undefined
     })).toBe('keep this manual note');
+  });
+
+  it('reuses an already-authoritative recovered composer instead of reinserting before send', async () => {
+    let currentTime = 0;
+    const insert = vi.fn(() => true);
+    const payload = [
+      'Bridge tool result for `read_file`:',
+      'This result was executed outside the model after your previous `mcp` reply.',
+      '',
+      '```tool_result',
+      '{}',
+      '```'
+    ].join('\n');
+
+    const outcome = await deliverResult({
+      kind: 'single',
+      payload,
+      autoSend: true,
+      allowReuseCurrentComposer: true,
+      insert,
+      restore: () => true,
+      send: async () => true,
+      isSubmitting: () => currentTime >= 100,
+      readCurrentInput: () => payload,
+      wait: async (ms) => {
+        currentTime += ms;
+      },
+      now: () => currentTime,
+      insertionSettleTimeoutMs: 100,
+      submissionTimeoutMs: 200,
+      pollIntervalMs: 50
+    });
+
+    expect(insert).not.toHaveBeenCalled();
+    expect(outcome.phase).toBe('sent');
+    expect(outcome.events).toEqual([
+      { level: 'success', message: 'Sent result back to ChatGPT.' }
+    ]);
+  });
+
+  it('treats only payload-complete composer text as authoritative send source', () => {
+    const payload = [
+      'Bridge tool result for `read_file`:',
+      'This result was executed outside the model after your previous `mcp` reply.',
+      '',
+      '```tool_result',
+      '{}',
+      '```'
+    ].join('\n');
+
+    expect(matchesAuthoritativeComposerState({
+      currentText: payload,
+      payload
+    })).toBe(true);
+    expect(matchesAuthoritativeComposerState({
+      currentText: 'This result was executed outside the model after your previous `mcp` reply.',
+      payload
+    })).toBe(false);
   });
 });

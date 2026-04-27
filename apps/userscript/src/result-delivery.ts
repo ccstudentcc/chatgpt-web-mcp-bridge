@@ -31,5 +31,6 @@ export {
   type DeliverResultOptions,
   type DeliverResultOutcome,
   type DeliveryStatusTone,
+  matchesAuthoritativeComposerState,
   type ReadyDeliveryStatus
 } from '../../extension/src/result-delivery/index.js';

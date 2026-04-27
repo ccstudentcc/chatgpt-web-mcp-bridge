@@ -19,6 +19,7 @@ export interface DeliverResultOptions {
   kind: DeliveryKind;
   payload: string;
   autoSend: boolean;
+  allowReuseCurrentComposer?: boolean;
   existingError?: string;
   preservedDraft?: string;
   insert: (value: string) => boolean;
@@ -46,6 +47,7 @@ export async function deliverResult(options: DeliverResultOptions): Promise<Deli
     kind,
     payload,
     autoSend,
+    allowReuseCurrentComposer = false,
     existingError,
     preservedDraft,
     insert,
@@ -64,8 +66,14 @@ export async function deliverResult(options: DeliverResultOptions): Promise<Deli
     draft: preservedDraft ?? readCurrentInput(),
     payload
   });
+  const currentComposerText = readCurrentInput();
+  const canReuseCurrentComposer = allowReuseCurrentComposer
+    && matchesAuthoritativeComposerState({
+      currentText: currentComposerText,
+      payload
+    });
 
-  if (!insert(payload)) {
+  if (!canReuseCurrentComposer && !insert(payload)) {
     return {
       phase: 'ready',
       nextError: existingError ?? messages.clipboardFallbackError,
@@ -78,8 +86,12 @@ export async function deliverResult(options: DeliverResultOptions): Promise<Deli
     };
   }
 
-  const events: DeliveryLogEvent[] = [{ level: 'success', message: messages.insertedLog }];
-  const insertedComposerText = readCurrentInput() || payload;
+  const events: DeliveryLogEvent[] = canReuseCurrentComposer
+    ? []
+    : [{ level: 'success', message: messages.insertedLog }];
+  const insertedComposerText = canReuseCurrentComposer
+    ? currentComposerText
+    : readCurrentInput() || payload;
   if (!autoSend) {
     return {
       phase: 'inserted',
@@ -310,6 +322,45 @@ export function matchesRecoveredComposerState({
   }
 
   return isBridgeManagedComposerText(current) && candidates.some((candidate) => isBridgeManagedComposerText(candidate));
+}
+
+export function matchesAuthoritativeComposerState({
+  currentText,
+  payload,
+  composerSnapshot
+}: {
+  currentText: string;
+  payload: string;
+  composerSnapshot?: string;
+}): boolean {
+  const current = normalizeComposerText(currentText);
+  if (!current) {
+    return false;
+  }
+
+  const candidates = [
+    composerSnapshot,
+    payload,
+    stripBridgeResultHeading(payload),
+    composerSnapshot ? stripBridgeResultHeading(composerSnapshot) : undefined
+  ]
+    .filter((value): value is string => typeof value === 'string')
+    .map(normalizeComposerText)
+    .filter((value, index, values) => value.length > 0 && values.indexOf(value) === index);
+
+  if (candidates.some((candidate) => candidate === current)) {
+    return true;
+  }
+
+  const currentPayloads = extractResultBlockPayloads(current);
+  if (currentPayloads.length === 0) {
+    return false;
+  }
+
+  return candidates.some((candidate) => {
+    const candidatePayloads = extractResultBlockPayloads(candidate);
+    return candidatePayloads.some((payloadBlock) => currentPayloads.includes(payloadBlock));
+  });
 }
 
 export function resolveRecoveredComposerDraft({

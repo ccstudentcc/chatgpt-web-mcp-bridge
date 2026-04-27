@@ -20,6 +20,7 @@ export {
   type DeliveryPhase,
   type DeliverResultOptions,
   type DeliverResultOutcome,
+  matchesAuthoritativeComposerState,
   matchesRecoveredComposerState,
   resolveRecoveredComposerDraft
 } from './composer-delivery.js';

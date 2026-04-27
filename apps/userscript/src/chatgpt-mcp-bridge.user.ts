@@ -44,6 +44,7 @@ import {
   clearGatewayCatalog,
   clearGatewayRuntime,
   getCatalogTools,
+  hasPersistedUndeliveredResultSession,
   matchesPersistedUndeliveredResultSession,
   hasLiveCatalog,
   restorePersistedUndeliveredResultSession,
@@ -68,6 +69,8 @@ void warmRequestPromptFromGateway();
 let lastRequestHookStatusKey = '';
 let turnScanState = createAssistantTurnScanState();
 const INVALID_TURN_GRACE_MS = 2_000;
+const STARTUP_UNDELIVERED_RECOVERY_GRACE_MS = 2_500;
+let startupUndeliveredRecoveryDeadline = 0;
 
 async function refreshGatewayStatus(): Promise<void> {
   try {
@@ -101,6 +104,7 @@ async function refreshGatewayStatus(): Promise<void> {
 }
 async function scanLatestAssistantMessage(): Promise<void> {
   if (state.status === 'executing' || state.status === 'batch_executing') return;
+  if (await shouldPauseTurnScanForStartupRecovery()) return;
   if (shouldDeferPendingDetectionForComposerDraft()) return;
   const detection = await pollLatestAssistantTurnRuntime({
     findLatestUserMessage,
@@ -532,11 +536,13 @@ async function performLastResultDelivery(readyStatus: ReadyDeliveryStatus): Prom
   if (!lastResult) {
     return readyStatus;
   }
+  const isRecoveredSendResume = state.status === 'inserted' || state.status === 'batch_inserted';
 
   const outcome = await deliverResult({
     kind: isBatchReadyDeliveryStatus(readyStatus) ? 'batch' : 'single',
     payload: lastResult,
     autoSend: state.autoSendResult,
+    allowReuseCurrentComposer: isRecoveredSendResume,
     existingError: state.lastError,
     preservedDraft: state.preservedDraft,
     insert: insertIntoChatInput,
@@ -603,7 +609,11 @@ async function startBridge(): Promise<void> {
     }
   });
   addLogEntry('info', 'Bridge panel mounted.');
+  startupUndeliveredRecoveryDeadline = hasPersistedUndeliveredResultSession(window.location.pathname)
+    ? Date.now() + STARTUP_UNDELIVERED_RECOVERY_GRACE_MS
+    : 0;
   if (await restoreUndeliveredResultSessionOnStartup()) {
+    startupUndeliveredRecoveryDeadline = 0;
     addLogEntry('info', 'Restored the undelivered bridge result from the current composer after refresh.');
   }
   renderPanel();
@@ -718,6 +728,7 @@ async function maybeResumeRecoveredResultDelivery(): Promise<void> {
 
 async function maybeRestoreUndeliveredResultSessionAfterHydration(): Promise<void> {
   if (state.lastResult) {
+    startupUndeliveredRecoveryDeadline = 0;
     return;
   }
 
@@ -735,9 +746,28 @@ async function maybeRestoreUndeliveredResultSessionAfterHydration(): Promise<voi
     return;
   }
 
+  startupUndeliveredRecoveryDeadline = 0;
   addLogEntry('info', 'Restored the undelivered bridge result after composer hydration finished.');
   renderPanel();
   await maybeResumeRecoveredResultDelivery();
+}
+
+async function shouldPauseTurnScanForStartupRecovery(): Promise<boolean> {
+  if (startupUndeliveredRecoveryDeadline === 0) {
+    return false;
+  }
+
+  if (Date.now() >= startupUndeliveredRecoveryDeadline) {
+    startupUndeliveredRecoveryDeadline = 0;
+    return false;
+  }
+
+  await maybeRestoreUndeliveredResultSessionAfterHydration();
+  if (state.lastResult) {
+    return shouldDeferPendingDetectionForComposerDraft();
+  }
+
+  return true;
 }
 
 function failureFromError(tool: string, error: unknown): ToolCallFailure {
