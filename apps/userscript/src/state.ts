@@ -433,7 +433,19 @@ function matchesPersistedComposerState(
     .map(normalizePersistedText)
     .filter((value, index, values) => value.length > 0 && values.indexOf(value) === index);
 
-  return candidates.some((candidate) => candidate === current);
+  if (candidates.some((candidate) => candidate === current)) {
+    return true;
+  }
+
+  const currentPayloads = extractResultBlockPayloads(current);
+  if (currentPayloads.length === 0) {
+    return false;
+  }
+
+  return candidates.some((candidate) => {
+    const candidatePayloads = extractResultBlockPayloads(candidate);
+    return candidatePayloads.some((payload) => currentPayloads.includes(payload));
+  });
 }
 
 function stripResultHeading(value: string): string {
@@ -450,4 +462,13 @@ function stripResultHeading(value: string): string {
   }
 
   return value.trim();
+}
+
+function extractResultBlockPayloads(value: string): string[] {
+  const payloads = Array.from(
+    value.matchAll(/(`{3,})(tool_result|tool_result_batch)\n([\s\S]*?)\n\1/g),
+    (match) => normalizePersistedText(match[3] ?? '')
+  ).filter((payload) => payload.length > 0);
+
+  return payloads.filter((payload, index) => payloads.indexOf(payload) === index);
 }
