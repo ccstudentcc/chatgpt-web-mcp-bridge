@@ -4,7 +4,11 @@
     "rootDir": "..",
     "outDir": "dist",
     "lib": ["ES2022", "DOM"],
-    "types": []
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      "@cwmb/protocol": ["../../packages/protocol/dist/index.d.ts"]
+    }
   },
   "include": ["src/**/*.ts", "../extension/src/chatgpt-adapter/chatgpt-runtime-facts.ts"]
 }

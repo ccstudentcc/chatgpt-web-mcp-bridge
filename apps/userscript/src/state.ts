@@ -1,6 +1,13 @@
-import type { CatalogContract, CatalogSource, GatewayHealthContract, GatewayRuntimeSnapshot } from '@cwmb/protocol';
+import type { CatalogSource, GatewayHealthContract, GatewayRuntimeSnapshot } from '@cwmb/protocol';
 import type { ParsedMcpBlock } from './parser.js';
 import type { RequestInjectionMode } from './request-hook.js';
+import {
+  getGatewayCatalogTools,
+  hasLiveGatewayCatalog,
+  withGatewayCatalog,
+  withGatewayHealth,
+  withoutGatewayCatalog
+} from './runtime-snapshot.js';
 
 export type BridgeStatus =
   | 'disconnected'
@@ -134,38 +141,28 @@ export function saveBaseUrl(baseUrl: string): void {
 }
 
 export function hasLiveCatalog(runtime = state.gatewayRuntime): boolean {
-  return runtime?.catalogSource === 'live' && runtime.catalog !== undefined;
+  return hasLiveGatewayCatalog(runtime);
 }
 
-export function getCatalogTools(): CatalogContract['tools'] {
-  return state.gatewayRuntime?.catalog?.tools ?? [];
+export function getCatalogTools() {
+  return getGatewayCatalogTools(state.gatewayRuntime);
 }
 
 export function setGatewayHealth(health: GatewayHealthContract): void {
-  state.gatewayRuntime = {
-    ...state.gatewayRuntime,
-    health
-  };
+  state.gatewayRuntime = withGatewayHealth(state.gatewayRuntime, health);
   applyAutomationSettings(health);
 }
 
-export function setGatewayCatalog(catalog: CatalogContract, source: CatalogSource): void {
-  state.gatewayRuntime = {
-    ...state.gatewayRuntime,
-    catalog,
-    catalogSource: source
-  };
-}
-
-export function clearGatewayCatalog(): void {
-  if (!state.gatewayRuntime?.health) {
-    state.gatewayRuntime = undefined;
+export function setGatewayCatalog(catalog: GatewayRuntimeSnapshot['catalog'], source: CatalogSource): void {
+  if (!catalog) {
     return;
   }
 
-  state.gatewayRuntime = {
-    health: state.gatewayRuntime.health
-  };
+  state.gatewayRuntime = withGatewayCatalog(state.gatewayRuntime, catalog, source);
+}
+
+export function clearGatewayCatalog(): void {
+  state.gatewayRuntime = withoutGatewayCatalog(state.gatewayRuntime);
 }
 
 export function clearGatewayRuntime(): void {

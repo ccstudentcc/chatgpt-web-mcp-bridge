@@ -36,6 +36,7 @@ Current implementation note:
   - live health truth from `/health`
   - catalog truth from `/tools`
   - whether the visible catalog is live or cached bootstrap data
+- the narrow target owner for pure browser-side runtime-snapshot helper semantics is now seeded at `apps/extension/src/operator-panel/runtime-snapshot.ts`, with current userscript code consuming it through a compat re-export
 
 ## 3. Minimum Contract Surface
 

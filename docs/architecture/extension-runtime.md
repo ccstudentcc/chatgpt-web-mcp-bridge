@@ -136,6 +136,10 @@ Owns:
 - diagnostics copy entrypoints
 - conversation-scoped execution-profile control
 
+Current Phase 1 seed:
+
+- `apps/extension/src/operator-panel/runtime-snapshot.ts` now owns the pure browser-side runtime-snapshot helper semantics used by current userscript compat state
+
 Does not own:
 
 - a second execution state machine

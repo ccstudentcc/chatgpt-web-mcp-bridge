@@ -22,6 +22,7 @@ Primary file surfaces:
 - current gateway route shapes under `apps/gateway/src/routes/*`
 - current userscript request/result call sites that consume protocol types
 - `apps/extension/src/chatgpt-adapter/*`
+- `apps/extension/src/operator-panel/*`
 - `docs/protocols/*`
 - `docs/operations/chatgpt-web-runtime-evidence.md`
 - the root task-control docs
@@ -72,6 +73,7 @@ At minimum, this slice should make it possible to implement against a stable tar
 - Limit early implementation work to shared contracts, route adapters, and contract-consumer alignment.
 - Establish `docs/operations/chatgpt-web-runtime-evidence.md` as the only allowed repository source for ChatGPT Web DOM/request-shape/selectors evidence.
 - Establish `apps/extension/src/chatgpt-adapter/` as the canonical v0.9 code owner for ChatGPT Web page facts, with current userscript code consuming those facts only through compatibility wiring.
+- Allow narrow `apps/extension/src/operator-panel/*` target-owner scaffolding when it removes userscript-local runtime snapshot semantics without opening panel feature rollout or a second execution state machine.
 
 ## Out of Scope
 

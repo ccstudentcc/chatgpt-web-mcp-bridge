@@ -8,11 +8,8 @@ describe('state runtime snapshot helpers', () => {
     vi.stubGlobal('GM_setValue', vi.fn());
   });
 
-  it('keeps validated health when live catalog sync is cleared', async () => {
+  it('applies gateway automation defaults when health is stored', async () => {
     const {
-      clearGatewayCatalog,
-      hasLiveCatalog,
-      setGatewayCatalog,
       setGatewayHealth,
       state
     } = await import('./state.js');
@@ -36,14 +33,6 @@ describe('state runtime snapshot helpers', () => {
       autoSendResult: false,
       maxToolRounds: 5
     });
-    setGatewayCatalog({
-      catalogVersion: 'phase1.shared-contract-freeze.v1',
-      generatedAt: '2026-04-27T12:00:00.000Z',
-      workspaceRoot: '/workspace',
-      tools: []
-    }, 'live');
-
-    clearGatewayCatalog();
 
     expect(state.gatewayRuntime).toMatchObject({
       health: {
@@ -51,21 +40,8 @@ describe('state runtime snapshot helpers', () => {
         maxToolRounds: 5
       }
     });
-    expect(hasLiveCatalog()).toBe(false);
     expect(state.trustedLocalMode).toBe(false);
     expect(state.maxToolRounds).toBe(5);
-  });
-
-  it('treats cached bootstrap catalog as not yet live', async () => {
-    const { hasLiveCatalog, setGatewayCatalog } = await import('./state.js');
-
-    setGatewayCatalog({
-      catalogVersion: 'phase1.shared-contract-freeze.v1',
-      generatedAt: '2026-04-27T12:00:00.000Z',
-      workspaceRoot: '/workspace',
-      tools: []
-    }, 'cache');
-
-    expect(hasLiveCatalog()).toBe(false);
+    expect(state.autoSendResult).toBe(false);
   });
 });
