@@ -30,6 +30,7 @@ Current implementation note:
 - The gateway already serves a materialized `CatalogContract` on `/tools`.
 - The userscript live client now validates that full contract before consuming `tools[]`, instead of silently treating malformed payloads as an empty catalog.
 - The userscript cache/bootstrap/runtime state now retain that full catalog contract, so diagnostics can reuse `catalogVersion` and `workspaceRoot` without inventing a second metadata channel beside `tools[]`.
+- The userscript runtime now also tracks whether the visible catalog is live or cache-derived, so operator diagnostics do not confuse bootstrap state with a successful live `/tools` sync.
 
 ## 3. Minimum Contract Surface
 

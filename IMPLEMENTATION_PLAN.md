@@ -102,6 +102,7 @@ Status: in progress
   - shared protocol now separates raw `/call-tool` boundary payload typing from the validated live response type used by gateway/userscript runtime code
   - userscript `/tools` fetching now validates the full live `CatalogContract` before reading `tools[]`
   - userscript cache/bootstrap/runtime state now retain the full catalog contract instead of only `tools[]`
+  - userscript state/UI now distinguish live gateway catalog provenance from cached bootstrap provenance
   - single-result insertion now formats shared inline/error result envelopes instead of inserting raw legacy single-call payloads
   - shared batch result-envelope items and helper, with userscript batch assembly and result formatting consuming the shared envelope shape
   - app-local validation scripts that rebuild required workspace package outputs before `lint`, `test`, or `build`

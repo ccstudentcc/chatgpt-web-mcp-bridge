@@ -60,6 +60,7 @@ async function refreshGatewayStatus(): Promise<void> {
       state.status = 'unauthorized';
       state.toolCatalogLoaded = false;
       state.catalog = undefined;
+      state.catalogSource = undefined;
       syncRequestPrompt('', state.requestInjectionMode);
       state.lastError = err instanceof Error ? err.message : 'Gateway authorization failed.';
       addLogEntry('error', `Gateway unauthorized: ${state.lastError}`);
@@ -67,6 +68,7 @@ async function refreshGatewayStatus(): Promise<void> {
       state.status = 'disconnected';
       state.toolCatalogLoaded = false;
       state.catalog = undefined;
+      state.catalogSource = undefined;
       syncRequestPrompt('', state.requestInjectionMode);
       state.lastError = err instanceof Error ? err.message : 'Gateway disconnected';
       addLogEntry('error', `Gateway disconnected: ${state.lastError}`);
@@ -519,6 +521,7 @@ async function deliverLastResult(
 async function refreshToolCatalog(): Promise<void> {
   const catalog = await listCatalog();
   state.catalog = catalog;
+  state.catalogSource = 'live';
   state.toolCatalogLoaded = true;
   const prompt = buildInjectedToolPrompt(catalog.tools);
   writeStoredToolCatalog(catalog);
@@ -532,6 +535,7 @@ function bootstrapRequestPrompt(): void {
   }
 
   state.catalog = cachedCatalog;
+  state.catalogSource = 'cache';
   syncRequestPrompt(buildInjectedToolPrompt(cachedCatalog.tools), state.requestInjectionMode);
 }
 
@@ -543,6 +547,7 @@ async function warmRequestPromptFromGateway(): Promise<void> {
     }
 
     state.catalog = catalog;
+    state.catalogSource = 'live';
     writeStoredToolCatalog(catalog);
     syncRequestPrompt(buildInjectedToolPrompt(catalog.tools), state.requestInjectionMode);
   } catch {

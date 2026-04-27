@@ -59,6 +59,7 @@ export interface BridgeState {
   panelCollapsed: boolean;
   panelPosition?: PanelPosition;
   catalog?: CatalogContract;
+  catalogSource?: 'live' | 'cache';
   toolCatalogLoaded: boolean;
   pending: ParsedMcpBlock[];
   pendingBatchId?: string;
@@ -116,6 +117,7 @@ export const state: BridgeState = {
   panelPosition: typeof panelLeftStored === 'number' && typeof panelTopStored === 'number'
     ? { left: panelLeftStored, top: panelTopStored }
     : undefined,
+  catalogSource: undefined,
   toolCatalogLoaded: false,
   pending: [],
   autoRoundCount: 0,

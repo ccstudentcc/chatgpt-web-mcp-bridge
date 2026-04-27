@@ -79,6 +79,11 @@ export function renderPanel(): void {
   const toolCatalogPrompt = buildToolCatalogPrompt(tools);
   const catalogVersionLabel = state.catalog?.catalogVersion ?? 'Unavailable';
   const workspaceRootLabel = state.catalog?.workspaceRoot ?? 'Unknown';
+  const catalogSourceLabel = state.catalogSource === 'live'
+    ? 'Live gateway'
+    : state.catalogSource === 'cache'
+      ? 'Cached bootstrap'
+      : 'Unavailable';
   const statusTone = getStatusTone(state.status);
   const statusLabel = getStatusLabel(state.status);
   const tokenLabel = state.trustedLocalMode ? 'Trusted local' : state.token ? 'Token set' : 'Token missing';
@@ -142,6 +147,10 @@ export function renderPanel(): void {
               <div class="cwmb-stat-value">${escapeHtml(catalogVersionLabel)}</div>
             </div>
             <div class="cwmb-stat">
+              <div class="cwmb-stat-label">Catalog src</div>
+              <div class="cwmb-stat-value">${escapeHtml(catalogSourceLabel)}</div>
+            </div>
+            <div class="cwmb-stat">
               <div class="cwmb-stat-label">Auth</div>
               <div class="cwmb-stat-value">${escapeHtml(tokenLabel)}</div>
             </div>
@@ -168,7 +177,11 @@ export function renderPanel(): void {
             ${renderToggle('toggle-send', 'Send', state.autoSendResult)}
             ${renderToggle('toggle-continue-batch', 'Continue on error', state.continueBatchOnError)}
           </div>
-          ${state.toolCatalogLoaded ? `<div class="cwmb-callout cwmb-callout-muted">Request injection is currently using <strong>${escapeHtml(injectionModeLabel)}</strong>. Insert/Copy MCP list remains fallback only.</div>` : ''}
+          ${state.toolCatalogLoaded
+            ? `<div class="cwmb-callout cwmb-callout-muted">Request injection is currently using <strong>${escapeHtml(injectionModeLabel)}</strong>. Insert/Copy MCP list remains fallback only.</div>`
+            : state.catalogSource === 'cache'
+              ? '<div class="cwmb-callout cwmb-callout-muted">Using cached catalog bootstrap until the next successful live gateway sync.</div>'
+              : ''}
         </div>
 
         <div class="cwmb-section">

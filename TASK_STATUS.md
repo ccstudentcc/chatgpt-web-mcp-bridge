@@ -22,6 +22,7 @@
 - Shared protocol now distinguishes raw `/call-tool` boundary payloads from validated live `/call-tool` responses with a first-class live response type, so gateway/userscript code no longer rely on one overloaded compat alias for both meanings.
 - Userscript `/tools` fetching now validates the full `CatalogContract` before reading `.tools`, so malformed catalog payloads fail as `INVALID_GATEWAY_RESPONSE` instead of silently degrading to an empty tool list.
 - Userscript cache/bootstrap/runtime state now retain the full catalog contract instead of only `tools[]`, so `catalogVersion` and `workspaceRoot` are available for diagnostics without another shape migration later.
+- Userscript panel/runtime state now also tracks whether the visible catalog came from the live gateway or cached bootstrap, so diagnostics can distinguish “catalog known” from “catalog freshly synced”.
 - Shared protocol now owns the current `tool_result_batch` item union and batch envelope helper, including the compat `source.messageId` field used by userscript result insertion.
 - Userscript single-result insertion now formats shared `inline_tool_result` / `execution_error` envelopes instead of serializing raw legacy single-call payloads directly.
 - Userscript batch execution now returns the shared batch envelope shape instead of a local duplicate interface, and batch result formatting consumes the shared envelope directly.
@@ -46,6 +47,7 @@
 - After splitting raw compat parsing from the first-class live `/call-tool` response type, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After requiring a valid `CatalogContract` on the live userscript `/tools` path, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After promoting the userscript cache/state layer from `tools[]` to the full catalog contract, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After surfacing live-vs-cache catalog provenance in userscript state/UI, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 
 ## Active Stop Line
 
@@ -101,5 +103,5 @@
 - If code needs ChatGPT Web page facts, add or update them in `apps/extension/src/chatgpt-adapter/` first, then adapt current userscript consumers through compat wiring.
 - Do not add or keep adapters only to preserve draft-only field names, draft wording, or other reference-only shapes. Keep compatibility only where current live runtime behavior still depends on it.
 - Treat nested `execute` as the only active `/call-tool` execution-metadata compat surface unless a future task doc explicitly reopens that decision with live runtime evidence.
-- The next useful narrowing step is to decide whether the panel/log diagnostics should explicitly surface cached-vs-live catalog provenance, or whether that belongs to a later observability slice instead of Phase 1 contract freeze.
+- The next useful narrowing step is to decide whether gateway health and catalog contracts should share one validated runtime snapshot in userscript state, or whether that consolidation is beyond the current Phase 1 slice.
 - If a change tries to expand into extraction or capability rollout, stop and either narrow it back to this slice or first update the task-control docs with a new active slice.
