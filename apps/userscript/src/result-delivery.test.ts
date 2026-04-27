@@ -96,9 +96,12 @@ describe('deliverResult', () => {
       readCurrentInput: () => composerText,
       wait: async (ms) => {
         currentTime += ms;
-        composerText = '';
+        if (currentTime >= 100) {
+          composerText = '';
+        }
       },
       now: () => currentTime,
+      insertionSettleTimeoutMs: 100,
       submissionTimeoutMs: 200,
       pollIntervalMs: 50
     });
@@ -125,12 +128,13 @@ describe('deliverResult', () => {
       insert: () => true,
       restore,
       send: async () => true,
-      isSubmitting: () => currentTime >= 50,
+      isSubmitting: () => currentTime >= 100,
       readCurrentInput: () => 'tool-result',
       wait: async (ms) => {
         currentTime += ms;
       },
       now: () => currentTime,
+      insertionSettleTimeoutMs: 100,
       submissionTimeoutMs: 200,
       pollIntervalMs: 50
     });
@@ -185,6 +189,67 @@ describe('deliverResult', () => {
       pollIntervalMs: 50
     });
 
+    expect(outcome.phase).toBe('inserted');
+    expect(outcome.recovery?.kind).toBe('submission_not_confirmed');
+  });
+
+  it('waits for the inserted composer text to settle before clicking send', async () => {
+    let currentTime = 0;
+    let composerText = 'previous draft';
+    const send = vi.fn(async () => true);
+    const outcome = await deliverResult({
+      kind: 'single',
+      payload: 'tool-result',
+      autoSend: true,
+      insert: () => {
+        composerText = 'tool-result';
+        return true;
+      },
+      restore: () => true,
+      send,
+      readCurrentInput: () => composerText,
+      wait: async (ms) => {
+        currentTime += ms;
+      },
+      now: () => currentTime,
+      insertionSettleTimeoutMs: 250,
+      submissionTimeoutMs: 250,
+      pollIntervalMs: 50
+    });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(outcome.phase).toBe('inserted');
+  });
+
+  it('does not click send when the inserted composer text never stabilizes', async () => {
+    let currentTime = 0;
+    let composerText = 'previous draft';
+    const send = vi.fn(async () => true);
+    const outcome = await deliverResult({
+      kind: 'single',
+      payload: 'tool-result',
+      autoSend: true,
+      insert: () => {
+        composerText = 'tool-result';
+        return true;
+      },
+      restore: () => true,
+      send,
+      readCurrentInput: () => {
+        const current = composerText;
+        composerText = current === 'tool-result' ? 'previous draft' : 'tool-result';
+        return current;
+      },
+      wait: async (ms) => {
+        currentTime += ms;
+      },
+      now: () => currentTime,
+      insertionSettleTimeoutMs: 150,
+      submissionTimeoutMs: 250,
+      pollIntervalMs: 50
+    });
+
+    expect(send).not.toHaveBeenCalled();
     expect(outcome.phase).toBe('inserted');
     expect(outcome.recovery?.kind).toBe('submission_not_confirmed');
   });

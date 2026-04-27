@@ -28,6 +28,7 @@ export interface DeliverResultOptions {
   readCurrentInput: () => string;
   wait: (ms: number) => Promise<void>;
   now?: () => number;
+  insertionSettleTimeoutMs?: number;
   submissionTimeoutMs?: number;
   pollIntervalMs?: number;
 }
@@ -54,6 +55,7 @@ export async function deliverResult(options: DeliverResultOptions): Promise<Deli
     readCurrentInput,
     wait,
     now = Date.now,
+    insertionSettleTimeoutMs = 300,
     submissionTimeoutMs = 3_000,
     pollIntervalMs = 100
   } = options;
@@ -84,6 +86,29 @@ export async function deliverResult(options: DeliverResultOptions): Promise<Deli
       nextError: existingError,
       nextPreservedDraft,
       events
+    };
+  }
+
+  const insertionSettled = await waitForInsertedComposer({
+    expectedText: insertedComposerText,
+    readCurrentInput,
+    wait,
+    now,
+    timeoutMs: insertionSettleTimeoutMs,
+    pollIntervalMs
+  });
+  if (!insertionSettled) {
+    const deliveryError = messages.notSubmittedError;
+    events.push({ level: 'warn', message: deliveryError });
+    return {
+      phase: 'inserted',
+      nextError: existingError ?? deliveryError,
+      nextPreservedDraft,
+      events,
+      recovery: {
+        kind: 'submission_not_confirmed',
+        message: messages.notSubmittedRecovery
+      }
     };
   }
 
@@ -203,6 +228,42 @@ async function waitForSubmittedComposer({
   }
 
   return false;
+}
+
+async function waitForInsertedComposer({
+  expectedText,
+  readCurrentInput,
+  wait,
+  now,
+  timeoutMs,
+  pollIntervalMs
+}: {
+  expectedText: string;
+  readCurrentInput: () => string;
+  wait: (ms: number) => Promise<void>;
+  now: () => number;
+  timeoutMs: number;
+  pollIntervalMs: number;
+}): Promise<boolean> {
+  const deadline = now() + timeoutMs;
+  const expected = normalizeComposerText(expectedText);
+  let matchedOnce = false;
+
+  while (now() < deadline) {
+    const current = normalizeComposerText(readCurrentInput());
+    if (current === expected) {
+      if (matchedOnce) {
+        return true;
+      }
+      matchedOnce = true;
+    } else {
+      matchedOnce = false;
+    }
+
+    await wait(pollIntervalMs);
+  }
+
+  return matchedOnce;
 }
 
 function normalizeComposerText(value: string): string {
