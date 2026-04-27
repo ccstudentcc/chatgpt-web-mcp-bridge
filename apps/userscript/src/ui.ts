@@ -2,6 +2,7 @@ import type { GatewayShellInfo } from '@cwmb/protocol';
 import { buildToolCatalogPrompt, summarizeToolCatalog } from './catalog.js';
 import { assessPendingTools, formatCapabilityLabel } from './capabilities.js';
 import { summarizePendingBlock } from './preview.js';
+import { deriveDeliveryPanelState } from './result-delivery.js';
 import { getCatalogTools, hasLiveCatalog, saveBaseUrl, savePanelPosition, saveToken, state } from './state.js';
 
 const LOG_STREAM_SELECTOR = '.cwmb-log-stream';
@@ -56,10 +57,17 @@ export function renderPanel(): void {
   root!.style.overflow = state.panelCollapsed ? 'hidden' : 'auto';
 
   const pending = state.pending[0];
-  const isBatch = state.pending.length > 1 && Boolean(state.pendingBatchId);
-  const visibleBatch = isBatch ? state.pending : state.retryableBatch?.blocks ?? [];
-  const hasRetryableBatch = Boolean(state.retryableBatch);
-  const activeBlocks = state.pending.length > 0 ? state.pending : visibleBatch;
+  const deliveryPanel = deriveDeliveryPanelState({
+    status: state.status,
+    lastResult: state.lastResult,
+    pending: state.pending,
+    pendingBatchId: state.pendingBatchId,
+    retryableBatch: state.retryableBatch
+  });
+  const isBatch = deliveryPanel.isPendingBatch;
+  const visibleBatch = deliveryPanel.visibleBatch;
+  const hasRetryableBatch = deliveryPanel.hasRetryableBatch;
+  const activeBlocks = deliveryPanel.activeBlocks;
   const tools = getCatalogTools();
   const toolCatalogLoaded = hasLiveCatalog();
   const runtimeSnapshot = state.gatewayRuntime;
@@ -67,12 +75,7 @@ export function renderPanel(): void {
   const manualRunReason = state.autoExecuteEnabled && capability.runnable && !capability.autoRunnable
     ? capability.autoBlockedReason
     : '';
-  const canInsertResult =
-    Boolean(state.lastResult) &&
-    (state.status === 'result_ready'
-      || state.status === 'batch_result_ready'
-      || state.status === 'batch_stopped_on_failure'
-      || state.status === 'failed');
+  const canInsertResult = deliveryPanel.canInsertResult;
   const canRunPending = state.pending.length > 0 && capability.runnable;
   const canRetryBatch = hasRetryableBatch && capability.runnable;
   const capabilityHint = capability.blockedReason ? `<div class="cwmb-callout cwmb-callout-danger">${escapeHtml(capability.blockedReason)}</div>` : '';

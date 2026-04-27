@@ -16,7 +16,15 @@ import { extractVisibleText, findLatestOpenAssistantMessage, findLatestUserMessa
 import { sha256Normalized } from './hash.js';
 import { insertIntoChatInput, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
 import { describeRequestHookStatus } from './request-injection-state.js';
-import { deliverResult, formatBatchToolResult, formatToolResult, type DeliveryPhase } from './result-delivery.js';
+import {
+  deliverResult,
+  deriveDeliveryPanelState,
+  formatBatchToolResult,
+  formatToolResult,
+  isBatchReadyDeliveryStatus,
+  resolveDeliveredBridgeStatus,
+  type ReadyDeliveryStatus
+} from './result-delivery.js';
 import { canAutoRunForRequest, recordAutoRunForRequest, syncAutoRoundRequest } from './round-guard.js';
 import { installPageRequestHook, syncRequestPrompt, type RequestHookStatus } from './request-hook.js';
 import {
@@ -86,9 +94,6 @@ async function refreshGatewayStatus(): Promise<void> {
   renderPanel();
   void maybeAutoRunPending();
 }
-
-type ReadyDeliveryStatus = Extract<BridgeStatus, 'failed' | 'result_ready' | 'batch_result_ready' | 'batch_stopped_on_failure'>;
-
 async function scanLatestAssistantMessage(): Promise<void> {
   if (state.status === 'executing' || state.status === 'batch_executing') return;
   const detection = await pollLatestAssistantTurnRuntime({
@@ -369,7 +374,7 @@ function buildBatchFailureMessage(items: BatchResultItem[], stoppedOnFailure: bo
 
 async function insertLastResult(): Promise<void> {
   if (!state.lastResult) return;
-  state.status = await performLastResultDelivery(getReadyDeliveryStatus(state.status));
+  state.status = await performLastResultDelivery(getCurrentReadyDeliveryStatus());
   renderPanel();
 }
 
@@ -544,31 +549,17 @@ async function performLastResultDelivery(readyStatus: ReadyDeliveryStatus): Prom
     addLogEntry(event.level, event.message);
   }
 
-  return resolveDeliveredBridgeStatus(readyStatus, outcome.phase);
+  return resolveDeliveredBridgeStatus(readyStatus, outcome.phase) as BridgeStatus;
 }
 
-function getReadyDeliveryStatus(status: BridgeStatus): ReadyDeliveryStatus {
-  if (status === 'result_ready' || status === 'batch_result_ready' || status === 'batch_stopped_on_failure' || status === 'failed') {
-    return status;
-  }
-
-  return state.retryableBatch ? 'batch_result_ready' : 'result_ready';
-}
-
-function isBatchReadyDeliveryStatus(status: ReadyDeliveryStatus): boolean {
-  return status === 'batch_result_ready' || status === 'batch_stopped_on_failure';
-}
-
-function resolveDeliveredBridgeStatus(readyStatus: ReadyDeliveryStatus, phase: DeliveryPhase): BridgeStatus {
-  if (phase === 'ready') {
-    return readyStatus;
-  }
-
-  if (phase === 'sent') {
-    return isBatchReadyDeliveryStatus(readyStatus) ? 'batch_sent' : 'sent';
-  }
-
-  return isBatchReadyDeliveryStatus(readyStatus) ? 'batch_inserted' : 'inserted';
+function getCurrentReadyDeliveryStatus(): ReadyDeliveryStatus {
+  return deriveDeliveryPanelState({
+    status: state.status,
+    lastResult: state.lastResult,
+    pending: state.pending,
+    pendingBatchId: state.pendingBatchId,
+    retryableBatch: state.retryableBatch
+  }).readyStatus;
 }
 
 function startBridge(): void {
