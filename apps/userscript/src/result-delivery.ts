@@ -1,4 +1,5 @@
 export {
+  getDeliveryPanelCopy,
   describeBatchFailure,
   deliverResult,
   deriveDeliveryPanelState,
@@ -16,6 +17,7 @@ export {
   type DeliveryBridgeStatus,
   type DeliveryKind,
   type DeliveryLogEvent,
+  type DeliveryPanelCopy,
   type DeliveryPanelState,
   type DeliveryPhase,
   type DeliverResultOptions,

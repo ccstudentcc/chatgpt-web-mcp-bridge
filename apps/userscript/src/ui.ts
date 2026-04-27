@@ -3,6 +3,7 @@ import { buildToolCatalogPrompt, summarizeToolCatalog } from './catalog.js';
 import { assessPendingTools, formatCapabilityLabel } from './capabilities.js';
 import {
   deriveDeliveryPanelState,
+  getDeliveryPanelCopy,
   getDeliveryStatusLabel,
   getDeliveryStatusTone,
   summarizePendingBlock
@@ -97,6 +98,12 @@ export function renderPanel(): void {
   const shellLabel = formatShellLabel(runtimeSnapshot?.health?.shell);
   const statusTone = getDeliveryStatusTone(state.status);
   const statusLabel = getDeliveryStatusLabel(state.status);
+  const deliveryCopy = getDeliveryPanelCopy({
+    activeCount: activeBlocks.length,
+    hasRetryableBatch,
+    canInsertResult,
+    hasError: Boolean(state.lastError)
+  });
   const tokenLabel = state.trustedLocalMode ? 'Trusted local' : state.token ? 'Token set' : 'Token missing';
   const injectionModeLabel = state.requestInjectionMode === 'synthetic_system' ? 'Synthetic system' : 'Prepend user';
   const headerButtonLabel = state.panelCollapsed ? 'Expand' : 'Collapse';
@@ -111,7 +118,7 @@ export function renderPanel(): void {
   const pendingDetails = renderPendingDetails(activeBlocks, capability);
   const resultDetails = state.lastResult
     ? `<pre>${escapeHtml(state.lastResult)}</pre>`
-    : '<div class="cwmb-empty-state">No result payload yet.</div>';
+    : `<div class="cwmb-empty-state">${escapeHtml(deliveryCopy.resultEmptyState)}</div>`;
   const logsHtml = state.logs.length > 0
     ? [...state.logs].reverse().map((entry) => (
       `<div class="cwmb-log-row cwmb-log-${entry.level}"><div class="cwmb-log-meta"><span class="cwmb-log-time">${escapeHtml(entry.timestamp)}</span><span class="cwmb-log-level">${escapeHtml(entry.level)}</span></div><div class="cwmb-log-message">${escapeHtml(entry.message)}</div></div>`
@@ -121,12 +128,12 @@ export function renderPanel(): void {
     pending
       ? `${((!state.autoExecuteEnabled && canRunPending) || (state.autoExecuteEnabled && canRunPending && !capability.autoRunnable)) ? renderButton('run', isBatch ? 'Run all' : 'Run', 'primary') : ''}${renderButton('ignore', isBatch ? 'Ignore batch' : 'Ignore', 'danger')}`
       : '',
-    !pending && canRetryBatch ? renderButton('retry-batch', 'Retry batch', 'primary') : '',
-    canInsertResult ? renderButton('insert-result', 'Insert result', 'primary') : ''
+    !pending && canRetryBatch ? renderButton('retry-batch', deliveryCopy.retryBatchLabel, 'primary') : '',
+    canInsertResult ? renderButton('insert-result', deliveryCopy.insertResultLabel, 'primary') : ''
   ].filter(Boolean).join('');
 
   root!.innerHTML = state.panelCollapsed
-    ? renderCollapsedPanel(statusTone, statusLabel, headerButtonLabel, activeBlocks.length, latestLog?.message, collapsedActionHtml)
+    ? renderCollapsedPanel(statusTone, statusLabel, headerButtonLabel, deliveryCopy.collapsedSummary, latestLog?.message, collapsedActionHtml)
     : `
       <style>${panelStyles()}</style>
       <div class="cwmb-shell">
@@ -207,11 +214,11 @@ export function renderPanel(): void {
           ${manualRunHint}
           ${state.lastError ? `<div class="cwmb-callout cwmb-callout-danger">${escapeHtml(state.lastError)}</div>` : ''}
           <details class="cwmb-disclosure" data-cwmb-disclosure-key="pending-details">
-            <summary>Batch / pending details</summary>
+            <summary>${escapeHtml(deliveryCopy.pendingDisclosureLabel)}</summary>
             <div class="cwmb-disclosure-body">${pendingDetails}</div>
           </details>
           <details class="cwmb-disclosure" data-cwmb-disclosure-key="last-result">
-            <summary>Last result payload</summary>
+            <summary>${escapeHtml(deliveryCopy.resultDisclosureLabel)}</summary>
             <div class="cwmb-disclosure-body">${resultDetails}</div>
           </details>
         </div>
@@ -225,9 +232,9 @@ export function renderPanel(): void {
           </div>
           <div class="cwmb-actions">
             ${pending ? `${((!state.autoExecuteEnabled && canRunPending) || (state.autoExecuteEnabled && canRunPending && !capability.autoRunnable)) ? renderButton('run', isBatch ? 'Run all' : 'Run', 'primary') : ''}${renderButton('ignore', isBatch ? 'Ignore batch' : 'Ignore', 'danger')}${renderButton('copy-json', isBatch ? 'Copy first JSON' : 'Copy JSON', 'ghost')}` : ''}
-            ${!pending && canRetryBatch ? renderButton('retry-batch', 'Retry whole batch', 'primary') : ''}
-            ${canInsertResult ? renderButton('insert-result', 'Insert result', 'primary') : ''}
-            ${state.lastResult ? renderButton('copy-result', 'Copy result', 'ghost') : ''}
+            ${!pending && canRetryBatch ? renderButton('retry-batch', deliveryCopy.retryBatchLabel, 'primary') : ''}
+            ${canInsertResult ? renderButton('insert-result', deliveryCopy.insertResultLabel, 'primary') : ''}
+            ${state.lastResult ? renderButton('copy-result', deliveryCopy.copyResultLabel, 'ghost') : ''}
           </div>
         </div>
 
@@ -512,15 +519,10 @@ function renderCollapsedPanel(
   statusTone: string,
   statusLabel: string,
   headerButtonLabel: string,
-  activeCount: number,
+  collapsedSummary: string,
   latestLogMessage: string | undefined,
   actionHtml: string
 ): string {
-  const summary = activeCount > 0
-    ? `${activeCount} pending`
-    : state.lastError
-      ? 'Attention needed'
-      : 'Watching this chat';
   const runtimeSummary = [
     renderMiniState('Execute', state.autoExecuteEnabled),
     renderMiniState('Insert', state.autoInsertResult),
@@ -535,7 +537,7 @@ function renderCollapsedPanel(
         <div data-cwmb="drag-handle">
           <div class="cwmb-kicker">Local Bridge</div>
           <h2 class="cwmb-title">ChatGPT MCP Bridge</h2>
-          <div class="cwmb-subtitle">${escapeHtml(statusLabel)} • ${escapeHtml(summary)}</div>
+          <div class="cwmb-subtitle">${escapeHtml(statusLabel)} • ${escapeHtml(collapsedSummary)}</div>
         </div>
         <div class="cwmb-header-actions">
           <div class="cwmb-badge ${statusTone}">${statusLabel}</div>

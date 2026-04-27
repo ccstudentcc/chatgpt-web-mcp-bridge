@@ -1,4 +1,8 @@
 export {
+  getDeliveryPanelCopy,
+  type DeliveryPanelCopy
+} from './operator-panel-copy.js';
+export {
   describeBatchFailure,
   type BatchFailurePresentation
 } from './batch-outcome-presentation.js';
