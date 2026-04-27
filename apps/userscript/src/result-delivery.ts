@@ -1,4 +1,5 @@
 export {
+  describeBatchFailure,
   deliverResult,
   deriveDeliveryPanelState,
   deriveReadyDeliveryStatus,
@@ -11,6 +12,7 @@ export {
   resolveDeliveredBridgeStatus,
   summarizeArgs,
   summarizePendingBlock,
+  type BatchFailurePresentation,
   type DeliveryBridgeStatus,
   type DeliveryKind,
   type DeliveryLogEvent,

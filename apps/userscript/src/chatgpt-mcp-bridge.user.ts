@@ -6,7 +6,6 @@ import {
   createInlineToolResultEnvelopeFromLegacyResponse,
   createLegacyToolCallRequest,
   getExecuteResponseCompat,
-  type BatchResultFailureItem,
   type BatchResultItem,
   type ToolCallFailure
 } from '@cwmb/protocol';
@@ -17,6 +16,7 @@ import { sha256Normalized } from './hash.js';
 import { insertIntoChatInput, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
 import { describeRequestHookStatus } from './request-injection-state.js';
 import {
+  describeBatchFailure,
   deliverResult,
   deriveDeliveryPanelState,
   formatBatchToolResult,
@@ -290,18 +290,20 @@ async function runStoredBatch(batch: StoredBatch): Promise<void> {
   state.lastResult = formatBatchToolResult(response);
 
   if (!response.ok && response.summary.stoppedOnFailure) {
+    const failurePresentation = describeBatchFailure(response.items, true, response.summary.failed);
     state.retryableBatch = {
       blocks,
       batchId,
       messageId
     };
-    state.lastError = buildBatchFailureMessage(response.items, true);
-    addLogEntry('warn', `Batch stopped after a failure in ${response.items.find((item): item is BatchResultFailureItem => 'ok' in item && item.ok === false)?.tool ?? 'unknown'}.`);
+    state.lastError = failurePresentation.lastError;
+    addLogEntry('warn', failurePresentation.logMessage);
     state.status = await deliverLastResult('batch_stopped_on_failure');
   } else if (!response.ok) {
+    const failurePresentation = describeBatchFailure(response.items, false, response.summary.failed);
     state.retryableBatch = undefined;
-    state.lastError = buildBatchFailureMessage(response.items, false);
-    addLogEntry('warn', `Batch completed with ${response.summary.failed} failed tool call(s).`);
+    state.lastError = failurePresentation.lastError;
+    addLogEntry('warn', failurePresentation.logMessage);
     state.status = await deliverLastResult('batch_result_ready');
   } else {
     state.retryableBatch = undefined;
@@ -358,18 +360,6 @@ function applyBatchExecutionMarkers(items: BatchResultItem[], batchId: string): 
     }
   }
   state.executedBatchIds.add(batchId);
-}
-
-function buildBatchFailureMessage(items: BatchResultItem[], stoppedOnFailure: boolean): string {
-  const failed = items.find((item): item is BatchResultFailureItem => 'ok' in item && item.ok === false);
-  if (!failed) {
-    return stoppedOnFailure
-      ? 'Batch stopped after a tool call failed.'
-      : 'Batch completed with one or more failed tool calls.';
-  }
-  return stoppedOnFailure
-    ? `Batch stopped after \`${failed.tool}\` failed: ${failed.error.message}`
-    : `Batch completed with failures. First failed tool: \`${failed.tool}\` (${failed.error.message})`;
 }
 
 async function insertLastResult(): Promise<void> {

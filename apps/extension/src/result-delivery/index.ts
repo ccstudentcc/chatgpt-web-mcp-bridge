@@ -1,4 +1,8 @@
 export {
+  describeBatchFailure,
+  type BatchFailurePresentation
+} from './batch-outcome-presentation.js';
+export {
   deliverResult,
   type DeliveryKind,
   type DeliveryLogEvent,
