@@ -1,6 +1,17 @@
-import type { ToolDescriptor } from '@cwmb/protocol';
+import type { CatalogSource, GatewayHealthContract, GatewayRuntimeSnapshot } from '@cwmb/protocol';
 import type { ParsedMcpBlock } from './parser.js';
-import type { RequestInjectionMode } from './request-hook.js';
+import {
+  getGatewayCatalogTools,
+  hasLiveGatewayCatalog,
+  withGatewayCatalog,
+  withGatewayHealth,
+  withoutGatewayCatalog
+} from './runtime-snapshot.js';
+import {
+  cycleRequestInjectionMode as getNextRequestInjectionMode,
+  normalizeRequestInjectionMode,
+  type RequestInjectionMode
+} from './request-injection-state.js';
 
 export type BridgeStatus =
   | 'disconnected'
@@ -58,8 +69,7 @@ export interface BridgeState {
   continueBatchOnError: boolean;
   panelCollapsed: boolean;
   panelPosition?: PanelPosition;
-  tools: ToolDescriptor[];
-  toolCatalogLoaded: boolean;
+  gatewayRuntime?: GatewayRuntimeSnapshot;
   pending: ParsedMcpBlock[];
   pendingBatchId?: string;
   pendingMessageId?: string;
@@ -95,10 +105,6 @@ function parseStoredNumber(stored: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function readStoredInjectionMode(stored: string): RequestInjectionMode {
-  return stored === 'prepend_user' ? 'prepend_user' : 'synthetic_system';
-}
-
 export const state: BridgeState = {
   status: 'idle',
   token: GM_getValue('cwmb_token', ''),
@@ -116,14 +122,12 @@ export const state: BridgeState = {
   panelPosition: typeof panelLeftStored === 'number' && typeof panelTopStored === 'number'
     ? { left: panelLeftStored, top: panelTopStored }
     : undefined,
-  tools: [],
-  toolCatalogLoaded: false,
   pending: [],
   autoRoundCount: 0,
   executedCallIds: new Set<string>(),
   executedBatchIds: new Set<string>(),
   logs: [],
-  requestInjectionMode: readStoredInjectionMode(GM_getValue('cwmb_request_injection_mode', 'synthetic_system'))
+  requestInjectionMode: normalizeRequestInjectionMode(GM_getValue('cwmb_request_injection_mode', 'synthetic_system'))
 };
 
 export function saveToken(token: string): void {
@@ -134,6 +138,35 @@ export function saveToken(token: string): void {
 export function saveBaseUrl(baseUrl: string): void {
   state.baseUrl = baseUrl;
   GM_setValue('cwmb_base_url', baseUrl);
+}
+
+export function hasLiveCatalog(runtime = state.gatewayRuntime): boolean {
+  return hasLiveGatewayCatalog(runtime);
+}
+
+export function getCatalogTools() {
+  return getGatewayCatalogTools(state.gatewayRuntime);
+}
+
+export function setGatewayHealth(health: GatewayHealthContract): void {
+  state.gatewayRuntime = withGatewayHealth(state.gatewayRuntime, health);
+  applyAutomationSettings(health);
+}
+
+export function setGatewayCatalog(catalog: GatewayRuntimeSnapshot['catalog'], source: CatalogSource): void {
+  if (!catalog) {
+    return;
+  }
+
+  state.gatewayRuntime = withGatewayCatalog(state.gatewayRuntime, catalog, source);
+}
+
+export function clearGatewayCatalog(): void {
+  state.gatewayRuntime = withoutGatewayCatalog(state.gatewayRuntime);
+}
+
+export function clearGatewayRuntime(): void {
+  state.gatewayRuntime = undefined;
 }
 
 export function applyAutomationSettings(settings: {
@@ -190,9 +223,7 @@ export function toggleContinueBatchOnError(): void {
 }
 
 export function cycleRequestInjectionMode(): void {
-  state.requestInjectionMode = state.requestInjectionMode === 'synthetic_system'
-    ? 'prepend_user'
-    : 'synthetic_system';
+  state.requestInjectionMode = getNextRequestInjectionMode(state.requestInjectionMode);
   GM_setValue('cwmb_request_injection_mode', state.requestInjectionMode);
 }
 

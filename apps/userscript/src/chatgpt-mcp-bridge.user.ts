@@ -1,21 +1,34 @@
 import { buildInjectedToolPrompt, buildToolCatalogPrompt } from './catalog.js';
 import { readStoredToolCatalog, writeStoredToolCatalog } from './catalog-cache.js';
 import { assessPendingTools } from './capabilities.js';
-import type { ToolCallFailure, ToolCallRequest } from '@cwmb/protocol';
-import type { BatchFailureItem, BatchResultItem } from './batch.js';
+import {
+  createExecutionErrorEnvelopeFromLegacyResponse,
+  createInlineToolResultEnvelopeFromLegacyResponse,
+  createLegacyToolCallRequest,
+  getExecuteResponseCompat,
+  type BatchResultFailureItem,
+  type BatchResultItem,
+  type ToolCallFailure
+} from '@cwmb/protocol';
 import { createBatchId, executeBatch } from './batch.js';
-import { callTool, health, listTools } from './gateway-client.js';
+import { callTool, health, listCatalog } from './gateway-client.js';
 import { extractVisibleText, findLatestOpenAssistantMessage, findLatestUserMessage, onChatMutation } from './dom.js';
 import { isSamePendingSelection, updatePendingInvalidTurn, type PendingInvalidTurnState } from './detection-state.js';
 import { sha256Normalized } from './hash.js';
 import { formatBatchToolResult, formatToolResult, insertIntoChatInput, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
 import { analyzeMcpTurn } from './parser.js';
+import { describeRequestHookStatus } from './request-injection-state.js';
 import { canAutoRunForRequest, recordAutoRunForRequest, syncAutoRoundRequest } from './round-guard.js';
 import { installPageRequestHook, syncRequestPrompt, type RequestHookStatus } from './request-hook.js';
 import { renderPanel, setUiHandlers } from './ui.js';
 import {
   addLogEntry,
-  applyAutomationSettings,
+  clearGatewayCatalog,
+  clearGatewayRuntime,
+  getCatalogTools,
+  hasLiveCatalog,
+  setGatewayCatalog,
+  setGatewayHealth,
   type BridgeStatus,
   type StoredBatch,
   state,
@@ -40,7 +53,7 @@ const INVALID_TURN_GRACE_MS = 2_000;
 async function refreshGatewayStatus(): Promise<void> {
   try {
     const gatewayHealth = await health();
-    applyAutomationSettings(gatewayHealth);
+    setGatewayHealth(gatewayHealth);
     await refreshToolCatalog();
     if (state.status === 'disconnected' || state.status === 'unauthorized' || state.status === 'idle' || state.status === 'detected' || state.status === 'detected_batch') {
       state.status = getDetectedStatus();
@@ -51,15 +64,13 @@ async function refreshGatewayStatus(): Promise<void> {
     const errorCode = err && typeof err === 'object' && 'code' in err ? String((err as { code: unknown }).code) : '';
     if (errorCode === 'UNAUTHORIZED') {
       state.status = 'unauthorized';
-      state.toolCatalogLoaded = false;
-      state.tools = [];
+      clearGatewayCatalog();
       syncRequestPrompt('', state.requestInjectionMode);
       state.lastError = err instanceof Error ? err.message : 'Gateway authorization failed.';
       addLogEntry('error', `Gateway unauthorized: ${state.lastError}`);
     } else {
       state.status = 'disconnected';
-      state.toolCatalogLoaded = false;
-      state.tools = [];
+      clearGatewayRuntime();
       syncRequestPrompt('', state.requestInjectionMode);
       state.lastError = err instanceof Error ? err.message : 'Gateway disconnected';
       addLogEntry('error', `Gateway disconnected: ${state.lastError}`);
@@ -157,7 +168,7 @@ async function runPending(): Promise<void> {
 
   const pending = state.pending[0];
   if (!pending) return;
-  const capability = assessPendingTools([pending], state.tools, state.toolCatalogLoaded);
+  const capability = assessPendingTools([pending], getCatalogTools(), hasLiveCatalog());
   if (!capability.runnable) {
     state.lastError = capability.blockedReason ?? 'Tool is not runnable with the current gateway capabilities.';
     renderPanel();
@@ -168,17 +179,18 @@ async function runPending(): Promise<void> {
   addLogEntry('info', `Running tool: ${pending.block.tool}`);
   renderPanel();
 
-  const request: ToolCallRequest = {
+  const request = createLegacyToolCallRequest({
     tool: pending.block.tool,
     args: pending.block.args,
-    source: {
-      page: 'chatgpt',
-      callId: pending.callId
-    }
-  };
+    callId: pending.callId
+  });
 
   try {
     const response = await callTool(request);
+    const executeCompat = response.execute;
+    const resultEnvelope = executeCompat.result.type === 'inline_tool_result'
+      ? executeCompat.result
+      : createInlineToolResultEnvelopeFromLegacyResponse(response, pending.callId);
     state.executedCallIds.add(pending.callId);
     state.pending = state.pending.slice(1);
     state.pendingBatchId = undefined;
@@ -186,14 +198,19 @@ async function runPending(): Promise<void> {
     state.pendingRequestId = undefined;
     state.progress = undefined;
     state.retryableBatch = undefined;
-    state.lastResult = formatToolResult(pending.block.tool, response);
-    addLogEntry('success', `Tool completed: ${pending.block.tool}`);
+    state.lastResult = formatToolResult(pending.block.tool, resultEnvelope);
+    addLogEntry('success', `Tool completed: ${pending.block.tool}${executeCompat ? ` [${executeCompat.executionId}]` : ''}`);
     state.status = await deliverLastResult('single', 'result_ready', 'inserted', 'sent');
   } catch (err) {
     const errorCode = err && typeof err === 'object' && 'code' in err ? String((err as { code: unknown }).code) : '';
+    const executeCompat = getExecuteResponseCompat(err);
+    const failure = failureFromError(pending.block.tool, err);
+    const resultEnvelope = executeCompat?.result.type === 'execution_error'
+      ? executeCompat.result
+      : createExecutionErrorEnvelopeFromLegacyResponse(failure);
     state.lastError = err instanceof Error ? err.message : 'Tool call failed';
-    state.lastResult = formatToolResult(pending.block.tool, failureFromError(pending.block.tool, err));
-    addLogEntry('error', `Tool failed: ${pending.block.tool} (${errorCode || 'INTERNAL_ERROR'})`);
+    state.lastResult = formatToolResult(pending.block.tool, resultEnvelope);
+    addLogEntry('error', `Tool failed: ${pending.block.tool}${executeCompat ? ` [${executeCompat.executionId}]` : ''} (${errorCode || 'INTERNAL_ERROR'})`);
     state.progress = undefined;
     state.retryableBatch = undefined;
     if (errorCode === 'UNAUTHORIZED') {
@@ -232,7 +249,7 @@ async function retryStoppedBatch(): Promise<void> {
 async function runStoredBatch(batch: StoredBatch): Promise<void> {
   const { blocks, batchId, messageId } = batch;
   if (blocks.length < 2) return;
-  const capability = assessPendingTools(blocks, state.tools, state.toolCatalogLoaded);
+  const capability = assessPendingTools(blocks, getCatalogTools(), hasLiveCatalog());
   if (!capability.runnable) {
     state.lastError = capability.blockedReason ?? 'Batch is not runnable with the current gateway capabilities.';
     renderPanel();
@@ -273,7 +290,7 @@ async function runStoredBatch(batch: StoredBatch): Promise<void> {
       messageId
     };
     state.lastError = buildBatchFailureMessage(response.items, true);
-    addLogEntry('warn', `Batch stopped after a failure in ${response.items.find((item): item is BatchFailureItem => 'ok' in item && item.ok === false)?.tool ?? 'unknown'}.`);
+    addLogEntry('warn', `Batch stopped after a failure in ${response.items.find((item): item is BatchResultFailureItem => 'ok' in item && item.ok === false)?.tool ?? 'unknown'}.`);
     state.status = await deliverLastResult('batch', 'batch_stopped_on_failure', 'batch_inserted', 'batch_sent');
   } else if (!response.ok) {
     state.retryableBatch = undefined;
@@ -355,7 +372,7 @@ function applyBatchExecutionMarkers(items: BatchResultItem[], batchId: string): 
 }
 
 function buildBatchFailureMessage(items: BatchResultItem[], stoppedOnFailure: boolean): string {
-  const failed = items.find((item): item is BatchFailureItem => 'ok' in item && item.ok === false);
+  const failed = items.find((item): item is BatchResultFailureItem => 'ok' in item && item.ok === false);
   if (!failed) {
     return stoppedOnFailure
       ? 'Batch stopped after a tool call failed.'
@@ -393,13 +410,14 @@ async function insertLastResult(): Promise<void> {
 }
 
 function insertToolCatalog(): void {
-  if (!state.toolCatalogLoaded || state.tools.length === 0) {
+  const tools = getCatalogTools();
+  if (!hasLiveCatalog() || tools.length === 0) {
     state.lastError = 'Tool catalog unavailable. Refresh gateway capabilities.';
     renderPanel();
     return;
   }
 
-  const inserted = insertIntoChatInput(buildToolCatalogPrompt(state.tools));
+  const inserted = insertIntoChatInput(buildToolCatalogPrompt(tools));
   if (!inserted) {
     state.lastError = 'Chat input not found. Copied the MCP list to clipboard instead.';
     addLogEntry('warn', 'Could not insert MCP list into chat input.');
@@ -417,7 +435,7 @@ async function maybeAutoRunPending(): Promise<void> {
 
   const requestId = state.pendingRequestId ?? getCurrentRequestIdentity();
   syncRoundGuard(requestId);
-  const capability = assessPendingTools(state.pending, state.tools, state.toolCatalogLoaded);
+  const capability = assessPendingTools(state.pending, getCatalogTools(), hasLiveCatalog());
   if (!capability.autoRunnable) return;
 
   if (!canAutoRunForRequest(
@@ -503,32 +521,33 @@ async function deliverLastResult(
 }
 
 async function refreshToolCatalog(): Promise<void> {
-  const tools = await listTools();
-  state.tools = tools;
-  state.toolCatalogLoaded = true;
-  const prompt = buildInjectedToolPrompt(tools);
-  writeStoredToolCatalog(tools);
+  const catalog = await listCatalog();
+  setGatewayCatalog(catalog, 'live');
+  const prompt = buildInjectedToolPrompt(catalog.tools);
+  writeStoredToolCatalog(catalog);
   syncRequestPrompt(prompt, state.requestInjectionMode);
 }
 
 function bootstrapRequestPrompt(): void {
-  const cachedTools = readStoredToolCatalog();
-  if (cachedTools.length === 0) {
+  const cachedCatalog = readStoredToolCatalog();
+  if (!cachedCatalog || cachedCatalog.tools.length === 0) {
     return;
   }
 
-  syncRequestPrompt(buildInjectedToolPrompt(cachedTools), state.requestInjectionMode);
+  setGatewayCatalog(cachedCatalog, 'cache');
+  syncRequestPrompt(buildInjectedToolPrompt(cachedCatalog.tools), state.requestInjectionMode);
 }
 
 async function warmRequestPromptFromGateway(): Promise<void> {
   try {
-    const tools = await listTools();
-    if (tools.length === 0) {
+    const catalog = await listCatalog();
+    if (catalog.tools.length === 0) {
       return;
     }
 
-    writeStoredToolCatalog(tools);
-    syncRequestPrompt(buildInjectedToolPrompt(tools), state.requestInjectionMode);
+    setGatewayCatalog(catalog, 'live');
+    writeStoredToolCatalog(catalog);
+    syncRequestPrompt(buildInjectedToolPrompt(catalog.tools), state.requestInjectionMode);
   } catch {
     // Keep the cached bootstrap prompt until the regular UI-driven sync runs.
   }
@@ -551,29 +570,21 @@ function installRequestHookDiagnostics(): void {
       transport: data.transport,
       url: data.url
     };
-    if (!detail?.status) {
+    const hookStatus = detail.status;
+    if (!hookStatus) {
       return;
     }
 
-    const key = `${detail.status}:${detail.transport ?? 'unknown'}:${detail.url ?? ''}`;
+    const key = `${hookStatus}:${detail.transport ?? 'unknown'}:${detail.url ?? ''}`;
     if (key === lastRequestHookStatusKey) {
       return;
     }
     lastRequestHookStatusKey = key;
-
-    if (detail.status === 'injected') {
-      addLogEntry('success', `Request hook injected MCP catalog via ${detail.transport ?? 'request'} conversation request.`);
-      renderPanel();
-      return;
-    }
-
-    if (detail.status === 'missing_prompt') {
-      addLogEntry('warn', `Conversation request reached the page hook before the MCP catalog prompt was ready (${detail.transport ?? 'request'}).`);
-      renderPanel();
-      return;
-    }
-
-    addLogEntry('warn', `Conversation request matched ChatGPT, but the body shape was not patched (${detail.transport ?? 'request'}).`);
+    const nextLog = describeRequestHookStatus({
+      status: hookStatus,
+      transport: detail.transport
+    });
+    addLogEntry(nextLog.level, nextLog.message);
     renderPanel();
   });
 }

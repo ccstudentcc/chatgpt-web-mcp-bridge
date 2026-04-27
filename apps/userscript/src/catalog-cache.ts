@@ -1,42 +1,35 @@
-import type { ToolDescriptor } from '@cwmb/protocol';
+import { CatalogContractSchema, type CatalogContract } from '@cwmb/protocol';
 
 const TOOL_CATALOG_CACHE_KEY = 'cwmb_tool_catalog_cache';
 
-export function readStoredToolCatalog(): ToolDescriptor[] {
+export function readStoredToolCatalog(): CatalogContract | null {
   const raw = GM_getValue(TOOL_CATALOG_CACHE_KEY, '');
   if (typeof raw !== 'string' || raw.trim() === '') {
-    return [];
+    return null;
   }
 
   try {
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return [];
+    const catalog = CatalogContractSchema.safeParse(parsed);
+    if (catalog.success) {
+      return catalog.data;
     }
 
-    return parsed.filter(isToolDescriptor);
+    if (Array.isArray(parsed)) {
+      const wrapped = CatalogContractSchema.safeParse({
+        catalogVersion: 'legacy-userscript-cache',
+        generatedAt: '1970-01-01T00:00:00.000Z',
+        tools: parsed
+      });
+      return wrapped.success ? wrapped.data : null;
+    }
+
+    return null;
   } catch {
-    return [];
+    return null;
   }
 }
 
-export function writeStoredToolCatalog(tools: ToolDescriptor[]): void {
-  GM_setValue(TOOL_CATALOG_CACHE_KEY, JSON.stringify(tools));
-}
-
-function isToolDescriptor(value: unknown): value is ToolDescriptor {
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
-
-  const record = value as Record<string, unknown>;
-  return typeof record.name === 'string'
-    && typeof record.title === 'string'
-    && typeof record.description === 'string'
-    && typeof record.risk === 'string'
-    && typeof record.requiresConfirmation === 'boolean'
-    && typeof record.enabled === 'boolean'
-    && record.exampleArgs !== undefined
-    && record.exampleArgs !== null
-    && typeof record.exampleArgs === 'object';
+export function writeStoredToolCatalog(catalog: CatalogContract): void {
+  GM_setValue(TOOL_CATALOG_CACHE_KEY, JSON.stringify(catalog));
 }

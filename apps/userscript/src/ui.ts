@@ -1,7 +1,8 @@
+import type { GatewayShellInfo } from '@cwmb/protocol';
 import { buildToolCatalogPrompt, summarizeToolCatalog } from './catalog.js';
 import { assessPendingTools, formatCapabilityLabel } from './capabilities.js';
 import { summarizePendingBlock } from './preview.js';
-import { saveBaseUrl, savePanelPosition, saveToken, state } from './state.js';
+import { getCatalogTools, hasLiveCatalog, saveBaseUrl, savePanelPosition, saveToken, state } from './state.js';
 
 const LOG_STREAM_SELECTOR = '.cwmb-log-stream';
 const DISCLOSURE_SELECTOR = 'details[data-cwmb-disclosure-key]';
@@ -59,7 +60,10 @@ export function renderPanel(): void {
   const visibleBatch = isBatch ? state.pending : state.retryableBatch?.blocks ?? [];
   const hasRetryableBatch = Boolean(state.retryableBatch);
   const activeBlocks = state.pending.length > 0 ? state.pending : visibleBatch;
-  const capability = assessPendingTools(activeBlocks, state.tools, state.toolCatalogLoaded);
+  const tools = getCatalogTools();
+  const toolCatalogLoaded = hasLiveCatalog();
+  const runtimeSnapshot = state.gatewayRuntime;
+  const capability = assessPendingTools(activeBlocks, tools, toolCatalogLoaded);
   const manualRunReason = state.autoExecuteEnabled && capability.runnable && !capability.autoRunnable
     ? capability.autoBlockedReason
     : '';
@@ -74,8 +78,16 @@ export function renderPanel(): void {
   const capabilityHint = capability.blockedReason ? `<div class="cwmb-callout cwmb-callout-danger">${escapeHtml(capability.blockedReason)}</div>` : '';
   const manualRunHint = manualRunReason ? `<div class="cwmb-callout cwmb-callout-info">${escapeHtml(manualRunReason)}</div>` : '';
   const progress = state.progress ? `<div class="cwmb-callout cwmb-callout-info">Running ${state.progress.current}/${state.progress.total}: <code>${escapeHtml(state.progress.tool)}</code></div>` : '';
-  const catalogSummary = summarizeToolCatalog(state.tools);
-  const toolCatalogPrompt = buildToolCatalogPrompt(state.tools);
+  const catalogSummary = summarizeToolCatalog(tools);
+  const toolCatalogPrompt = buildToolCatalogPrompt(tools);
+  const catalogVersionLabel = runtimeSnapshot?.catalog?.catalogVersion ?? 'Unavailable';
+  const workspaceRootLabel = runtimeSnapshot?.catalog?.workspaceRoot ?? runtimeSnapshot?.health?.workspaceRoot ?? 'Unknown';
+  const catalogSourceLabel = runtimeSnapshot?.catalogSource === 'live'
+    ? 'Live gateway'
+    : runtimeSnapshot?.catalogSource === 'cache'
+      ? 'Cached bootstrap'
+      : 'Unavailable';
+  const shellLabel = formatShellLabel(runtimeSnapshot?.health?.shell);
   const statusTone = getStatusTone(state.status);
   const statusLabel = getStatusLabel(state.status);
   const tokenLabel = state.trustedLocalMode ? 'Trusted local' : state.token ? 'Token set' : 'Token missing';
@@ -132,11 +144,23 @@ export function renderPanel(): void {
             </div>
             <div class="cwmb-stat">
               <div class="cwmb-stat-label">Catalog</div>
-              <div class="cwmb-stat-value">${state.toolCatalogLoaded ? `${catalogSummary.enabled} / ${catalogSummary.total}` : 'Unavailable'}</div>
+              <div class="cwmb-stat-value">${toolCatalogLoaded ? `${catalogSummary.enabled} / ${catalogSummary.total}` : 'Unavailable'}</div>
+            </div>
+            <div class="cwmb-stat">
+              <div class="cwmb-stat-label">Catalog ver</div>
+              <div class="cwmb-stat-value">${escapeHtml(catalogVersionLabel)}</div>
+            </div>
+            <div class="cwmb-stat">
+              <div class="cwmb-stat-label">Catalog src</div>
+              <div class="cwmb-stat-value">${escapeHtml(catalogSourceLabel)}</div>
             </div>
             <div class="cwmb-stat">
               <div class="cwmb-stat-label">Auth</div>
               <div class="cwmb-stat-value">${escapeHtml(tokenLabel)}</div>
+            </div>
+            <div class="cwmb-stat">
+              <div class="cwmb-stat-label">Shell</div>
+              <div class="cwmb-stat-value">${escapeHtml(shellLabel)}</div>
             </div>
             <div class="cwmb-stat">
               <div class="cwmb-stat-label">Risk</div>
@@ -145,6 +169,10 @@ export function renderPanel(): void {
             <div class="cwmb-stat">
               <div class="cwmb-stat-label">Injection</div>
               <div class="cwmb-stat-value">${escapeHtml(injectionModeLabel)}</div>
+            </div>
+            <div class="cwmb-stat">
+              <div class="cwmb-stat-label">Workspace</div>
+              <div class="cwmb-stat-value">${escapeHtml(workspaceRootLabel)}</div>
             </div>
           </div>
         </div>
@@ -157,7 +185,11 @@ export function renderPanel(): void {
             ${renderToggle('toggle-send', 'Send', state.autoSendResult)}
             ${renderToggle('toggle-continue-batch', 'Continue on error', state.continueBatchOnError)}
           </div>
-          ${state.toolCatalogLoaded ? `<div class="cwmb-callout cwmb-callout-muted">Request injection is currently using <strong>${escapeHtml(injectionModeLabel)}</strong>. Insert/Copy MCP list remains fallback only.</div>` : ''}
+          ${toolCatalogLoaded
+            ? `<div class="cwmb-callout cwmb-callout-muted">Request injection is currently using <strong>${escapeHtml(injectionModeLabel)}</strong>. Insert/Copy MCP list remains fallback only.</div>`
+            : runtimeSnapshot?.catalogSource === 'cache'
+              ? '<div class="cwmb-callout cwmb-callout-muted">Using cached catalog bootstrap until the next successful live gateway sync.</div>'
+              : ''}
         </div>
 
         <div class="cwmb-section">
@@ -182,7 +214,7 @@ export function renderPanel(): void {
           <div class="cwmb-actions">
             ${state.trustedLocalMode ? '' : renderButton('token', 'Set token')}
             ${renderButton('base-url', 'Gateway URL')}
-            ${state.toolCatalogLoaded ? `${renderButton('insert-catalog', 'Insert MCP list')}${renderButton('copy-catalog', 'Copy MCP list', 'ghost')}` : ''}
+            ${toolCatalogLoaded ? `${renderButton('insert-catalog', 'Insert MCP list')}${renderButton('copy-catalog', 'Copy MCP list', 'ghost')}` : ''}
           </div>
           <div class="cwmb-actions">
             ${pending ? `${((!state.autoExecuteEnabled && canRunPending) || (state.autoExecuteEnabled && canRunPending && !capability.autoRunnable)) ? renderButton('run', isBatch ? 'Run all' : 'Run', 'primary') : ''}${renderButton('ignore', isBatch ? 'Ignore batch' : 'Ignore', 'danger')}${renderButton('copy-json', isBatch ? 'Copy first JSON' : 'Copy JSON', 'ghost')}` : ''}
@@ -352,6 +384,17 @@ function restoreScrollSnapshot(snapshot: ScrollSnapshot): void {
   }
 
   logStream.scrollTop = computeRestoredLogScrollTop(snapshot.log.scrollTop, snapshot.log.scrollHeight, logStream.scrollHeight, false);
+}
+
+function formatShellLabel(shell: GatewayShellInfo | undefined): string {
+  if (!shell) {
+    return 'Unknown';
+  }
+  if (!shell.available || !shell.resolved) {
+    return 'Unavailable';
+  }
+
+  return shell.version ? `${shell.resolved} ${shell.version}` : shell.resolved;
 }
 
 export function computeRestoredLogScrollTop(

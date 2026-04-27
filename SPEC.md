@@ -8,9 +8,9 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is the current active slice.
+Phase 1 shared-contract freeze is complete. No later extraction or capability slice is open yet.
 
-This slice exists so Codex can start concrete work without reopening the whole v0.9 surface at once.
+That completed slice exists so Codex could start concrete work without reopening the whole v0.9 surface at once.
 
 Primary battleground:
 
@@ -22,6 +22,9 @@ Primary file surfaces:
 - current gateway route shapes under `apps/gateway/src/routes/*`
 - current userscript request/result call sites that consume protocol types
 - `apps/extension/src/chatgpt-adapter/*`
+- `apps/extension/src/injection-runtime/*`
+- `apps/extension/src/operator-panel/*`
+- `apps/extension/src/turn-runtime/*`
 - `docs/protocols/*`
 - `docs/operations/chatgpt-web-runtime-evidence.md`
 - the root task-control docs
@@ -33,6 +36,8 @@ Define one shared contract vocabulary for the future extension runtime and gatew
 At minimum, this slice should make it possible to implement against a stable target for:
 
 - catalog truth
+- gateway health truth
+- browser-local runtime snapshot truth
 - execution request/response
 - policy decisions
 - result envelopes
@@ -58,15 +63,21 @@ At minimum, this slice should make it possible to implement against a stable tar
 - Define the concrete Phase 1 shared-contract freeze so implementation can start without guessing the first slice.
 - Freeze target names and minimum payload surfaces for:
   - `CatalogContract`
+  - `GatewayHealthContract`
+  - `GatewayRuntimeSnapshot`
   - `ExecuteRequest`
   - `ExecuteResponse`
   - `PolicyDecision`
   - `ResultEnvelope`
   - `TurnContext`
 - Clarify which current live payloads remain canonical during the freeze and which future fields may be added compatibly.
+- Treat draft v0.9 docs and draft contract surfaces as reference/target truth, not as compatibility obligations by themselves. Compatibility effort in this slice belongs to the current live runtime floor, not to preserving interim draft wording.
 - Limit early implementation work to shared contracts, route adapters, and contract-consumer alignment.
 - Establish `docs/operations/chatgpt-web-runtime-evidence.md` as the only allowed repository source for ChatGPT Web DOM/request-shape/selectors evidence.
 - Establish `apps/extension/src/chatgpt-adapter/` as the canonical v0.9 code owner for ChatGPT Web page facts, with current userscript code consuming those facts only through compatibility wiring.
+- Allow narrow `apps/extension/src/injection-runtime/*` target-owner scaffolding when it removes duplicated request-injection mode/status semantics without opening broader request-hook extraction.
+- Allow narrow `apps/extension/src/operator-panel/*` target-owner scaffolding when it removes userscript-local runtime snapshot semantics without opening panel feature rollout or a second execution state machine.
+- Allow narrow `apps/extension/src/turn-runtime/*` target-owner scaffolding when it removes duplicated invalid-turn state, pending-selection identity, or auto-round guard semantics without opening broad turn-runtime extraction.
 
 ## Out of Scope
 
@@ -90,6 +101,7 @@ At minimum, this slice should make it possible to implement against a stable tar
 - On April 27, 2026, the user confirmed live signed-in ChatGPT Web acceptance and formally closed the v0.1 stop line.
 - `docs/prd.md` is now a closed reference baseline: useful for current runtime truth, but no longer the active product target.
 - Root `SPEC.md`, `IMPLEMENTATION_PLAN.md`, and `TASK_STATUS.md` now track the active v0.9 program, not the old v0.1 close-out loop.
+- Draft-marked v0.9 docs remain editable target-state references. They do not create extra compatibility obligations unless the current live runtime or task-control docs explicitly adopt the relevant field/path/behavior as part of the active floor.
 - No v0.9 slice may silently invalidate a current live contract or runtime guarantee without:
   - updated product and migration docs
   - a replacement path

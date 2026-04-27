@@ -1,6 +1,18 @@
 import { z } from 'zod';
 
 export const RiskLevelSchema = z.enum(['low', 'medium', 'high', 'critical']);
+export const ToolSourceSchema = z.enum(['builtin', 'external']);
+export const ExecutionProfileSchema = z.enum(['legacy_auto', 'reviewed', 'yolo']);
+export const DetectionSourceSchema = z.enum(['assistant_message_scan', 'startup_history_rescan', 'manual_retry']);
+export const OperatorIntentSchema = z.enum(['auto_flow', 'manual_run', 'manual_retry', 'manual_approve']);
+export const PolicyActionSchema = z.enum(['execute', 'proposal_required', 'confirmation_required', 'deny', 'skip']);
+export const CatalogSourceSchema = z.enum(['live', 'cache']);
+export const GatewayShellInfoSchema = z.object({
+  preferred: z.literal('pwsh'),
+  resolved: z.union([z.literal('pwsh'), z.literal('powershell.exe'), z.null()]),
+  available: z.boolean(),
+  version: z.string().min(1).optional()
+});
 
 export const ToolCallSourceSchema = z.object({
   page: z.literal('chatgpt'),
@@ -27,4 +39,194 @@ export const ToolDescriptorSchema = z.object({
   requiresConfirmation: z.boolean(),
   enabled: z.boolean(),
   exampleArgs: z.record(z.string(), z.unknown()).default({})
+});
+
+export const CatalogToolDescriptorSchema = ToolDescriptorSchema.extend({
+  displayName: z.string().min(1),
+  source: ToolSourceSchema,
+  schemaId: z.string().min(1).optional(),
+  availability: z
+    .object({
+      legacy_auto: PolicyActionSchema.optional(),
+      reviewed: PolicyActionSchema.optional(),
+      yolo: PolicyActionSchema.optional()
+    })
+    .optional()
+});
+
+export const CatalogContractSchema = z.object({
+  catalogVersion: z.string().min(1),
+  generatedAt: z.string().datetime(),
+  workspaceRoot: z.string().min(1).optional(),
+  tools: z.array(CatalogToolDescriptorSchema)
+});
+
+export const GatewayHealthContractSchema = z.object({
+  ok: z.literal(true),
+  version: z.string().min(1),
+  platform: z.string().min(1),
+  host: z.string().min(1),
+  port: z.number().int().nonnegative(),
+  workspaceRoot: z.string().min(1),
+  shell: GatewayShellInfoSchema,
+  trustedLocalMode: z.boolean(),
+  autoExecuteLowRisk: z.boolean(),
+  autoInsertResult: z.boolean(),
+  autoSendResult: z.boolean(),
+  maxToolRounds: z.number().int()
+});
+
+export const GatewayRuntimeSnapshotSchema = z.object({
+  health: GatewayHealthContractSchema.optional(),
+  catalog: CatalogContractSchema.optional(),
+  catalogSource: CatalogSourceSchema.optional()
+});
+
+export const TurnSourceSchema = z.object({
+  page: z.literal('chatgpt'),
+  conversationId: z.string().optional(),
+  assistantTurnId: z.string().min(1).optional()
+});
+
+export const RequestInjectionContextSchema = z.object({
+  channel: z.enum(['hidden_request_prompt', 'manual_prompt']),
+  promptVersion: z.string().min(1).optional()
+});
+
+export const TurnContextSchema = z.object({
+  source: TurnSourceSchema,
+  detectionSource: DetectionSourceSchema,
+  requestInjection: RequestInjectionContextSchema,
+  executionProfile: ExecutionProfileSchema
+});
+
+export const ExecuteToolCallSchema = z.object({
+  callId: z.string().min(1),
+  tool: z.string().min(1),
+  args: z.record(z.string(), z.unknown()).default({}),
+  duplicateGuardKey: z.string().min(1).optional()
+});
+
+export const ExecuteRequestSchema = z.object({
+  requestId: z.string().min(1),
+  turnContext: TurnContextSchema,
+  operatorIntent: OperatorIntentSchema,
+  calls: z.array(ExecuteToolCallSchema).min(1)
+});
+
+export const ToolDecisionSchema = z.object({
+  callId: z.string().min(1),
+  action: PolicyActionSchema,
+  reasonCode: z.string().min(1),
+  risk: RiskLevelSchema,
+  message: z.string().min(1)
+});
+
+export const InlineToolResultEnvelopeSchema = z.object({
+  type: z.literal('inline_tool_result'),
+  callId: z.string().min(1),
+  tool: z.string().min(1),
+  ok: z.boolean(),
+  output: z.unknown(),
+  summary: z.string().min(1),
+  warnings: z.array(z.string()).optional()
+});
+
+export const ToolCallErrorSchema = z.object({
+  code: z.string().min(1),
+  message: z.string().min(1),
+  details: z.unknown().optional()
+});
+
+export const BatchResultSuccessItemSchema = z.object({
+  index: z.number().int().nonnegative(),
+  tool: z.string().min(1),
+  callId: z.string().min(1),
+  ok: z.literal(true),
+  result: z.unknown(),
+  warnings: z.array(z.string()),
+  durationMs: z.number().nonnegative()
+});
+
+export const BatchResultFailureItemSchema = z.object({
+  index: z.number().int().nonnegative(),
+  tool: z.string().min(1),
+  callId: z.string().min(1),
+  ok: z.literal(false),
+  error: ToolCallErrorSchema,
+  warnings: z.array(z.string()),
+  durationMs: z.number().nonnegative()
+});
+
+export const BatchResultSkippedItemSchema = z.object({
+  index: z.number().int().nonnegative(),
+  tool: z.string().min(1),
+  callId: z.string().min(1),
+  status: z.literal('skipped'),
+  reason: z.literal('SKIPPED_AFTER_BATCH_FAILURE')
+});
+
+export const BatchResultItemSchema = z.union([
+  BatchResultSuccessItemSchema,
+  BatchResultFailureItemSchema,
+  BatchResultSkippedItemSchema
+]);
+
+export const BatchResultEnvelopeSchema = z.object({
+  type: z.literal('tool_result_batch'),
+  ok: z.boolean(),
+  batchId: z.string().min(1),
+  source: z.object({
+    messageId: z.string().min(1).optional()
+  }).optional(),
+  summary: z.object({
+    total: z.number().int().nonnegative(),
+    completed: z.number().int().nonnegative(),
+    failed: z.number().int().nonnegative(),
+    skipped: z.number().int().nonnegative(),
+    stoppedOnFailure: z.boolean()
+  }),
+  items: z.array(BatchResultItemSchema),
+  warnings: z.array(z.string()).optional()
+});
+
+export const ProposalResultEnvelopeSchema = z.object({
+  type: z.literal('proposal_result'),
+  proposalId: z.string().min(1),
+  status: z.enum(['created', 'approved', 'applied', 'rejected']),
+  summary: z.string().min(1),
+  affectedFiles: z.array(z.string()).optional()
+});
+
+export const CachedReferenceEnvelopeSchema = z.object({
+  type: z.literal('cached_reference'),
+  cacheId: z.string().min(1),
+  summary: z.string().min(1),
+  totalSizeChars: z.number().int().positive().optional(),
+  preview: z.string().optional()
+});
+
+export const ExecutionErrorEnvelopeSchema = z.object({
+  type: z.literal('execution_error'),
+  error: z.object({
+    code: z.string().min(1),
+    summary: z.string().min(1),
+    retryable: z.boolean(),
+    details: z.unknown().optional()
+  })
+});
+
+export const ResultEnvelopeSchema = z.discriminatedUnion('type', [
+  InlineToolResultEnvelopeSchema,
+  BatchResultEnvelopeSchema,
+  ProposalResultEnvelopeSchema,
+  CachedReferenceEnvelopeSchema,
+  ExecutionErrorEnvelopeSchema
+]);
+
+export const ExecuteResponseSchema = z.object({
+  requestId: z.string().min(1),
+  executionId: z.string().min(1),
+  decisions: z.array(ToolDecisionSchema),
+  result: ResultEnvelopeSchema
 });

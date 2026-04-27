@@ -25,7 +25,7 @@ Status: completed
 
 ## Stage 3: Define The First Concrete v0.9 Delivery Slice
 
-Status: in progress
+Status: completed
 
 Active slice: Phase 1 shared-contract freeze.
 
@@ -41,6 +41,8 @@ Concrete work in this stage:
 
 1. Define stable target shapes and ownership for:
    - `CatalogContract`
+   - `GatewayHealthContract`
+   - `GatewayRuntimeSnapshot`
    - `ExecuteRequest`
    - `ExecuteResponse`
    - `PolicyDecision`
@@ -59,7 +61,11 @@ Concrete work in this stage:
    - narrow route/request/response adapters
    - consumers that must align with the shared contract vocabulary
    - target-owner scaffolding under `apps/extension/src/chatgpt-adapter/*` when it prevents page-fact truth from staying scattered in `apps/userscript/src/*`
+   - target-owner scaffolding under `apps/extension/src/injection-runtime/*` when it prevents injection mode/status semantics from staying duplicated across userscript state and request-hook code
+   - target-owner scaffolding under `apps/extension/src/operator-panel/*` when it prevents runtime snapshot semantics from staying userscript-local
+   - target-owner scaffolding under `apps/extension/src/turn-runtime/*` when it prevents invalid-turn state and auto-round guard semantics from staying duplicated in userscript-only helpers
    - contract and repo docs
+   - materialized `/tools` metadata that carries the Phase 1 catalog contract without breaking current consumers
 4. Centralize ChatGPT Web runtime evidence in one durable doc:
    - `docs/operations/chatgpt-web-runtime-evidence.md`
    - use it as the only source of raw DOM/request-shape/selectors evidence
@@ -79,6 +85,7 @@ Definition of done for this stage:
 
 - the first slice is concrete enough that Codex can start work from the repo docs alone
 - shared contract names and minimum surfaces are stable in docs
+- shared contract names and minimum surfaces are seeded in `packages/protocol` with schemas/tests, not only described in docs
 - the first implementation work can begin in `packages/protocol` and narrow adapters without reopening scope
 - the docs clearly say which current runtime contracts remain canonical during the freeze
 - ChatGPT Web DOM/request-shape evidence has a single maintained home before any DOM-heavy slice expands
@@ -86,11 +93,25 @@ Definition of done for this stage:
 
 ## Stage 4: Execute The First Compat-Preserving Core Slice
 
-Status: pending
+Status: completed
 
 - Implement the Phase 1 shared-contract freeze defined above.
 - Keep current live behavior stable or explicitly migrated with updated docs and verification.
 - Use the v0.9 architecture ring discipline instead of mixing core extraction, mode rollout, and capability expansion in one pass.
+- Current execution inside this stage:
+  - shared protocol compat helpers for current single-call bridge request/response shapes
+  - shared `GatewayHealthContract` plus browser-local `GatewayRuntimeSnapshot`, so userscript health/catalog state no longer relies on a loose local `/health` type or split catalog provenance fields
+  - nested `/call-tool` `execute` metadata that preserves the legacy top-level `result`
+  - removal of transition-only flat top-level execute-metadata parsing, so compat effort stays aligned to the live runtime floor instead of draft carryover
+  - userscript request construction and execute-metadata reading moved onto shared helpers
+  - userscript now treats nested `execute` metadata as required on the live `/call-tool` path instead of silently accepting malformed mixed-version payloads
+  - shared protocol now separates raw `/call-tool` boundary payload typing from the validated live response type used by gateway/userscript runtime code
+  - userscript `/tools` fetching now validates the full live `CatalogContract` before reading `tools[]`
+  - userscript cache/bootstrap/runtime state now retain the full catalog contract instead of only `tools[]`
+  - userscript state/UI now distinguish live gateway catalog provenance from cached bootstrap provenance
+  - single-result insertion now formats shared inline/error result envelopes instead of inserting raw legacy single-call payloads
+  - shared batch result-envelope items and helper, with userscript batch assembly and result formatting consuming the shared envelope shape
+  - app-local validation scripts that rebuild required workspace package outputs before `lint`, `test`, or `build`
 
 Initial likely implementation surfaces:
 
@@ -98,6 +119,28 @@ Initial likely implementation surfaces:
 - `apps/gateway/src/routes/*`
 - current userscript protocol consumers
 - contract-focused tests
+- `apps/extension/src/chatgpt-adapter/*`
+- `apps/extension/src/injection-runtime/*`
+- `apps/extension/src/operator-panel/*`
+- `apps/extension/src/turn-runtime/*`
+
+Definition of done reached:
+
+- the current userscript/gateway live runtime floor now consumes shared contract surfaces instead of parallel local shape definitions for catalog, health, execute metadata, and result envelopes
+- Phase 1 target-owner seeding now covers:
+  - `apps/extension/src/chatgpt-adapter/*` for page facts
+  - `apps/extension/src/injection-runtime/*` for request-injection mode/status helper semantics
+  - `apps/extension/src/operator-panel/*` for runtime-snapshot helper semantics
+  - `apps/extension/src/turn-runtime/*` for invalid-turn state, pending-selection identity, and auto-round guard helper semantics
+- root `pnpm lint`, `pnpm test`, and `pnpm build` all pass after the completed Phase 1 slice
+
+## Stage 5: Select The Next Core Extraction Slice
+
+Status: pending
+
+- Decide the first post-Phase-1 extraction-focused slice before opening broader capability work.
+- Keep the next slice inside Final Core unless task docs are deliberately retargeted.
+- Current leading candidate: start a narrow `turn-runtime` extraction around parser-level turn normalization and duplicate-guard seams without opening mode rollout or gateway kernel extraction.
 
 ## Risks
 

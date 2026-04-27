@@ -1,4 +1,5 @@
 import { chatgptConversationPaths, isKnownChatGptConversationPath } from './chatgpt-runtime-facts.js';
+import { normalizeRequestInjectionMode, type RequestHookStatus, type RequestInjectionMode } from './request-injection-state.js';
 
 const REQUEST_PROMPT_ATTRIBUTE = 'data-cwmb-request-prompt';
 const REQUEST_PROMPT_MESSAGE_TYPE = 'cwmb:update-request-prompt';
@@ -14,8 +15,7 @@ export interface RequestBodyInjectionResult {
   injected: boolean;
 }
 
-export type RequestHookStatus = 'injected' | 'missing_prompt' | 'matched_without_injection';
-export type RequestInjectionMode = 'prepend_user' | 'synthetic_system';
+export type { RequestHookStatus, RequestInjectionMode } from './request-injection-state.js';
 
 export function installPageRequestHook(): void {
   const pageWindow = getPageWindow();
@@ -116,9 +116,7 @@ function readPromptFromDom(): string {
 }
 
 function readModeFromDom(): RequestInjectionMode {
-  return document.documentElement.getAttribute(`${REQUEST_PROMPT_ATTRIBUTE}-mode`) === 'prepend_user'
-    ? 'prepend_user'
-    : 'synthetic_system';
+  return normalizeRequestInjectionMode(document.documentElement.getAttribute(`${REQUEST_PROMPT_ATTRIBUTE}-mode`));
 }
 
 function emitRequestHookStatus(status: RequestHookStatus, transport: 'fetch' | 'xhr', url: string): void {
@@ -520,7 +518,8 @@ function buildPageHookSource(): string {
     let currentPrompt = '';
     let currentMode = 'synthetic_system';
     const readPromptFromDom = () => document.documentElement.getAttribute(REQUEST_PROMPT_ATTRIBUTE) || '';
-    const readModeFromDom = () => document.documentElement.getAttribute(REQUEST_PROMPT_ATTRIBUTE + '-mode') === 'prepend_user' ? 'prepend_user' : 'synthetic_system';
+    ${normalizeRequestInjectionMode.toString()}
+    const readModeFromDom = () => normalizeRequestInjectionMode(document.documentElement.getAttribute(REQUEST_PROMPT_ATTRIBUTE + '-mode'));
     const emitRequestHookStatus = (status, transport, url) => {
       window.postMessage({
         source: 'cwmb-page-hook',
@@ -554,7 +553,7 @@ function buildPageHookSource(): string {
       if (!data || typeof data !== 'object') return;
       if (data.source !== 'cwmb-userscript' || data.type !== REQUEST_PROMPT_MESSAGE_TYPE) return;
       currentPrompt = typeof data.prompt === 'string' ? data.prompt : '';
-      currentMode = data.mode === 'prepend_user' ? 'prepend_user' : 'synthetic_system';
+      currentMode = normalizeRequestInjectionMode(data.mode);
     });
     const originalFetch = window.fetch;
     if (typeof originalFetch === 'function') {

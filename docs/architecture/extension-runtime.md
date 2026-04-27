@@ -83,6 +83,10 @@ Invariants:
 - visible/manual injection is recovery only
 - current live catalog truth remains grounded in `/tools` until an approved migration exists
 
+Current Phase 1 seed:
+
+- `apps/extension/src/injection-runtime/request-injection-state.ts` now owns the pure request-injection mode/status helper semantics used by current userscript compat state and request-hook diagnostics
+
 ### 3.3 `turn-runtime`
 
 Owns:
@@ -105,6 +109,10 @@ Invariants:
 - only the extension decides whether a ChatGPT assistant turn is a candidate tool turn
 - invalid-turn blocking happens before pending execution
 - fallback paths must reuse the same normalized turn model
+
+Current Phase 1 seed:
+
+- `apps/extension/src/turn-runtime/*` now owns the pure invalid-turn state, pending-selection identity, and auto-round guard helper semantics used by current userscript compat code
 
 ### 3.4 `result-delivery`
 
@@ -135,6 +143,10 @@ Owns:
 - operator intents such as manual run, retry, and approve
 - diagnostics copy entrypoints
 - conversation-scoped execution-profile control
+
+Current Phase 1 seed:
+
+- `apps/extension/src/operator-panel/runtime-snapshot.ts` now owns the pure browser-side runtime-snapshot helper semantics used by current userscript compat state
 
 Does not own:
 

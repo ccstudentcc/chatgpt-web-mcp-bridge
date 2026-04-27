@@ -70,6 +70,12 @@ Policy decisions must explicitly distinguish:
 
 The response must not force the browser runtime to infer policy from generic error text.
 
+Current implementation note:
+
+- `/call-tool` now surfaces a nested compatibility `execute` object carrying `requestId`, `executionId`, `decisions`, and `result`, so early Phase 1 consumers can read shared execution metadata without overwriting the legacy top-level single-call payload.
+- Flat top-level execute metadata is not part of the current compatibility contract. On the current live `/call-tool` path, if the nested `execute` object is absent or malformed, consumers should treat the payload as an invalid gateway response rather than reconstructing execution metadata from draft-only fields.
+- The shared protocol package now distinguishes raw `/call-tool` boundary payload typing from the validated live `/call-tool` response type used after compat parsing succeeds.
+
 ## 5. Invariants
 
 ### 5.1 Browser Runtime Owns Turn Truth

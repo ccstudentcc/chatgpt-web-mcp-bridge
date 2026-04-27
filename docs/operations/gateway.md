@@ -51,6 +51,7 @@ At the current repo stage:
 - `/tools` remains the canonical live catalog contract
 - `/call-tool` remains the canonical live execution route
 - `/health` remains the canonical live health and gateway-status route
+- browser runtimes may aggregate validated `/health` and `/tools` into one local runtime snapshot, but that snapshot is not a new route contract
 - route renaming must not silently demote live runtime dependencies
 - any future logical rename must use an approved migration plan
 
@@ -116,4 +117,5 @@ Target gateway structure:
 - [../v0.9-entrypoint.md](../v0.9-entrypoint.md)
 - [../architecture/gateway-kernel.md](../architecture/gateway-kernel.md)
 - [../protocols/catalog-contract.md](../protocols/catalog-contract.md)
+- [../protocols/gateway-runtime-contract.md](../protocols/gateway-runtime-contract.md)
 - [../protocols/execution-contract.md](../protocols/execution-contract.md)

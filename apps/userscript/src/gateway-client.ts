@@ -1,39 +1,49 @@
-import { TOKEN_HEADER, type ToolCallRequest, type ToolCallResponse, type ToolDescriptor } from '@cwmb/protocol';
+import {
+  CatalogContractSchema,
+  GatewayHealthContractSchema,
+  TOKEN_HEADER,
+  getExecuteResponseCompat,
+  type CatalogContract,
+  type ExecuteResponse,
+  type GatewayHealthContract,
+  type ToolCallCompatResponse,
+  type ToolCallLiveSuccess,
+  type ToolCallRequest,
+  type ToolDescriptor
+} from '@cwmb/protocol';
 import { state } from './state.js';
 
-export interface GatewayHealthResponse {
-  ok: boolean;
-  version: string;
-  platform: string;
-  host: string;
-  port: number;
-  workspaceRoot: string;
-  shell: string;
-  trustedLocalMode?: boolean;
-  autoExecuteLowRisk?: boolean;
-  autoInsertResult?: boolean;
-  autoSendResult?: boolean;
-  maxToolRounds?: number;
+export async function health(): Promise<GatewayHealthContract> {
+  const response = await gmJson('GET', `${state.baseUrl}/health`);
+  return requireGatewayHealthContract(response);
 }
 
-export async function health(): Promise<GatewayHealthResponse> {
-  return gmJson('GET', `${state.baseUrl}/health`) as Promise<GatewayHealthResponse>;
+export async function listCatalog(): Promise<CatalogContract> {
+  const response = await gmJson('GET', `${state.baseUrl}/tools`, undefined, { [TOKEN_HEADER]: state.token });
+  return requireCatalogContract(response);
 }
 
 export async function listTools(): Promise<ToolDescriptor[]> {
-  const response = await gmJson('GET', `${state.baseUrl}/tools`, undefined, { [TOKEN_HEADER]: state.token }) as { tools?: ToolDescriptor[] };
-  return Array.isArray(response.tools) ? response.tools : [];
+  return (await listCatalog()).tools;
 }
 
-export async function callTool(req: ToolCallRequest): Promise<ToolCallResponse> {
-  const response = await gmJson('POST', `${state.baseUrl}/call-tool`, req, { [TOKEN_HEADER]: state.token }) as ToolCallResponse;
+export async function callTool(req: ToolCallRequest): Promise<ToolCallLiveSuccess> {
+  const response = await gmJson('POST', `${state.baseUrl}/call-tool`, req, { [TOKEN_HEADER]: state.token }) as ToolCallCompatResponse;
+  const executeCompat = requireExecuteCompat(response);
   if (isToolFailure(response)) {
     const error = new Error(response.error.message);
-    Object.assign(error, { code: response.error.code, details: response.error.details });
+    Object.assign(error, {
+      code: response.error.code,
+      details: response.error.details,
+      execute: executeCompat
+    });
     throw error;
   }
 
-  return response;
+  return {
+    ...response,
+    execute: executeCompat
+  } satisfies ToolCallLiveSuccess;
 }
 
 function gmJson(method: string, url: string, body?: unknown, headers: Record<string, string> = {}): Promise<unknown> {
@@ -71,6 +81,39 @@ function toGatewayError(status: number, payload: unknown): Error {
   return error;
 }
 
+function requireExecuteCompat(payload: unknown): ExecuteResponse {
+  const executeCompat = getExecuteResponseCompat(payload);
+  if (executeCompat) {
+    return executeCompat;
+  }
+
+  const error = new Error('Gateway /call-tool response is missing valid execute metadata');
+  Object.assign(error, { code: 'INVALID_GATEWAY_RESPONSE' });
+  throw error;
+}
+
+function requireCatalogContract(payload: unknown): CatalogContract {
+  const parsed = CatalogContractSchema.safeParse(payload);
+  if (parsed.success) {
+    return parsed.data;
+  }
+
+  const error = new Error('Gateway /tools response is not a valid catalog contract');
+  Object.assign(error, { code: 'INVALID_GATEWAY_RESPONSE', details: parsed.error.flatten() });
+  throw error;
+}
+
+function requireGatewayHealthContract(payload: unknown): GatewayHealthContract {
+  const parsed = GatewayHealthContractSchema.safeParse(payload);
+  if (parsed.success) {
+    return parsed.data;
+  }
+
+  const error = new Error('Gateway /health response is not a valid health contract');
+  Object.assign(error, { code: 'INVALID_GATEWAY_RESPONSE', details: parsed.error.flatten() });
+  throw error;
+}
+
 function getPayloadField(payload: unknown, key: string): string | undefined {
   if (!payload || typeof payload !== 'object' || !(key in payload)) {
     return undefined;
@@ -94,6 +137,6 @@ function getNestedPayloadField(payload: unknown, parentKey: string, childKey: st
   return typeof value === 'string' ? value : undefined;
 }
 
-function isToolFailure(response: ToolCallResponse): response is Extract<ToolCallResponse, { ok: false }> {
+function isToolFailure(response: ToolCallCompatResponse): response is Extract<ToolCallCompatResponse, { ok: false }> {
   return response.ok === false;
 }
