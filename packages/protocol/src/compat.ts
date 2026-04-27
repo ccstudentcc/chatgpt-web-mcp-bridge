@@ -1,4 +1,6 @@
 import type {
+  BatchResultEnvelope,
+  BatchResultItem,
   ExecuteRequest,
   ExecuteResponse,
   ExecutionErrorEnvelope,
@@ -33,6 +35,14 @@ interface CreateExecuteResponseOptions {
   executionId: string;
   decisions: ToolDecision[];
   result: ExecuteResponse['result'];
+}
+
+interface CreateBatchResultEnvelopeOptions {
+  batchId: string;
+  messageId?: string;
+  items: BatchResultItem[];
+  warnings?: string[];
+  stoppedOnFailure: boolean;
 }
 
 interface CreateToolDecisionOptions {
@@ -133,6 +143,28 @@ export function createExecuteResponse(options: CreateExecuteResponseOptions): Ex
     executionId: options.executionId,
     decisions: options.decisions,
     result: options.result
+  };
+}
+
+export function createBatchResultEnvelope(options: CreateBatchResultEnvelopeOptions): BatchResultEnvelope {
+  const completed = options.items.filter((item): item is Extract<BatchResultItem, { ok: true }> => 'ok' in item && item.ok === true).length;
+  const failed = options.items.filter((item): item is Extract<BatchResultItem, { ok: false }> => 'ok' in item && item.ok === false).length;
+  const skipped = options.items.filter((item): item is Extract<BatchResultItem, { status: 'skipped' }> => 'status' in item && item.status === 'skipped').length;
+
+  return {
+    type: 'tool_result_batch',
+    ok: failed === 0,
+    batchId: options.batchId,
+    source: options.messageId ? { messageId: options.messageId } : undefined,
+    summary: {
+      total: options.items.length,
+      completed,
+      failed,
+      skipped,
+      stoppedOnFailure: options.stoppedOnFailure
+    },
+    items: options.items,
+    warnings: options.warnings ?? []
   };
 }
 

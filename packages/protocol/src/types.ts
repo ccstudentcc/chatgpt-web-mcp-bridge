@@ -79,10 +79,46 @@ export interface InlineToolResultEnvelope {
   warnings?: string[];
 }
 
+export interface BatchResultSuccessItem {
+  index: number;
+  tool: string;
+  callId: string;
+  ok: true;
+  result: unknown;
+  warnings: string[];
+  durationMs: number;
+}
+
+export interface BatchResultFailureItem {
+  index: number;
+  tool: string;
+  callId: string;
+  ok: false;
+  error: ToolCallError;
+  warnings: string[];
+  durationMs: number;
+}
+
+export interface BatchResultSkippedItem {
+  index: number;
+  tool: string;
+  callId: string;
+  status: 'skipped';
+  reason: 'SKIPPED_AFTER_BATCH_FAILURE';
+}
+
+export type BatchResultItem =
+  | BatchResultSuccessItem
+  | BatchResultFailureItem
+  | BatchResultSkippedItem;
+
 export interface BatchResultEnvelope {
   type: 'tool_result_batch';
   ok: boolean;
   batchId: string;
+  source?: {
+    messageId?: string;
+  };
   summary: {
     total: number;
     completed: number;
@@ -90,7 +126,7 @@ export interface BatchResultEnvelope {
     skipped: number;
     stoppedOnFailure: boolean;
   };
-  items: unknown[];
+  items: BatchResultItem[];
   warnings?: string[];
 }
 

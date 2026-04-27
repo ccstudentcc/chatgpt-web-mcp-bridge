@@ -1,8 +1,13 @@
 import { buildInjectedToolPrompt, buildToolCatalogPrompt } from './catalog.js';
 import { readStoredToolCatalog, writeStoredToolCatalog } from './catalog-cache.js';
 import { assessPendingTools } from './capabilities.js';
-import { createLegacyToolCallRequest, getExecuteResponseCompat, type ToolCallFailure } from '@cwmb/protocol';
-import type { BatchFailureItem, BatchResultItem } from './batch.js';
+import {
+  createLegacyToolCallRequest,
+  getExecuteResponseCompat,
+  type BatchResultFailureItem,
+  type BatchResultItem,
+  type ToolCallFailure
+} from '@cwmb/protocol';
 import { createBatchId, executeBatch } from './batch.js';
 import { callTool, health, listTools } from './gateway-client.js';
 import { extractVisibleText, findLatestOpenAssistantMessage, findLatestUserMessage, onChatMutation } from './dom.js';
@@ -272,7 +277,7 @@ async function runStoredBatch(batch: StoredBatch): Promise<void> {
       messageId
     };
     state.lastError = buildBatchFailureMessage(response.items, true);
-    addLogEntry('warn', `Batch stopped after a failure in ${response.items.find((item): item is BatchFailureItem => 'ok' in item && item.ok === false)?.tool ?? 'unknown'}.`);
+    addLogEntry('warn', `Batch stopped after a failure in ${response.items.find((item): item is BatchResultFailureItem => 'ok' in item && item.ok === false)?.tool ?? 'unknown'}.`);
     state.status = await deliverLastResult('batch', 'batch_stopped_on_failure', 'batch_inserted', 'batch_sent');
   } else if (!response.ok) {
     state.retryableBatch = undefined;
@@ -354,7 +359,7 @@ function applyBatchExecutionMarkers(items: BatchResultItem[], batchId: string): 
 }
 
 function buildBatchFailureMessage(items: BatchResultItem[], stoppedOnFailure: boolean): string {
-  const failed = items.find((item): item is BatchFailureItem => 'ok' in item && item.ok === false);
+  const failed = items.find((item): item is BatchResultFailureItem => 'ok' in item && item.ok === false);
   if (!failed) {
     return stoppedOnFailure
       ? 'Batch stopped after a tool call failed.'

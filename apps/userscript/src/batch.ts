@@ -1,54 +1,17 @@
-import { createLegacyToolCallRequest, type ToolCallError, type ToolCallFailure, type ToolCallRequest, type ToolCallResponse } from '@cwmb/protocol';
+import {
+  createBatchResultEnvelope,
+  createLegacyToolCallRequest,
+  type BatchResultEnvelope,
+  type BatchResultFailureItem,
+  type BatchResultItem,
+  type BatchResultSkippedItem,
+  type BatchResultSuccessItem,
+  type ToolCallFailure,
+  type ToolCallRequest,
+  type ToolCallResponse
+} from '@cwmb/protocol';
 import type { ParsedMcpBlock } from './parser.js';
 import { sha256Normalized } from './hash.js';
-
-export interface BatchSuccessItem {
-  index: number;
-  tool: string;
-  callId: string;
-  ok: true;
-  result: unknown;
-  warnings: string[];
-  durationMs: number;
-}
-
-export interface BatchFailureItem {
-  index: number;
-  tool: string;
-  callId: string;
-  ok: false;
-  error: ToolCallError;
-  warnings: string[];
-  durationMs: number;
-}
-
-export interface BatchSkippedItem {
-  index: number;
-  tool: string;
-  callId: string;
-  status: 'skipped';
-  reason: 'SKIPPED_AFTER_BATCH_FAILURE';
-}
-
-export type BatchResultItem = BatchSuccessItem | BatchFailureItem | BatchSkippedItem;
-
-export interface ToolResultBatch {
-  type: 'tool_result_batch';
-  ok: boolean;
-  batchId: string;
-  source: {
-    messageId: string;
-  };
-  summary: {
-    total: number;
-    completed: number;
-    failed: number;
-    skipped: number;
-    stoppedOnFailure: boolean;
-  };
-  items: BatchResultItem[];
-  warnings: string[];
-}
 
 interface ExecuteBatchOptions {
   batchId: string;
@@ -63,7 +26,7 @@ export async function createBatchId(messageId: string, blocks: Array<Pick<Parsed
   return sha256Normalized([messageId, ...blocks.map((block) => block.raw)].join('\n\n'));
 }
 
-export async function executeBatch(options: ExecuteBatchOptions): Promise<ToolResultBatch> {
+export async function executeBatch(options: ExecuteBatchOptions): Promise<BatchResultEnvelope> {
   const { batchId, messageId, blocks, executeTool, continueOnFailure = false, onProgress } = options;
   const items: BatchResultItem[] = [];
   const warnings = new Set<string>();
@@ -142,26 +105,14 @@ function buildBatchResult(
   items: BatchResultItem[],
   warnings: Set<string>,
   stoppedOnFailure: boolean
-): ToolResultBatch {
-  const completed = items.filter((item): item is BatchSuccessItem => 'ok' in item && item.ok === true).length;
-  const failed = items.filter((item): item is BatchFailureItem => 'ok' in item && item.ok === false).length;
-  const skipped = items.filter((item): item is BatchSkippedItem => 'status' in item && item.status === 'skipped').length;
-
-  return {
-    type: 'tool_result_batch',
-    ok: failed === 0,
+): BatchResultEnvelope {
+  return createBatchResultEnvelope({
     batchId,
-    source: { messageId },
-    summary: {
-      total: items.length,
-      completed,
-      failed,
-      skipped,
-      stoppedOnFailure
-    },
+    messageId,
     items,
-    warnings: [...warnings]
-  };
+    warnings: [...warnings],
+    stoppedOnFailure
+  });
 }
 
 function failureFromError(tool: string, error: unknown): ToolCallFailure {

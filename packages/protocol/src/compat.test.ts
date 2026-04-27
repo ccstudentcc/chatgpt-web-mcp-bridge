@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createBatchResultEnvelope,
   createLegacyToolCallRequest,
   createExecuteRequestFromToolCallRequest,
   createExecuteResponse,
@@ -174,6 +175,59 @@ describe('legacy execute response helpers', () => {
       requestId: 'legacy-call-2',
       executionId: 'legacy-call-2.exec',
       result: { type: 'execution_error' }
+    });
+  });
+});
+
+describe('createBatchResultEnvelope', () => {
+  it('summarizes mixed batch outcomes and keeps optional source metadata', () => {
+    expect(createBatchResultEnvelope({
+      batchId: 'batch-1',
+      messageId: 'assistant-1',
+      stoppedOnFailure: true,
+      warnings: ['Result truncated from 1000 chars.'],
+      items: [
+        {
+          index: 0,
+          tool: 'read_file',
+          callId: 'call-read',
+          ok: true,
+          result: { text: 'hello' },
+          warnings: [],
+          durationMs: 2
+        },
+        {
+          index: 1,
+          tool: 'grep_files',
+          callId: 'call-grep',
+          ok: false,
+          error: {
+            code: 'BLOCKED_PATH',
+            message: 'Blocked path.'
+          },
+          warnings: [],
+          durationMs: 3
+        },
+        {
+          index: 2,
+          tool: 'list_directory',
+          callId: 'call-list',
+          status: 'skipped',
+          reason: 'SKIPPED_AFTER_BATCH_FAILURE'
+        }
+      ]
+    })).toMatchObject({
+      type: 'tool_result_batch',
+      ok: false,
+      source: { messageId: 'assistant-1' },
+      summary: {
+        total: 3,
+        completed: 1,
+        failed: 1,
+        skipped: 1,
+        stoppedOnFailure: true
+      },
+      warnings: ['Result truncated from 1000 chars.']
     });
   });
 });

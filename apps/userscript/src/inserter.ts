@@ -1,4 +1,4 @@
-import type { ToolResultBatch } from './batch.js';
+import type { BatchResultEnvelope } from '@cwmb/protocol';
 import { chatgptSelectors, looksLikeChatGptSendButton } from './chatgpt-runtime-facts.js';
 
 export function insertIntoChatInput(value: string): boolean {
@@ -91,8 +91,9 @@ export function formatToolResult(tool: string, response: unknown): string {
   return lines.join('\n');
 }
 
-export function formatBatchToolResult(response: ToolResultBatch): string {
+export function formatBatchToolResult(response: BatchResultEnvelope): string {
   const responseJson = JSON.stringify(response, null, 2);
+  const warnings = response.warnings ?? [];
   const lines = [
     'Bridge batch tool results for one assistant reply:',
     'These results were executed outside the model after your previous `mcp` reply. Treat the fenced `tool_result_batch` block below as the authoritative execution result set.',
@@ -103,9 +104,9 @@ export function formatBatchToolResult(response: ToolResultBatch): string {
     `- stoppedOnFailure: ${response.summary.stoppedOnFailure}`
   ];
 
-  if (response.warnings.length > 0) {
+  if (warnings.length > 0) {
     lines.push('', 'Warnings:');
-    for (const warning of response.warnings) {
+    for (const warning of warnings) {
       lines.push(`- ${warning}`);
     }
   }

@@ -104,10 +104,53 @@ export const InlineToolResultEnvelopeSchema = z.object({
   warnings: z.array(z.string()).optional()
 });
 
+export const ToolCallErrorSchema = z.object({
+  code: z.string().min(1),
+  message: z.string().min(1),
+  details: z.unknown().optional()
+});
+
+export const BatchResultSuccessItemSchema = z.object({
+  index: z.number().int().nonnegative(),
+  tool: z.string().min(1),
+  callId: z.string().min(1),
+  ok: z.literal(true),
+  result: z.unknown(),
+  warnings: z.array(z.string()),
+  durationMs: z.number().nonnegative()
+});
+
+export const BatchResultFailureItemSchema = z.object({
+  index: z.number().int().nonnegative(),
+  tool: z.string().min(1),
+  callId: z.string().min(1),
+  ok: z.literal(false),
+  error: ToolCallErrorSchema,
+  warnings: z.array(z.string()),
+  durationMs: z.number().nonnegative()
+});
+
+export const BatchResultSkippedItemSchema = z.object({
+  index: z.number().int().nonnegative(),
+  tool: z.string().min(1),
+  callId: z.string().min(1),
+  status: z.literal('skipped'),
+  reason: z.literal('SKIPPED_AFTER_BATCH_FAILURE')
+});
+
+export const BatchResultItemSchema = z.union([
+  BatchResultSuccessItemSchema,
+  BatchResultFailureItemSchema,
+  BatchResultSkippedItemSchema
+]);
+
 export const BatchResultEnvelopeSchema = z.object({
   type: z.literal('tool_result_batch'),
   ok: z.boolean(),
   batchId: z.string().min(1),
+  source: z.object({
+    messageId: z.string().min(1).optional()
+  }).optional(),
   summary: z.object({
     total: z.number().int().nonnegative(),
     completed: z.number().int().nonnegative(),
@@ -115,7 +158,7 @@ export const BatchResultEnvelopeSchema = z.object({
     skipped: z.number().int().nonnegative(),
     stoppedOnFailure: z.boolean()
   }),
-  items: z.array(z.unknown()),
+  items: z.array(BatchResultItemSchema),
   warnings: z.array(z.string()).optional()
 });
 

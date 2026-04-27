@@ -100,6 +100,9 @@ describe('ExecuteResponseSchema', () => {
         type: 'tool_result_batch',
         ok: true,
         batchId: 'batch-1',
+        source: {
+          messageId: 'assistant-1'
+        },
         summary: {
           total: 1,
           completed: 1,
@@ -107,7 +110,17 @@ describe('ExecuteResponseSchema', () => {
           skipped: 0,
           stoppedOnFailure: false
         },
-        items: [],
+        items: [
+          {
+            index: 0,
+            tool: 'read_file',
+            callId: 'call-1',
+            ok: true,
+            result: { text: 'hello' },
+            warnings: [],
+            durationMs: 2
+          }
+        ],
         warnings: []
       }
     })).toMatchObject({

@@ -16,6 +16,8 @@
 - `/call-tool` now attaches compatibility execution metadata under a nested `execute` object, so current userscript code keeps the legacy top-level `result` while Phase 1 consumers can still read `requestId`, `executionId`, `decisions`, and structured result-envelope metadata.
 - Userscript-side request construction now goes through shared protocol compat helpers instead of repeating local `ToolCallRequest` assembly in multiple files.
 - Userscript-side gateway handling now reads `execute` compat metadata through shared helpers on both success and failure paths.
+- Shared protocol now owns the current `tool_result_batch` item union and batch envelope helper, including the compat `source.messageId` field used by userscript result insertion.
+- Userscript batch execution now returns the shared batch envelope shape instead of a local duplicate interface, and batch result formatting consumes the shared envelope directly.
 - App-local `lint`, `test`, and `build` scripts for `apps/userscript` and `apps/gateway` now rebuild required workspace package outputs first, so new `@cwmb/protocol` / `@cwmb/shared` exports do not depend on manual build ordering.
 
 ## Verified Reference Baseline
@@ -31,6 +33,7 @@
 - Root `pnpm -r lint`, `pnpm -r test`, and `pnpm -r build` previously succeeded for the documented baseline implementation.
 - On April 27, 2026, after seeding the Phase 1 contract surfaces, `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again for the repo.
 - After the Stage 4 compat slice above, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again with the updated app-local dependency-build workflow.
+- After converging the shared batch envelope and userscript result-delivery shape, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 
 ## Active Stop Line
 
@@ -84,5 +87,5 @@
 - Start concrete work from the Phase 1 shared-contract freeze.
 - If a change depends on ChatGPT Web DOM/request-shape/selectors facts, put the raw evidence in `docs/operations/chatgpt-web-runtime-evidence.md` instead of scattering it through task docs.
 - If code needs ChatGPT Web page facts, add or update them in `apps/extension/src/chatgpt-adapter/` first, then adapt current userscript consumers through compat wiring.
-- The next useful narrowing step is to converge current userscript batch/result-delivery shapes with shared `ResultEnvelope` helpers, especially the remaining local `tool_result_batch` assembly and inserted result formatting.
+- The next useful narrowing step is to decide whether single-result insertion text should also pivot from raw legacy payloads toward shared inline result-envelope helpers, so inserted bridge messages stop mixing legacy and target-state result semantics.
 - If a change tries to expand into extraction or capability rollout, stop and either narrow it back to this slice or first update the task-control docs with a new active slice.

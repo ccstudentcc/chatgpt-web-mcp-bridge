@@ -97,6 +97,7 @@ Status: in progress
   - shared protocol compat helpers for current single-call bridge request/response shapes
   - nested `/call-tool` `execute` metadata that preserves the legacy top-level `result`
   - userscript request construction and execute-metadata reading moved onto shared helpers
+  - shared batch result-envelope items and helper, with userscript batch assembly and result formatting consuming the shared envelope shape
   - app-local validation scripts that rebuild required workspace package outputs before `lint`, `test`, or `build`
 
 Initial likely implementation surfaces:
