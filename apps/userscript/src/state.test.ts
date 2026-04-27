@@ -237,4 +237,27 @@ describe('state runtime snapshot helpers', () => {
     expect(restored).toBe(false);
     expect(setValue).not.toHaveBeenCalledWith('cwmb_undelivered_result_session', '');
   });
+
+  it('reports that a persisted undelivered result session still exists for the same conversation', async () => {
+    vi.stubGlobal('GM_getValue', vi.fn((key: string, defaultValue = '') => {
+      if (key === 'cwmb_undelivered_result_session') {
+        return JSON.stringify({
+          conversationPath: '/c/test-thread',
+          status: 'inserted',
+          lastResult: 'tool-result',
+          executedCallIds: ['call-1'],
+          executedBatchIds: []
+        });
+      }
+      return defaultValue;
+    }));
+    vi.stubGlobal('GM_setValue', vi.fn());
+
+    const {
+      hasPersistedUndeliveredResultSession
+    } = await import('./state.js');
+
+    expect(hasPersistedUndeliveredResultSession('/c/test-thread')).toBe(true);
+    expect(hasPersistedUndeliveredResultSession('/c/other-thread')).toBe(false);
+  });
 });

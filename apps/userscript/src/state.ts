@@ -336,6 +336,10 @@ export function restorePersistedUndeliveredResultSession({
   return true;
 }
 
+export function hasPersistedUndeliveredResultSession(conversationPath: string): boolean {
+  return readPersistedUndeliveredResultSession(conversationPath) !== null;
+}
+
 function shouldPersistUndeliveredResult(status: BridgeStatus): status is PersistedUndeliveredResultStatus {
   return status === 'failed'
     || status === 'result_ready'

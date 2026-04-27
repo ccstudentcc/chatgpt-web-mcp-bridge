@@ -43,6 +43,7 @@ import {
   clearGatewayCatalog,
   clearGatewayRuntime,
   getCatalogTools,
+  hasPersistedUndeliveredResultSession,
   hasLiveCatalog,
   restorePersistedUndeliveredResultSession,
   setGatewayCatalog,
@@ -99,6 +100,7 @@ async function refreshGatewayStatus(): Promise<void> {
 }
 async function scanLatestAssistantMessage(): Promise<void> {
   if (state.status === 'executing' || state.status === 'batch_executing') return;
+  if (shouldDeferPendingDetectionForComposerDraft()) return;
   const detection = await pollLatestAssistantTurnRuntime({
     findLatestUserMessage,
     findLatestOpenAssistantMessage,
@@ -643,8 +645,21 @@ async function restoreUndeliveredResultSessionOnStartup(): Promise<boolean> {
   return restorePersistedUndeliveredResultSession({
     conversationPath: window.location.pathname,
     currentComposerText: latestComposerText,
-    clearOnMismatch: true
+    clearOnMismatch: normalizeStartupComposerText(latestComposerText).length === 0
   });
+}
+
+function shouldDeferPendingDetectionForComposerDraft(): boolean {
+  const composerText = readCurrentChatInputText();
+  if (normalizeStartupComposerText(composerText).length === 0) {
+    return false;
+  }
+
+  return hasPersistedUndeliveredResultSession(window.location.pathname);
+}
+
+function normalizeStartupComposerText(value: string): string {
+  return value.replace(/\u00a0/g, ' ').trim();
 }
 
 function failureFromError(tool: string, error: unknown): ToolCallFailure {
