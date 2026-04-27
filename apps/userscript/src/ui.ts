@@ -4,6 +4,7 @@ import { summarizePendingBlock } from './preview.js';
 import { saveBaseUrl, savePanelPosition, saveToken, state } from './state.js';
 
 const LOG_STREAM_SELECTOR = '.cwmb-log-stream';
+const DISCLOSURE_SELECTOR = 'details[data-cwmb-disclosure-key]';
 
 let root: HTMLDivElement | null = null;
 let dragState: { pointerId: number; offsetX: number; offsetY: number } | null = null;
@@ -48,6 +49,7 @@ export function setUiHandlers(handlers: {
 export function renderPanel(): void {
   ensureRoot();
   const scrollSnapshot = captureScrollSnapshot();
+  const disclosureSnapshot = captureDisclosureSnapshot();
   root!.style.width = state.panelCollapsed ? 'min(320px, calc(100vw - 24px))' : 'min(420px, calc(100vw - 24px))';
   root!.style.maxHeight = state.panelCollapsed ? 'none' : 'min(82vh, 820px)';
   root!.style.overflow = state.panelCollapsed ? 'hidden' : 'auto';
@@ -165,11 +167,11 @@ export function renderPanel(): void {
           ${capabilityHint}
           ${manualRunHint}
           ${state.lastError ? `<div class="cwmb-callout cwmb-callout-danger">${escapeHtml(state.lastError)}</div>` : ''}
-          <details class="cwmb-disclosure">
+          <details class="cwmb-disclosure" data-cwmb-disclosure-key="pending-details">
             <summary>Batch / pending details</summary>
             <div class="cwmb-disclosure-body">${pendingDetails}</div>
           </details>
-          <details class="cwmb-disclosure">
+          <details class="cwmb-disclosure" data-cwmb-disclosure-key="last-result">
             <summary>Last result payload</summary>
             <div class="cwmb-disclosure-body">${resultDetails}</div>
           </details>
@@ -197,6 +199,7 @@ export function renderPanel(): void {
       </div>
     `;
 
+  restoreDisclosureSnapshot(disclosureSnapshot);
   bindHandlers(toolCatalogPrompt, pending);
   restoreScrollSnapshot(scrollSnapshot);
 }
@@ -265,6 +268,49 @@ interface ScrollSnapshot {
     scrollHeight: number;
     wasNearTop: boolean;
   };
+}
+
+type DisclosureSnapshot = Record<string, boolean>;
+
+function captureDisclosureSnapshot(): DisclosureSnapshot {
+  if (!root) {
+    return {};
+  }
+
+  const snapshot: DisclosureSnapshot = {};
+  for (const node of Array.from(root.querySelectorAll(DISCLOSURE_SELECTOR))) {
+    if (!(node instanceof HTMLDetailsElement)) {
+      continue;
+    }
+
+    const key = node.dataset.cwmbDisclosureKey;
+    if (!key) {
+      continue;
+    }
+
+    snapshot[key] = node.open;
+  }
+
+  return snapshot;
+}
+
+function restoreDisclosureSnapshot(snapshot: DisclosureSnapshot): void {
+  if (!root) {
+    return;
+  }
+
+  for (const node of Array.from(root.querySelectorAll(DISCLOSURE_SELECTOR))) {
+    if (!(node instanceof HTMLDetailsElement)) {
+      continue;
+    }
+
+    const key = node.dataset.cwmbDisclosureKey;
+    if (!key || !(key in snapshot)) {
+      continue;
+    }
+
+    node.open = snapshot[key] === true;
+  }
 }
 
 function captureScrollSnapshot(): ScrollSnapshot {

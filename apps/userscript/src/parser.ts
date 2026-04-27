@@ -51,23 +51,6 @@ export async function parseRenderedMcpBlocks(container: ParentNode): Promise<Par
 }
 
 export async function analyzeMcpTurn(container: ParentNode, visibleText: string): Promise<McpTurnAnalysis> {
-  const renderedCandidates = extractRenderedCandidates(container);
-  let renderedFailure: ParseResult | null = null;
-  if (renderedCandidates.length > 0) {
-    const parsed = await parseMcpCandidateStrings(Array.from(new Set(renderedCandidates.map((candidate) => candidate.normalized))));
-    if (parsed.blocks.length > 0) {
-      const ranges = locateRenderedCandidateRanges(visibleText, renderedCandidates);
-      return finalizeTurnAnalysis(
-        parsed,
-        splitResidualSegments(visibleText, ranges),
-        true
-      );
-    }
-    if (parsed.errors.length > 0) {
-      renderedFailure = parsed;
-    }
-  }
-
   const fencedMatches = extractFencedBlockMatches(visibleText);
   const fencedBodies = fencedMatches.map((match) => match.body);
   let fencedFailure: ParseResult | null = null;
@@ -83,6 +66,38 @@ export async function analyzeMcpTurn(container: ParentNode, visibleText: string)
     if (parsed.errors.length > 0) {
       fencedFailure = parsed;
     }
+  }
+
+  const renderedCandidates = extractRenderedCandidates(container);
+  let renderedSuccess: { parsed: ParseResult; ranges: TextRange[] } | null = null;
+  let renderedFailure: ParseResult | null = null;
+  if (renderedCandidates.length > 0) {
+    const parsed = await parseMcpCandidateStrings(Array.from(new Set(renderedCandidates.map((candidate) => candidate.normalized))));
+    if (parsed.blocks.length > 0) {
+      const ranges = locateRenderedCandidateRanges(visibleText, renderedCandidates);
+      if (ranges.length >= parsed.blocks.length) {
+        return finalizeTurnAnalysis(
+          parsed,
+          splitResidualSegments(visibleText, ranges),
+          true
+        );
+      }
+
+      renderedSuccess = { parsed, ranges };
+    }
+    if (parsed.errors.length > 0) {
+      renderedFailure = parsed;
+    }
+  }
+
+  if (renderedSuccess) {
+    return finalizeTurnAnalysis(
+      renderedSuccess.parsed,
+      renderedSuccess.ranges.length > 0
+        ? splitResidualSegments(visibleText, renderedSuccess.ranges)
+        : { prefix: '', middles: [], suffix: '' },
+      true
+    );
   }
 
   const fallbackFailure = renderedFailure ?? fencedFailure;
@@ -159,26 +174,61 @@ function extractRenderedCandidates(container: ParentNode): Array<{ rawText: stri
   return results;
 }
 
-function locateRenderedCandidateRanges(text: string, candidates: Array<{ rawText: string }>): TextRange[] {
+function locateRenderedCandidateRanges(text: string, candidates: Array<{ rawText: string; normalized: string }>): TextRange[] {
   const ranges: TextRange[] = [];
   let cursor = 0;
 
   for (const candidate of candidates) {
-    if (!candidate.rawText) {
+    const range = locateRenderedCandidateRange(text, candidate, cursor);
+    if (!range) {
       continue;
     }
 
-    const start = text.indexOf(candidate.rawText, cursor);
-    if (start === -1) {
-      continue;
-    }
-
-    const end = start + candidate.rawText.length;
-    ranges.push({ start, end });
-    cursor = end;
+    ranges.push(range);
+    cursor = range.end;
   }
 
   return ranges;
+}
+
+function locateRenderedCandidateRange(
+  text: string,
+  candidate: { rawText: string; normalized: string },
+  cursor: number
+): TextRange | null {
+  if (candidate.rawText) {
+    const rawStart = text.indexOf(candidate.rawText, cursor);
+    if (rawStart !== -1) {
+      return {
+        start: rawStart,
+        end: rawStart + candidate.rawText.length
+      };
+    }
+  }
+
+  if (!candidate.normalized) {
+    return null;
+  }
+
+  const normalizedStart = text.indexOf(candidate.normalized, cursor);
+  if (normalizedStart === -1) {
+    return null;
+  }
+
+  return {
+    start: findRenderedPreludeStart(text, cursor, normalizedStart),
+    end: normalizedStart + candidate.normalized.length
+  };
+}
+
+function findRenderedPreludeStart(text: string, cursor: number, bodyStart: number): number {
+  const prelude = text.slice(cursor, bodyStart).replace(/\u00a0/g, ' ');
+  const mcpMatch = /(?:^|\n)([ \t]*mcp[ \t\r\n]*)$/i.exec(prelude);
+  if (!mcpMatch || typeof mcpMatch.index !== 'number') {
+    return bodyStart;
+  }
+
+  return cursor + mcpMatch.index + (mcpMatch[0].startsWith('\n') ? 1 : 0);
 }
 
 function looksLikeExplicitMcpRenderedBlock(text: string): boolean {
@@ -319,7 +369,14 @@ function finalizeTurnAnalysis(parsed: ParseResult, residual: TurnResidualSegment
 }
 
 function looksLikeMcpLikeResidual(text: string): boolean {
-  return text.includes('"tool"') || text.includes('"args"');
+  const trimmed = text.trim();
+  if (!trimmed || (!trimmed.includes('"tool"') && !trimmed.includes('"args"'))) {
+    return false;
+  }
+
+  return /^(```\s*)?mcp\b/i.test(trimmed)
+    || trimmed.startsWith('{')
+    || trimmed.startsWith('[');
 }
 
 function parseLooseMcpResidual(text: string): { ok: boolean } {

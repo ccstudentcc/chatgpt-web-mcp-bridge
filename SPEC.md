@@ -52,6 +52,7 @@ Close the remaining v0.1 browser usability gaps around the userscript panel: kee
 - The main UI should show the current injection mode as read-only runtime status, not expose prepend-user as a normal daily toggle.
 - Userscript result insertion targets the real visible composer and auto-send can find the current send button after insertion.
 - The userscript panel can collapse, shows activity logs, and exposes expandable batch/result details.
+- Expanded batch/result detail disclosures stay open across panel rerenders triggered by logs or status updates.
 - The `Execute`, `Insert`, and `Send` controls all change runtime behavior immediately for later detections/results.
 - Automatic tool execution stops after `maxToolRounds` for the current detected user request and leaves manual `Run` / `Run All` available.
 - With `Continue on error` off, batch execution stops on first failure and returns one consolidated `tool_result_batch`, including skipped items after the first failure.

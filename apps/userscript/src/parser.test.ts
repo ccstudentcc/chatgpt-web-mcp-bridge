@@ -173,4 +173,43 @@ describe('analyzeMcpTurn', () => {
     expect(result.blocks).toHaveLength(1);
     expect(result.blocks[0]?.block.tool).toBe('read_file');
   });
+
+  it('falls back cleanly when rendered MCP text cannot be matched exactly in visible text', async () => {
+    const visibleText = [
+      '好的，我们先从 `catalog.ts` 开始，逐步分析每个模块的源码，并提炼优化点和重构策略。首先读取 `catalog.ts` 的完整内容。',
+      '',
+      '```mcp',
+      '{',
+      '  "tool": "read_file",',
+      '  "args": {',
+      '    "path": "apps/userscript/src/catalog.ts"',
+      '  }',
+      '}',
+      '```'
+    ].join('\n');
+    const fakeContainer = {
+      querySelectorAll: () => [{
+        textContent: 'mcp\n{\n  "tool": "read_file",\n  "args": {\n    "path": "apps/userscript/src/catalog.ts"\n  }\n}\n复制'
+      }]
+    } as unknown as ParentNode;
+
+    const result = await analyzeMcpTurn(fakeContainer, visibleText);
+    expect(result.status).toBe('valid');
+    expect(result.blocks).toHaveLength(1);
+    expect(result.blocks[0]?.block.args.path).toBe('apps/userscript/src/catalog.ts');
+  });
+
+  it('accepts a pure rendered MCP turn when the label line is separated from the json body by a newline', async () => {
+    const visibleText = 'mcp\n{\n  "tool": "read_file",\n  "args": {\n    "path": "apps/userscript/src/batch.ts"\n  }\n}';
+    const fakeContainer = {
+      querySelectorAll: () => [{
+        textContent: 'mcp\n{\n  "tool": "read_file",\n  "args": {\n    "path": "apps/userscript/src/batch.ts"\n  }\n}'
+      }]
+    } as unknown as ParentNode;
+
+    const result = await analyzeMcpTurn(fakeContainer, visibleText);
+    expect(result.status).toBe('valid');
+    expect(result.blocks).toHaveLength(1);
+    expect(result.blocks[0]?.block.args.path).toBe('apps/userscript/src/batch.ts');
+  });
 });

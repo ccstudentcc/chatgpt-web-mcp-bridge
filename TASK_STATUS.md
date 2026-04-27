@@ -40,6 +40,7 @@
 - The main panel now treats `Synthetic system` as the normal operator-facing mode; prepend-user remains in code only as a hidden fallback path instead of a visible mode switch.
 - Gateway startup now auto-creates `config.json` and backfills `workspaceRoot` from the current startup directory when the config is missing or incomplete.
 - The userscript panel is now a collapsible inspector-style surface with runtime badges, expandable batch/result payloads, and an in-panel activity log stream.
+- Expanded `Batch / pending details` and `Last result payload` disclosures now stay open across panel rerenders, so inspector-log refreshes no longer collapse the section the user is reading.
 - The inspector log is now more compact and preserves both panel scroll and log-stream scroll across rerenders, so reviewing older log entries no longer jumps back to the newest row on each refresh.
 - The panel activity log now records request-hook diagnostics for real ChatGPT conversation requests: injected, prompt-not-ready race, or matched-but-unpatched body. The userscript listens for page-hook `postMessage` events and rerenders immediately when those diagnostics arrive, so the hook status is visible in-panel during the same turn.
 - Request-hook matching now targets the exact ChatGPT conversation endpoints instead of any pathname containing `/conversation`, so `POST /backend-api/f/conversation/prepare` no longer shows up as a false "body shape was not patched" warning.

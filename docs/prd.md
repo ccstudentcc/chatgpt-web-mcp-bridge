@@ -552,6 +552,7 @@ v0.1 默认配置基线：
 - 可折叠 / 展开
 - 可拖动，并记住用户上次放置位置
 - batch / result 的可展开详情
+- batch / result 的可展开详情在面板重渲染后仍应保持用户当前的展开状态
 - `Insert MCP list`
 - `Copy MCP list`
 - `Run` / `Run All`
