@@ -83,6 +83,10 @@ Invariants:
 - visible/manual injection is recovery only
 - current live catalog truth remains grounded in `/tools` until an approved migration exists
 
+Current Phase 1 seed:
+
+- `apps/extension/src/injection-runtime/request-injection-state.ts` now owns the pure request-injection mode/status helper semantics used by current userscript compat state and request-hook diagnostics
+
 ### 3.3 `turn-runtime`
 
 Owns:

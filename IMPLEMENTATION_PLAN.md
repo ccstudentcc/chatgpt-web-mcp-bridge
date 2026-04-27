@@ -61,6 +61,7 @@ Concrete work in this stage:
    - narrow route/request/response adapters
    - consumers that must align with the shared contract vocabulary
    - target-owner scaffolding under `apps/extension/src/chatgpt-adapter/*` when it prevents page-fact truth from staying scattered in `apps/userscript/src/*`
+   - target-owner scaffolding under `apps/extension/src/injection-runtime/*` when it prevents injection mode/status semantics from staying duplicated across userscript state and request-hook code
    - target-owner scaffolding under `apps/extension/src/operator-panel/*` when it prevents runtime snapshot semantics from staying userscript-local
    - contract and repo docs
    - materialized `/tools` metadata that carries the Phase 1 catalog contract without breaking current consumers
@@ -118,6 +119,7 @@ Initial likely implementation surfaces:
 - current userscript protocol consumers
 - contract-focused tests
 - `apps/extension/src/chatgpt-adapter/*`
+- `apps/extension/src/injection-runtime/*`
 - `apps/extension/src/operator-panel/*`
 
 ## Risks

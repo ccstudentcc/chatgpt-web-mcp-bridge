@@ -17,6 +17,7 @@ import { isSamePendingSelection, updatePendingInvalidTurn, type PendingInvalidTu
 import { sha256Normalized } from './hash.js';
 import { formatBatchToolResult, formatToolResult, insertIntoChatInput, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
 import { analyzeMcpTurn } from './parser.js';
+import { describeRequestHookStatus } from './request-injection-state.js';
 import { canAutoRunForRequest, recordAutoRunForRequest, syncAutoRoundRequest } from './round-guard.js';
 import { installPageRequestHook, syncRequestPrompt, type RequestHookStatus } from './request-hook.js';
 import { renderPanel, setUiHandlers } from './ui.js';
@@ -569,29 +570,21 @@ function installRequestHookDiagnostics(): void {
       transport: data.transport,
       url: data.url
     };
-    if (!detail?.status) {
+    const hookStatus = detail.status;
+    if (!hookStatus) {
       return;
     }
 
-    const key = `${detail.status}:${detail.transport ?? 'unknown'}:${detail.url ?? ''}`;
+    const key = `${hookStatus}:${detail.transport ?? 'unknown'}:${detail.url ?? ''}`;
     if (key === lastRequestHookStatusKey) {
       return;
     }
     lastRequestHookStatusKey = key;
-
-    if (detail.status === 'injected') {
-      addLogEntry('success', `Request hook injected MCP catalog via ${detail.transport ?? 'request'} conversation request.`);
-      renderPanel();
-      return;
-    }
-
-    if (detail.status === 'missing_prompt') {
-      addLogEntry('warn', `Conversation request reached the page hook before the MCP catalog prompt was ready (${detail.transport ?? 'request'}).`);
-      renderPanel();
-      return;
-    }
-
-    addLogEntry('warn', `Conversation request matched ChatGPT, but the body shape was not patched (${detail.transport ?? 'request'}).`);
+    const nextLog = describeRequestHookStatus({
+      status: hookStatus,
+      transport: detail.transport
+    });
+    addLogEntry(nextLog.level, nextLog.message);
     renderPanel();
   });
 }
