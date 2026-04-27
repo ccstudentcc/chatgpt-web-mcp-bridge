@@ -7,8 +7,12 @@ import {
   createInlineToolResultEnvelopeFromLegacyResponse,
   createToolDecision,
   type ExecuteRequest,
+  type ExecuteResponse,
   type RiskLevel,
   type ToolCallFailure,
+  type ToolCallLiveFailure,
+  type ToolCallLiveResponse,
+  type ToolCallLiveSuccess,
   type ToolCallSuccess
 } from '@cwmb/protocol';
 import { AppError, truncateText } from '@cwmb/shared';
@@ -94,10 +98,18 @@ export async function registerCallToolRoute(server: FastifyInstance, config: Gat
   });
 }
 
-function attachExecuteCompat<T extends ToolCallSuccess | ToolCallFailure>(
-  legacyResponse: T,
-  executeResponse: ReturnType<typeof createExecuteResponse>
-): T & { execute: ReturnType<typeof createExecuteResponse> } {
+function attachExecuteCompat(
+  legacyResponse: ToolCallSuccess,
+  executeResponse: ExecuteResponse
+): ToolCallLiveSuccess;
+function attachExecuteCompat(
+  legacyResponse: ToolCallFailure,
+  executeResponse: ExecuteResponse
+): ToolCallLiveFailure;
+function attachExecuteCompat(
+  legacyResponse: ToolCallSuccess | ToolCallFailure,
+  executeResponse: ExecuteResponse
+): ToolCallLiveResponse {
   return {
     ...legacyResponse,
     execute: executeResponse

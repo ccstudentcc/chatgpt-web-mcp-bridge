@@ -206,6 +206,16 @@ export interface ToolCallFailure {
 
 export type ToolCallResponse<TResult = unknown> = ToolCallSuccess<TResult> | ToolCallFailure;
 
+export type ToolCallLiveSuccess<TResult = unknown> = ToolCallSuccess<TResult> & {
+  execute: ExecuteResponse;
+};
+
+export type ToolCallLiveFailure = ToolCallFailure & {
+  execute: ExecuteResponse;
+};
+
+export type ToolCallLiveResponse<TResult = unknown> = ToolCallLiveSuccess<TResult> | ToolCallLiveFailure;
+
 export interface McpBlock {
   tool: string;
   args: Record<string, unknown>;

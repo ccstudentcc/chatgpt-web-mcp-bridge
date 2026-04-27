@@ -1,4 +1,4 @@
-import { TOKEN_HEADER, getExecuteResponseCompat, type ExecuteResponse, type ToolCallCompatResponse, type ToolCallRequest, type ToolDescriptor } from '@cwmb/protocol';
+import { TOKEN_HEADER, getExecuteResponseCompat, type ExecuteResponse, type ToolCallCompatResponse, type ToolCallLiveSuccess, type ToolCallRequest, type ToolDescriptor } from '@cwmb/protocol';
 import { state } from './state.js';
 
 export interface GatewayHealthResponse {
@@ -25,7 +25,7 @@ export async function listTools(): Promise<ToolDescriptor[]> {
   return Array.isArray(response.tools) ? response.tools : [];
 }
 
-export async function callTool(req: ToolCallRequest): Promise<Extract<ToolCallCompatResponse, { ok: true }>> {
+export async function callTool(req: ToolCallRequest): Promise<ToolCallLiveSuccess> {
   const response = await gmJson('POST', `${state.baseUrl}/call-tool`, req, { [TOKEN_HEADER]: state.token }) as ToolCallCompatResponse;
   const executeCompat = requireExecuteCompat(response);
   if (isToolFailure(response)) {
@@ -41,7 +41,7 @@ export async function callTool(req: ToolCallRequest): Promise<Extract<ToolCallCo
   return {
     ...response,
     execute: executeCompat
-  };
+  } satisfies ToolCallLiveSuccess;
 }
 
 function gmJson(method: string, url: string, body?: unknown, headers: Record<string, string> = {}): Promise<unknown> {
