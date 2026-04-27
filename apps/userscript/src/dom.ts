@@ -1,9 +1,14 @@
-import { chatgptSelectors } from './selectors.js';
+import {
+  chatgptSelectors,
+  findNearestChatGptAssistantTurn,
+  findNearestChatGptUserTurn,
+  isIgnorableChatGptStatusText,
+  normalizeChatGptRuntimeText
+} from './chatgpt-runtime-facts.js';
 
 const DOCUMENT_POSITION_FOLLOWING = 4;
 const bridgeResultFallbackSelector = [
-  chatgptSelectors.userMessage,
-  '[data-turn="user"]',
+  chatgptSelectors.userTurnContainer,
   'pre',
   'code'
 ].join(', ');
@@ -65,8 +70,7 @@ function findBridgeResultMessages(): HTMLElement[] {
   const seen = new Set<HTMLElement>();
   const fallbackMatches: HTMLElement[] = [];
   for (const candidate of Array.from(document.querySelectorAll(bridgeResultFallbackSelector)) as HTMLElement[]) {
-    const container = (candidate.closest(chatgptSelectors.userMessage) as HTMLElement | null)
-      ?? (candidate.closest('[data-turn="user"]') as HTMLElement | null)
+    const container = findNearestChatGptUserTurn(candidate)
       ?? candidate;
     if (seen.has(container) || !isBridgeResultMessage(container)) {
       continue;
@@ -80,7 +84,7 @@ function findBridgeResultMessages(): HTMLElement[] {
 }
 
 function isBridgeResultMessage(node: HTMLElement): boolean {
-  const text = extractVisibleText(node).replace(/\u00a0/g, ' ').trim();
+  const text = normalizeChatGptRuntimeText(extractVisibleText(node));
   if (!text) {
     return false;
   }
@@ -118,7 +122,7 @@ function fallbackFindCodeContainers(): HTMLElement[] {
 }
 
 function normalizeFallbackCodeContainer(node: HTMLElement): HTMLElement | null {
-  const assistantTurn = node.closest('[data-turn="assistant"], [data-message-author-role="assistant"]') as HTMLElement | null;
+  const assistantTurn = findNearestChatGptAssistantTurn(node);
   if (assistantTurn) {
     return assistantTurn;
   }
@@ -128,7 +132,7 @@ function normalizeFallbackCodeContainer(node: HTMLElement): HTMLElement | null {
 }
 
 function looksLikeExplicitMcpRenderedBlock(text: string): boolean {
-  const trimmed = text.replace(/\u00a0/g, ' ').trim();
+  const trimmed = normalizeChatGptRuntimeText(text);
   if (!trimmed) {
     return false;
   }
@@ -147,14 +151,10 @@ function looksLikeExplicitMcpRenderedBlock(text: string): boolean {
 }
 
 function isIgnorableAssistantPlaceholder(node: HTMLElement): boolean {
-  const text = extractVisibleText(node).replace(/\u00a0/g, ' ').trim();
+  const text = normalizeChatGptRuntimeText(extractVisibleText(node));
   if (!text) {
     return true;
   }
 
-  return /^thought for .+$/i.test(text)
-    || /^reasoned for .+$/i.test(text)
-    || /^思考了.+$/u.test(text)
-    || /^已思考.+$/u.test(text)
-    || /^思考中$/u.test(text);
+  return isIgnorableChatGptStatusText(text);
 }

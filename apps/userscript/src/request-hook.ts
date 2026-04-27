@@ -1,8 +1,4 @@
-const CHATGPT_CONVERSATION_PATHS = [
-  '/backend-api/conversation',
-  '/backend-anon/conversation',
-  '/backend-api/f/conversation'
-] as const;
+import { chatgptConversationPaths, isKnownChatGptConversationPath } from './chatgpt-runtime-facts.js';
 
 const REQUEST_PROMPT_ATTRIBUTE = 'data-cwmb-request-prompt';
 const REQUEST_PROMPT_MESSAGE_TYPE = 'cwmb:update-request-prompt';
@@ -70,23 +66,15 @@ export function isChatGptConversationRequest(url: string, method: string): boole
 }
 
 function matchesConversationPath(pathname: string): boolean {
-  const normalized = normalizeConversationPath(pathname);
-  return CHATGPT_CONVERSATION_PATHS.some((path) => normalized === path);
+  return isKnownChatGptConversationPath(pathname);
 }
 
 function matchConversationUrlFallback(url: string): boolean {
-  return CHATGPT_CONVERSATION_PATHS.some((path) => {
+  return chatgptConversationPaths.some((path) => {
     const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const pattern = new RegExp(`(^|https?:\\/\\/[^/]+)${escaped}(?:$|[?#])`);
     return pattern.test(url);
   });
-}
-
-function normalizeConversationPath(pathname: string): string {
-  if (pathname.length > 1 && pathname.endsWith('/')) {
-    return pathname.slice(0, -1);
-  }
-  return pathname;
 }
 
 export function injectCatalogIntoRequestBody(
@@ -525,7 +513,7 @@ function buildPageHookSource(): string {
   return `(() => {
     if (window.__cwmbRequestHookInstalled) return;
     window.__cwmbRequestHookInstalled = true;
-    const CHATGPT_CONVERSATION_PATHS = ${JSON.stringify(CHATGPT_CONVERSATION_PATHS)};
+    const CHATGPT_CONVERSATION_PATHS = ${JSON.stringify(chatgptConversationPaths)};
     const REQUEST_PROMPT_ATTRIBUTE = ${JSON.stringify(REQUEST_PROMPT_ATTRIBUTE)};
     const REQUEST_PROMPT_MESSAGE_TYPE = ${JSON.stringify(REQUEST_PROMPT_MESSAGE_TYPE)};
     const REQUEST_HOOK_STATUS_MESSAGE_TYPE = ${JSON.stringify(REQUEST_HOOK_STATUS_MESSAGE_TYPE)};

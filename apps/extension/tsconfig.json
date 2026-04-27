@@ -1,10 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "..",
+    "rootDir": "src",
     "outDir": "dist",
     "lib": ["ES2022", "DOM"],
     "types": []
   },
-  "include": ["src/**/*.ts", "../extension/src/chatgpt-adapter/chatgpt-runtime-facts.ts"]
+  "include": ["src/**/*.ts"]
 }

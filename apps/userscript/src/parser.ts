@@ -1,4 +1,8 @@
 import { McpBlockSchema, type McpBlock } from '@cwmb/protocol';
+import {
+  chatgptSelectors,
+  isIgnorableChatGptStatusText
+} from './chatgpt-runtime-facts.js';
 import { sha256Normalized } from './hash.js';
 
 export interface ParsedMcpBlock {
@@ -30,22 +34,6 @@ interface TurnResidualSegments {
 }
 
 const fencedBlockPattern = /```mcp\s*\n([\s\S]*?)\n```/g;
-const renderedBlockSelector = [
-  'pre code',
-  'pre',
-  'code',
-  '[data-testid*="code"]',
-  '[class*="code-block"]',
-  '[class*="CodeBlock"]',
-  '[class*="whitespace-pre"]'
-].join(', ');
-const ignorableUiResidualPatterns = [
-  /^thought for .+$/i,
-  /^reasoned for .+$/i,
-  /^思考了.+$/u,
-  /^已思考.+$/u,
-  /^思考中$/u
-];
 
 export async function parseMcpBlocks(text: string): Promise<ParseResult> {
   return parseMcpCandidateStrings(extractFencedBlockBodies(text));
@@ -160,7 +148,7 @@ function extractRenderedCandidates(container: ParentNode): Array<{ rawText: stri
   const seen = new Set<string>();
   const results: Array<{ rawText: string; normalized: string }> = [];
 
-  for (const node of Array.from(container.querySelectorAll(renderedBlockSelector))) {
+  for (const node of Array.from(container.querySelectorAll(chatgptSelectors.codeBlock))) {
     const rawText = (node.textContent ?? '').trim();
     if (!looksLikeExplicitMcpRenderedBlock(rawText)) {
       continue;
@@ -395,17 +383,7 @@ function looksLikeMcpLikeResidual(text: string): boolean {
 }
 
 function isIgnorableUiResidual(text: string): boolean {
-  const normalizedLines = text
-    .replace(/\u00a0/g, ' ')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-
-  if (normalizedLines.length === 0) {
-    return false;
-  }
-
-  return normalizedLines.every((line) => ignorableUiResidualPatterns.some((pattern) => pattern.test(line)));
+  return isIgnorableChatGptStatusText(text);
 }
 
 function parseLooseMcpResidual(text: string): { ok: boolean } {

@@ -1,5 +1,5 @@
 import type { ToolResultBatch } from './batch.js';
-import { chatgptSelectors } from './selectors.js';
+import { chatgptSelectors, looksLikeChatGptSendButton } from './chatgpt-runtime-facts.js';
 
 export function insertIntoChatInput(value: string): boolean {
   const editable = findVisibleEditable();
@@ -66,7 +66,7 @@ function findSendButton(): HTMLButtonElement | null {
     if (!isVisible(button)) {
       continue;
     }
-    if (!looksLikeSendButton(button)) {
+    if (!looksLikeChatGptSendButton(button)) {
       continue;
     }
 
@@ -250,15 +250,6 @@ function isVisible(el: Element): boolean {
   }
 
   return true;
-}
-
-function looksLikeSendButton(button: HTMLButtonElement): boolean {
-  if (button.id === 'composer-submit-button' || button.dataset.testid === 'send-button') {
-    return true;
-  }
-
-  const label = button.getAttribute('aria-label') ?? '';
-  return /send|message|提示|发送/i.test(label) && !/voice|speech|语音/i.test(label);
 }
 
 function normalizeChatInputText(value: string): string {
