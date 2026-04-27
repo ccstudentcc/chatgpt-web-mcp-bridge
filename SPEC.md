@@ -8,9 +8,9 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is the current active slice.
+Phase 1 shared-contract freeze is complete. No later extraction or capability slice is open yet.
 
-This slice exists so Codex can start concrete work without reopening the whole v0.9 surface at once.
+That completed slice exists so Codex could start concrete work without reopening the whole v0.9 surface at once.
 
 Primary battleground:
 
@@ -24,6 +24,7 @@ Primary file surfaces:
 - `apps/extension/src/chatgpt-adapter/*`
 - `apps/extension/src/injection-runtime/*`
 - `apps/extension/src/operator-panel/*`
+- `apps/extension/src/turn-runtime/*`
 - `docs/protocols/*`
 - `docs/operations/chatgpt-web-runtime-evidence.md`
 - the root task-control docs
@@ -76,6 +77,7 @@ At minimum, this slice should make it possible to implement against a stable tar
 - Establish `apps/extension/src/chatgpt-adapter/` as the canonical v0.9 code owner for ChatGPT Web page facts, with current userscript code consuming those facts only through compatibility wiring.
 - Allow narrow `apps/extension/src/injection-runtime/*` target-owner scaffolding when it removes duplicated request-injection mode/status semantics without opening broader request-hook extraction.
 - Allow narrow `apps/extension/src/operator-panel/*` target-owner scaffolding when it removes userscript-local runtime snapshot semantics without opening panel feature rollout or a second execution state machine.
+- Allow narrow `apps/extension/src/turn-runtime/*` target-owner scaffolding when it removes duplicated invalid-turn state, pending-selection identity, or auto-round guard semantics without opening broad turn-runtime extraction.
 
 ## Out of Scope
 

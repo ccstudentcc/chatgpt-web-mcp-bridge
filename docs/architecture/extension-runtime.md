@@ -110,6 +110,10 @@ Invariants:
 - invalid-turn blocking happens before pending execution
 - fallback paths must reuse the same normalized turn model
 
+Current Phase 1 seed:
+
+- `apps/extension/src/turn-runtime/*` now owns the pure invalid-turn state, pending-selection identity, and auto-round guard helper semantics used by current userscript compat code
+
 ### 3.4 `result-delivery`
 
 Owns:

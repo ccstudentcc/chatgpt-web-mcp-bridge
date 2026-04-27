@@ -63,6 +63,7 @@ Concrete work in this stage:
    - target-owner scaffolding under `apps/extension/src/chatgpt-adapter/*` when it prevents page-fact truth from staying scattered in `apps/userscript/src/*`
    - target-owner scaffolding under `apps/extension/src/injection-runtime/*` when it prevents injection mode/status semantics from staying duplicated across userscript state and request-hook code
    - target-owner scaffolding under `apps/extension/src/operator-panel/*` when it prevents runtime snapshot semantics from staying userscript-local
+   - target-owner scaffolding under `apps/extension/src/turn-runtime/*` when it prevents invalid-turn state and auto-round guard semantics from staying duplicated in userscript-only helpers
    - contract and repo docs
    - materialized `/tools` metadata that carries the Phase 1 catalog contract without breaking current consumers
 4. Centralize ChatGPT Web runtime evidence in one durable doc:
@@ -92,7 +93,7 @@ Definition of done for this stage:
 
 ## Stage 4: Execute The First Compat-Preserving Core Slice
 
-Status: in progress
+Status: completed
 
 - Implement the Phase 1 shared-contract freeze defined above.
 - Keep current live behavior stable or explicitly migrated with updated docs and verification.
@@ -121,6 +122,25 @@ Initial likely implementation surfaces:
 - `apps/extension/src/chatgpt-adapter/*`
 - `apps/extension/src/injection-runtime/*`
 - `apps/extension/src/operator-panel/*`
+- `apps/extension/src/turn-runtime/*`
+
+Definition of done reached:
+
+- the current userscript/gateway live runtime floor now consumes shared contract surfaces instead of parallel local shape definitions for catalog, health, execute metadata, and result envelopes
+- Phase 1 target-owner seeding now covers:
+  - `apps/extension/src/chatgpt-adapter/*` for page facts
+  - `apps/extension/src/injection-runtime/*` for request-injection mode/status helper semantics
+  - `apps/extension/src/operator-panel/*` for runtime-snapshot helper semantics
+  - `apps/extension/src/turn-runtime/*` for invalid-turn state, pending-selection identity, and auto-round guard helper semantics
+- root `pnpm lint`, `pnpm test`, and `pnpm build` all pass after the completed Phase 1 slice
+
+## Stage 5: Select The Next Core Extraction Slice
+
+Status: pending
+
+- Decide the first post-Phase-1 extraction-focused slice before opening broader capability work.
+- Keep the next slice inside Final Core unless task docs are deliberately retargeted.
+- Current leading candidate: start a narrow `turn-runtime` extraction around parser-level turn normalization and duplicate-guard seams without opening mode rollout or gateway kernel extraction.
 
 ## Risks
 
