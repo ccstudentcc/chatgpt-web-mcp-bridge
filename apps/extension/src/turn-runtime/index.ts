@@ -5,6 +5,14 @@ export {
   type AssistantTurnScanState
 } from './assistant-turn-scan.js';
 export {
+  resolveCurrentRequestIdentity,
+  resolveLatestAssistantTurnSource,
+  scanLatestAssistantTurnSource,
+  type CurrentRequestIdentityResult,
+  type LatestAssistantTurnSourceResult,
+  type TurnRuntimeMessageSource
+} from './turn-source.js';
+export {
   canAutoRunForRequest,
   recordAutoRunForRequest,
   syncAutoRoundRequest,
