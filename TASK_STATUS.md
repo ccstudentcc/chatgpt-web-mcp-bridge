@@ -47,6 +47,7 @@
 - Message-identity tracking now also flows through extension-owned `trackMessageIdentity()`, so userscript no longer advances ephemeral message identity counters with a local wrapper around the lower-level helper.
 - Pending scan-result application now also flows through extension-owned `scan-runtime-effects.ts`, so userscript no longer owns the pure clear/pending/invalid runtime update semantics for startup/history rescan.
 - Latest assistant/user turn-source orchestration now also flows through extension-owned `turn-source.ts`, so userscript no longer owns the request-identity fallback or latest-open-turn source assembly around the shared scan pipeline.
+- Pending selection clear/consume/ignore transitions now also flow through extension-owned `pending-runtime-effects.ts`, so userscript no longer owns the pure pending-selection mutation rules for detection reset, single-call consumption, batch completion, or ignore actions.
 - The userscript build now resolves `@cwmb/protocol` explicitly for extension-owned turn-runtime source pulled into the bundle, so Phase 2 owner shifts do not depend on pnpm package-boundary luck during esbuild resolution.
 - Shared protocol now owns the current `tool_result_batch` item union and batch envelope helper, including the compat `source.messageId` field used by userscript result insertion.
 - Userscript single-result insertion now formats shared `inline_tool_result` / `execution_error` envelopes instead of serializing raw legacy single-call payloads directly.
@@ -84,6 +85,7 @@
 - After moving pending-turn runtime status helpers plus message-identity tracking onto extension-owned turn-runtime helpers, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After moving pending scan-result runtime effects onto extension-owned turn-runtime helpers, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After moving latest assistant/user turn-source orchestration onto extension-owned turn-runtime helpers, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After moving pending selection clear/consume/ignore transitions onto extension-owned turn-runtime helpers, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 
 ## Active Stop Line
 
@@ -149,8 +151,9 @@
   - `apps/extension/src/turn-runtime/pending-turn-runtime.ts` is now the long-term owner for batch-vs-single pending detection status semantics on the live turn-runtime path
   - `apps/extension/src/turn-runtime/scan-runtime-effects.ts` is now the long-term owner for applying clear, pending, and invalid scan outcomes onto the live runtime state
   - `apps/extension/src/turn-runtime/turn-source.ts` is now the long-term owner for latest assistant/user turn-source lookup orchestration, request-identity fallback, and latest-open-turn source assembly ahead of the shared scan pipeline
+  - `apps/extension/src/turn-runtime/pending-runtime-effects.ts` is now the long-term owner for pending selection clear/consume/ignore mutations across detection reset, single-tool execution, batch completion, and ignore flows
   - `apps/userscript/src/parser.ts` remains only as a compat wrapper for hashed `callId` output
-  - `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now delegates pending-turn classification, live turn analysis, message-identity tracking, latest turn-source orchestration, scan-state decisions, and scan-result runtime effects instead of owning the full detection algorithm
+  - `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now delegates pending-turn classification, live turn analysis, message-identity tracking, latest turn-source orchestration, pending-selection mutations, scan-state decisions, and scan-result runtime effects instead of owning the full detection algorithm
   - userscript bundling now explicitly resolves `@cwmb/protocol` for extension-owned turn-runtime imports
 - Userscript files named in this slice are now reference or temporary bridge surfaces, not target-state ownership destinations by themselves.
 - Still explicitly not opened while `turn-runtime` is the active module stage:
@@ -189,6 +192,6 @@
 - When a cleaner direct implementation exists in `apps/extension` or `apps/gateway`, prefer landing there over recreating new long-term logic in userscript-shaped files.
 - Do not add or keep adapters only to preserve draft-only field names, draft wording, or other reference-only shapes. Keep compatibility only where current live runtime behavior still depends on it.
 - Treat nested `execute` as the only active `/call-tool` execution-metadata compat surface unless a future task doc explicitly reopens that decision with live runtime evidence.
-- The next useful implementation step is to keep shrinking `apps/userscript/src/chatgpt-mcp-bridge.user.ts` around pending clear/ignore transitions and other remaining turn-runtime state mutations without reopening `result-delivery` or gateway modules as new primary stages.
+- The next useful implementation step is to keep shrinking `apps/userscript/src/chatgpt-mcp-bridge.user.ts` around the remaining turn-runtime state application and startup polling shell without reopening `result-delivery` or gateway modules as new primary stages.
 - Use the expanded `IMPLEMENTATION_PLAN.md` stage contract as the execution source of truth for module boundaries, allowed supporting surfaces, validation, and stage exit conditions; do not re-invent those rules ad hoc in code review.
 - If a change tries to activate a second Phase 2 module at the same time, stop and either narrow it back to the active module stage or first update the task-control docs to resequence the program.

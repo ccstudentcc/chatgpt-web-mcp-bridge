@@ -19,7 +19,10 @@ import { describeRequestHookStatus } from './request-injection-state.js';
 import { canAutoRunForRequest, recordAutoRunForRequest, syncAutoRoundRequest } from './round-guard.js';
 import { installPageRequestHook, syncRequestPrompt, type RequestHookStatus } from './request-hook.js';
 import {
+  clearPendingSelectionRuntime,
+  consumeFirstPendingRuntime,
   createInvalidTurnRuntimeUpdate,
+  createIgnoredPendingRuntimeUpdate,
   createPendingDetectionUpdate,
   createAssistantTurnScanState,
   getPendingTurnRuntimeStatus,
@@ -181,10 +184,7 @@ function clearPendingDetection(): void {
     return;
   }
 
-  state.pending = [];
-  state.pendingBatchId = undefined;
-  state.pendingMessageId = undefined;
-  state.pendingRequestId = undefined;
+  applyPendingSelectionUpdate(clearPendingSelectionRuntime());
   state.progress = undefined;
   state.status = reset.nextStatus;
 }
@@ -220,11 +220,11 @@ async function runPending(): Promise<void> {
     const resultEnvelope = executeCompat.result.type === 'inline_tool_result'
       ? executeCompat.result
       : createInlineToolResultEnvelopeFromLegacyResponse(response, pending.callId);
-    state.executedCallIds.add(pending.callId);
-    state.pending = state.pending.slice(1);
-    state.pendingBatchId = undefined;
-    state.pendingMessageId = undefined;
-    state.pendingRequestId = undefined;
+    const consumedPending = consumeFirstPendingRuntime(state.pending);
+    if (consumedPending.executedCallId) {
+      state.executedCallIds.add(consumedPending.executedCallId);
+    }
+    applyPendingSelectionUpdate(consumedPending);
     state.progress = undefined;
     state.retryableBatch = undefined;
     state.lastResult = formatToolResult(pending.block.tool, resultEnvelope);
@@ -245,11 +245,11 @@ async function runPending(): Promise<void> {
     if (errorCode === 'UNAUTHORIZED') {
       state.status = 'unauthorized';
     } else {
-      state.executedCallIds.add(pending.callId);
-      state.pending = state.pending.slice(1);
-      state.pendingBatchId = undefined;
-      state.pendingMessageId = undefined;
-      state.pendingRequestId = undefined;
+      const consumedPending = consumeFirstPendingRuntime(state.pending);
+      if (consumedPending.executedCallId) {
+        state.executedCallIds.add(consumedPending.executedCallId);
+      }
+      applyPendingSelectionUpdate(consumedPending);
       state.status = await deliverLastResult('single', 'failed', 'inserted', 'sent');
     }
   }
@@ -305,10 +305,7 @@ async function runStoredBatch(batch: StoredBatch): Promise<void> {
   });
 
   applyBatchExecutionMarkers(response.items, batchId);
-  state.pending = [];
-  state.pendingBatchId = undefined;
-  state.pendingMessageId = undefined;
-  state.pendingRequestId = undefined;
+  applyPendingSelectionUpdate(clearPendingSelectionRuntime());
   state.progress = undefined;
   state.lastResult = formatBatchToolResult(response);
 
@@ -336,35 +333,42 @@ async function runStoredBatch(batch: StoredBatch): Promise<void> {
 }
 
 function ignorePending(): void {
-  if (hasPendingTurnBatch(state.pending.length, state.pendingBatchId)) {
-    if (state.pendingBatchId) state.executedBatchIds.add(state.pendingBatchId);
-    for (const pending of state.pending) {
-      state.executedCallIds.add(pending.callId);
-    }
-    state.pending = [];
-    state.pendingBatchId = undefined;
-    state.pendingMessageId = undefined;
-    state.pendingRequestId = undefined;
-    state.progress = undefined;
-    state.retryableBatch = undefined;
-    state.status = 'idle';
+  const ignoredPending = createIgnoredPendingRuntimeUpdate({
+    pending: state.pending,
+    pendingBatchId: state.pendingBatchId
+  });
+
+  for (const callId of ignoredPending.executedCallIds) {
+    state.executedCallIds.add(callId);
+  }
+  if (ignoredPending.executedBatchId) {
+    state.executedBatchIds.add(ignoredPending.executedBatchId);
+  }
+
+  applyPendingSelectionUpdate(ignoredPending);
+  state.progress = undefined;
+  state.retryableBatch = undefined;
+
+  if (ignoredPending.ignoredKind === 'batch') {
+    state.status = ignoredPending.status;
     state.lastError = undefined;
     addLogEntry('info', 'Ignored pending batch.');
     renderPanel();
     return;
   }
 
-  const pending = state.pending[0];
-  if (pending) state.executedCallIds.add(pending.callId);
-  state.pending = state.pending.slice(1);
-  state.pendingBatchId = undefined;
-  state.pendingMessageId = undefined;
-  state.pendingRequestId = undefined;
-  state.progress = undefined;
-  state.retryableBatch = undefined;
-  state.status = getPendingTurnRuntimeStatus(state.pending.length, state.pendingBatchId);
-  addLogEntry('info', `Ignored tool call: ${pending?.block.tool ?? 'unknown'}`);
+  state.status = ignoredPending.status;
+  addLogEntry('info', `Ignored tool call: ${ignoredPending.ignoredTool ?? 'unknown'}`);
   renderPanel();
+}
+
+function applyPendingSelectionUpdate(
+  update: Pick<typeof state, 'pending' | 'pendingBatchId' | 'pendingMessageId' | 'pendingRequestId'>
+): void {
+  state.pending = update.pending;
+  state.pendingBatchId = update.pendingBatchId;
+  state.pendingMessageId = update.pendingMessageId;
+  state.pendingRequestId = update.pendingRequestId;
 }
 
 function applyBatchExecutionMarkers(items: BatchResultItem[], batchId: string): void {

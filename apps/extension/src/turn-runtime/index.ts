@@ -51,6 +51,14 @@ export {
   type ScanRuntimeStatus
 } from './scan-runtime-effects.js';
 export {
+  clearPendingSelectionRuntime,
+  consumeFirstPendingRuntime,
+  createIgnoredPendingRuntimeUpdate,
+  type ConsumedPendingRuntimeUpdate,
+  type IgnoredPendingRuntimeUpdate,
+  type PendingSelectionRuntimeUpdate
+} from './pending-runtime-effects.js';
+export {
   isSamePendingSelection
 } from './pending-selection.js';
 export {
