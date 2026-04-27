@@ -33,6 +33,20 @@ export interface RecoveredDeliveryRuntimeState {
   nextPreservedDraft?: string;
 }
 
+export function shouldKeepRecoveredDeliveryRetryWindow({
+  status,
+  lastResult,
+  autoSend
+}: {
+  status: DeliveryBridgeStatus;
+  lastResult?: string;
+  autoSend: boolean;
+}): boolean {
+  return autoSend
+    && Boolean(lastResult)
+    && (status === 'inserted' || status === 'batch_inserted');
+}
+
 export interface DeliveryPanelState<TBlock> {
   activeBlocks: TBlock[];
   visibleBatch: TBlock[];

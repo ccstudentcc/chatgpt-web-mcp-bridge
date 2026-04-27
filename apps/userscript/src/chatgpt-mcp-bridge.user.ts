@@ -24,6 +24,7 @@ import {
   formatToolResult,
   isBatchReadyDeliveryStatus,
   resolveDeliveredBridgeStatus,
+  shouldKeepRecoveredDeliveryRetryWindow,
   type ReadyDeliveryStatus
 } from './result-delivery.js';
 import { canAutoRunForRequest, recordAutoRunForRequest, syncAutoRoundRequest } from './round-guard.js';
@@ -70,7 +71,10 @@ let lastRequestHookStatusKey = '';
 let turnScanState = createAssistantTurnScanState();
 const INVALID_TURN_GRACE_MS = 2_000;
 const STARTUP_UNDELIVERED_RECOVERY_GRACE_MS = 2_500;
+const RECOVERED_DELIVERY_RETRY_COOLDOWN_MS = 250;
 let startupUndeliveredRecoveryDeadline = 0;
+let recoveredDeliveryResumeInFlight = false;
+let recoveredDeliveryRetryNotBefore = 0;
 
 async function refreshGatewayStatus(): Promise<void> {
   try {
@@ -613,8 +617,14 @@ async function startBridge(): Promise<void> {
     ? Date.now() + STARTUP_UNDELIVERED_RECOVERY_GRACE_MS
     : 0;
   if (await restoreUndeliveredResultSessionOnStartup()) {
-    startupUndeliveredRecoveryDeadline = 0;
     addLogEntry('info', 'Restored the undelivered bridge result from the current composer after refresh.');
+    if (!shouldKeepRecoveredDeliveryRetryWindow({
+      status: state.status,
+      lastResult: state.lastResult,
+      autoSend: state.autoSendResult
+    })) {
+      startupUndeliveredRecoveryDeadline = 0;
+    }
   }
   renderPanel();
   await maybeResumeRecoveredResultDelivery();
@@ -674,6 +684,9 @@ async function restoreUndeliveredResultSessionOnStartup(): Promise<boolean> {
 
 async function handleLiveChatMutation(): Promise<void> {
   await maybeRestoreUndeliveredResultSessionAfterHydration();
+  if (startupUndeliveredRecoveryDeadline !== 0) {
+    await maybeResumeRecoveredResultDelivery();
+  }
   await scanLatestAssistantMessage();
 }
 
@@ -701,6 +714,16 @@ function normalizeStartupComposerText(value: string): string {
 }
 
 async function maybeResumeRecoveredResultDelivery(): Promise<void> {
+  if (recoveredDeliveryResumeInFlight) {
+    return;
+  }
+  if (
+    startupUndeliveredRecoveryDeadline !== 0
+    && Date.now() < recoveredDeliveryRetryNotBefore
+  ) {
+    return;
+  }
+
   const currentComposerText = readCurrentChatInputText();
   const recovered = deriveRecoveredDeliveryRuntimeState({
     status: state.status,
@@ -721,14 +744,36 @@ async function maybeResumeRecoveredResultDelivery(): Promise<void> {
     return;
   }
 
-  state.status = await performLastResultDelivery(getCurrentReadyDeliveryStatus());
-  syncUndeliveredResultSession();
-  renderPanel();
+  recoveredDeliveryResumeInFlight = true;
+  try {
+    state.status = await performLastResultDelivery(getCurrentReadyDeliveryStatus());
+    syncUndeliveredResultSession();
+    renderPanel();
+    if (shouldKeepRecoveredDeliveryRetryWindow({
+      status: state.status,
+      lastResult: state.lastResult,
+      autoSend: state.autoSendResult
+    })) {
+      recoveredDeliveryRetryNotBefore = Date.now() + RECOVERED_DELIVERY_RETRY_COOLDOWN_MS;
+      return;
+    }
+
+    startupUndeliveredRecoveryDeadline = 0;
+    recoveredDeliveryRetryNotBefore = 0;
+  } finally {
+    recoveredDeliveryResumeInFlight = false;
+  }
 }
 
 async function maybeRestoreUndeliveredResultSessionAfterHydration(): Promise<void> {
   if (state.lastResult) {
-    startupUndeliveredRecoveryDeadline = 0;
+    if (!shouldKeepRecoveredDeliveryRetryWindow({
+      status: state.status,
+      lastResult: state.lastResult,
+      autoSend: state.autoSendResult
+    })) {
+      startupUndeliveredRecoveryDeadline = 0;
+    }
     return;
   }
 
@@ -750,6 +795,13 @@ async function maybeRestoreUndeliveredResultSessionAfterHydration(): Promise<voi
   addLogEntry('info', 'Restored the undelivered bridge result after composer hydration finished.');
   renderPanel();
   await maybeResumeRecoveredResultDelivery();
+  if (shouldKeepRecoveredDeliveryRetryWindow({
+    status: state.status,
+    lastResult: state.lastResult,
+    autoSend: state.autoSendResult
+  })) {
+    startupUndeliveredRecoveryDeadline = Date.now() + STARTUP_UNDELIVERED_RECOVERY_GRACE_MS;
+  }
 }
 
 async function shouldPauseTurnScanForStartupRecovery(): Promise<boolean> {

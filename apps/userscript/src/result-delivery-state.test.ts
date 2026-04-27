@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   deriveDeliveryPanelState,
   deriveRecoveredDeliveryRuntimeState,
-  resolveDeliveredBridgeStatus
+  resolveDeliveredBridgeStatus,
+  shouldKeepRecoveredDeliveryRetryWindow
 } from '../../extension/src/result-delivery/index.js';
 
 describe('deriveDeliveryPanelState', () => {
@@ -115,5 +116,28 @@ describe('deriveRecoveredDeliveryRuntimeState', () => {
     expect(recovered.shouldResume).toBe(false);
     expect(recovered.shouldDeferPendingDetection).toBe(true);
     expect(recovered.nextPreservedDraft).toBe('kept draft');
+  });
+});
+
+describe('shouldKeepRecoveredDeliveryRetryWindow', () => {
+  it('keeps the startup retry window active while an auto-send recovery is still inserted', () => {
+    expect(shouldKeepRecoveredDeliveryRetryWindow({
+      status: 'inserted',
+      lastResult: 'tool-result',
+      autoSend: true
+    })).toBe(true);
+  });
+
+  it('closes the startup retry window once recovery no longer needs auto-send retry', () => {
+    expect(shouldKeepRecoveredDeliveryRetryWindow({
+      status: 'sent',
+      lastResult: 'tool-result',
+      autoSend: true
+    })).toBe(false);
+    expect(shouldKeepRecoveredDeliveryRetryWindow({
+      status: 'inserted',
+      lastResult: 'tool-result',
+      autoSend: false
+    })).toBe(false);
   });
 });

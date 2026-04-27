@@ -31,6 +31,7 @@ export {
   isBatchReadyDeliveryStatus,
   isReadyDeliveryStatus,
   resolveDeliveredBridgeStatus,
+  shouldKeepRecoveredDeliveryRetryWindow,
   type DeliveryBridgeStatus,
   type DeliveryPanelState,
   type ReadyDeliveryStatus

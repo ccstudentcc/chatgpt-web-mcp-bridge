@@ -18,6 +18,7 @@ export {
   matchesRecoveredComposerState,
   resolveRecoveredComposerDraft,
   resolveDeliveredBridgeStatus,
+  shouldKeepRecoveredDeliveryRetryWindow,
   type RetryableDeliveryBatch,
   summarizeArgs,
   summarizePendingBlock,
