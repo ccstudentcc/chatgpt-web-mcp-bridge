@@ -7,8 +7,10 @@
 - Root `SPEC.md`, `IMPLEMENTATION_PLAN.md`, and `TASK_STATUS.md` now track the active v0.9 mainline.
 - `docs/v0.9-entrypoint.md` is the navigation entrypoint for that mainline; `docs/prd_vnext.md` owns the active product-boundary truth; `docs/architecture/v0.9-target-architecture.md` owns the target module-boundary truth.
 - The current codebase still implements the proven userscript + gateway baseline, so v0.9 work must preserve or explicitly migrate the current live contracts rather than pretending they no longer matter.
+- Userscript is now treated as a reference baseline only. It is not the desired v0.9 shell, and it is not a required long-term compat layer in the target architecture.
 - Phase 1 shared-contract freeze is now complete.
 - Phase 2 is now open as the active next slice: a larger but still single-axis `turn-runtime` extraction package inside Final Core.
+- Phase 2 may use larger extension + gateway rewrites when that improves efficiency, timing, or boundary clarity, as long as the live runtime floor remains preserved and the slice does not widen into capability rollout.
 - Stage 3 slice-definition work is complete; Stage 4 compat-preserving execution is complete on the same Phase 1 boundary.
 - Stage 5 slice-selection work is now complete as Phase 2 definition; the next open gate is execution and verification of that slice rather than deciding what Phase 2 is.
 - Draft v0.9 docs and draft contract shapes are reference truth only. They are not separate compatibility targets; compatibility work in the current slice applies to the proven live runtime floor and the still-live routes/behaviors it depends on.
@@ -112,6 +114,7 @@
   - `apps/userscript/src/parser.ts` remains only as a compat wrapper for hashed `callId` output
   - `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now delegates pending-turn classification instead of owning the full detection algorithm
   - userscript bundling now explicitly resolves `@cwmb/protocol` for extension-owned turn-runtime imports
+- Userscript files named in this slice are now reference or temporary bridge surfaces, not target-state ownership destinations by themselves.
 - Still explicitly not opened by Phase 2:
   - extension-first shell migration
   - gateway execution-kernel extraction
@@ -126,6 +129,7 @@
 
 - The repo still lacks browser-driven end-to-end automation, so browser-runtime transitions will continue to need real ChatGPT Web verification.
 - The active codebase is still userscript-first today; the v0.9 architecture and protocol docs are active target truth, not evidence that the refactor already happened.
+- That userscript-first reality is an implementation fact, not a migration obligation: future work may rewrite directly in extension + gateway rather than preserving userscript structure for symmetry.
 - The unified ChatGPT Web runtime evidence doc exists now, but it is not yet a fully populated evidence pack; DOM-heavy work should refresh or add evidence there before expanding.
 - Phase 2 is intentionally larger than the Phase 1 helper seeding work, but that is only because it stays inside one extraction axis; it is not permission to open gateway redesign or broad browser feature work in the same round.
 - Later-scope capabilities remain target-state work rather than shipped behavior:
@@ -142,6 +146,7 @@
 - Do not reopen Phase 1 implicitly. Phase 2 is already chosen; start from the declared turn-runtime extraction boundary instead of re-deciding the slice.
 - If a change depends on ChatGPT Web DOM/request-shape/selectors facts, put the raw evidence in `docs/operations/chatgpt-web-runtime-evidence.md` instead of scattering it through task docs.
 - If code needs ChatGPT Web page facts, add or update them in `apps/extension/src/chatgpt-adapter/` first, then adapt current userscript consumers through compat wiring.
+- When a cleaner direct implementation exists in `apps/extension` or `apps/gateway`, prefer landing there over recreating new long-term logic in userscript-shaped files.
 - Do not add or keep adapters only to preserve draft-only field names, draft wording, or other reference-only shapes. Keep compatibility only where current live runtime behavior still depends on it.
 - Treat nested `execute` as the only active `/call-tool` execution-metadata compat surface unless a future task doc explicitly reopens that decision with live runtime evidence.
 - The next useful implementation step is to keep shrinking `apps/userscript/src/chatgpt-mcp-bridge.user.ts` around startup/history rescan orchestration without reopening result-delivery or gateway-kernel scope.

@@ -58,7 +58,7 @@ vNext 不把会话管理作为主产品线。
 
 最终浏览器壳是 Chrome Extension。
 
-当前 userscript 只是过渡实现来源，不应再被视为终态产品形态。
+当前 userscript 只是过渡实现来源和 reference baseline，不应再被视为终态产品形态，也不应被当成 v0.9 必须长期维护的一层 compat 壳。
 
 ---
 
@@ -78,6 +78,12 @@ vNext 不把会话管理作为主产品线。
 - 当前 execute / insert / send 自动化开关语义必须保留
 
 vNext 不是用未来设想覆盖这些事实，而是在不丢失它们的前提下定义最终产品。
+
+这里的“继承”指行为继承，不是代码形态继承。
+
+- userscript 提供的是已验证行为参考
+- extension + gateway 才是 v0.9 的正式实现落点
+- 当直接在 extension / gateway 重写或重组逻辑更利于效率、时序和边界清晰时，优先走直接重构，而不是为了“照抄 userscript”去维持一条人为 compat 路线
 
 ---
 

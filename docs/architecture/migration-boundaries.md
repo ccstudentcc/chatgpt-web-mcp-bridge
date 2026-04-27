@@ -47,8 +47,8 @@ The target direction is:
 
 - `apps/extension` as the final browser app
 - `apps/gateway` as a structured execution kernel
-- `apps/userscript-compat` as a temporary shell adapter only
 - dedicated shared packages for contracts and stable models
+- `apps/userscript` as a reference baseline only, not as a target shell that must survive the migration as a formal app layer
 
 The migration path must not assume that target directories already exist in mature form. Refactors must create them by extracting responsibilities out of current locations.
 
@@ -84,6 +84,8 @@ Compat code may adapt old entrypoints to target contracts. It may not become the
 
 If a new behavior can only be added in compat first, the refactor should stop and revisit ordering.
 
+Userscript-specific compatibility is especially suspect here: the repo should not create or preserve a large `userscript-compat` destination just to mimic the old structure once a direct extension + gateway implementation path is available.
+
 ### 3.5 Real Runtime Truth Has Priority
 
 Where current code, future architecture ideas, and real ChatGPT runtime behavior conflict, the migration must first restore accurate current truth before expanding target abstractions.
@@ -117,7 +119,7 @@ Target ownership mapping:
 - DOM facts and selectors -> `apps/extension/src/chatgpt-adapter/`
 - insertion and send handling -> `apps/extension/src/result-delivery/`
 - panel rendering -> `apps/extension/src/operator-panel/`
-- the current userscript shell -> `apps/userscript-compat/`
+- the current userscript shell -> reference baseline only; extract behavior into `apps/extension` / `apps/gateway` directly rather than planning a durable shell migration target
 
 ### 4.2 Gateway Mapping
 
@@ -167,7 +169,6 @@ Target ownership mapping:
 | `tool-policy` | only partial semantics exist today | explicit decision layer | rules can stay scattered | high |
 | `proposal-engine` | future-facing | extension ring capability | can distract from core | medium |
 | `external-mcp` | future-facing | extension ring capability | can overtake builtin focus | medium |
-| `userscript-compat` | current primary shell | compat-only shell | likely to grow if unchecked | passive only |
 
 ## 6. Ordered Migration Phases
 
@@ -218,6 +219,7 @@ Goals:
 Allowed work:
 
 - extract adapter, injection, turn, and delivery responsibilities
+- rewrite or reorganize those responsibilities directly in `apps/extension` and `apps/gateway` when that shortens the path or clarifies ownership
 - preserve current behavior while moving logic
 
 Forbidden work:
@@ -225,6 +227,7 @@ Forbidden work:
 - major gateway redesign
 - new capability families
 - panel feature expansion unrelated to extraction
+- preserving userscript structure just for migration symmetry when a cleaner extension + gateway rewrite is available
 
 Exit criteria:
 

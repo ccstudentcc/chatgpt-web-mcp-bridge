@@ -50,6 +50,7 @@ At minimum, this slice should make it possible to implement against a stable tar
 ## In Scope
 
 - Keep the current live runtime behavior documented in `docs/prd.md` as the migration floor rather than the active product target.
+- Treat `apps/userscript` as a behavior reference baseline, not as a target v0.9 app layer that must survive as a formal compat shell.
 - Preserve current live contracts during this extraction slice unless a migration path is explicitly documented:
   - `/health`
   - `/tools`
@@ -62,7 +63,8 @@ At minimum, this slice should make it possible to implement against a stable tar
 - Treat draft v0.9 docs and draft contract surfaces as reference/target truth, not as compatibility obligations by themselves. Compatibility effort in this slice belongs to the current live runtime floor, not to preserving interim draft wording.
 - Continue converging browser-side turn-runtime ownership into `apps/extension/src/turn-runtime/*`.
 - Move parser-level turn analysis and normalization logic out of long-term userscript ownership and behind extension-owned seams.
-- Keep userscript-side consumption on thin compatibility wiring where extraction is not yet complete.
+- Land durable implementation in `apps/extension` and `apps/gateway` when that shortens the path or improves runtime boundaries, instead of first recreating the same logic under userscript-shaped layers.
+- Keep userscript-side consumption on thin compatibility wiring only where the current live baseline still requires it during migration.
 - Allow a larger same-axis package across parser/analyze, latest-open-turn detection, startup/history rescan, duplicate guard, and nearby turn-runtime orchestration, as long as it stays inside this one extraction axis.
 - Keep `docs/operations/chatgpt-web-runtime-evidence.md` as the only allowed repository source for ChatGPT Web DOM/request-shape/selectors evidence.
 
@@ -110,6 +112,7 @@ At minimum, this slice should make it possible to implement against a stable tar
   - execute / insert / send runtime semantics
 - ChatGPT Web DOM/request-shape facts must be recorded in `docs/operations/chatgpt-web-runtime-evidence.md` rather than duplicated across multiple docs.
 - Parser-level turn normalization must converge into `apps/extension/src/turn-runtime/*` rather than remaining a long-term truth source inside `apps/userscript/src/parser.ts`.
+- No Phase 2 or later slice is required to preserve a durable `userscript-compat` shell as part of the v0.9 target.
 - Verification must remain reproducible from the repo root whenever code changes are made.
 
 ## Acceptance Criteria
