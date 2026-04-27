@@ -554,7 +554,7 @@ function getCurrentReadyDeliveryStatus(): ReadyDeliveryStatus {
   }).readyStatus;
 }
 
-function startBridge(): void {
+async function startBridge(): Promise<void> {
   setUiHandlers({
     onRun: () => void runPending(),
     onIgnore: ignorePending,
@@ -589,10 +589,7 @@ function startBridge(): void {
     }
   });
   addLogEntry('info', 'Bridge panel mounted.');
-  if (restorePersistedUndeliveredResultSession({
-    conversationPath: window.location.pathname,
-    currentComposerText: readCurrentChatInputText()
-  })) {
+  if (await restoreUndeliveredResultSessionOnStartup()) {
     addLogEntry('info', 'Restored the undelivered bridge result from the current composer after refresh.');
   }
   renderPanel();
@@ -626,6 +623,30 @@ function syncUndeliveredResultSession(): void {
   });
 }
 
+async function restoreUndeliveredResultSessionOnStartup(): Promise<boolean> {
+  const deadline = Date.now() + 2_000;
+  let latestComposerText = '';
+
+  while (Date.now() < deadline) {
+    latestComposerText = readCurrentChatInputText();
+    if (restorePersistedUndeliveredResultSession({
+      conversationPath: window.location.pathname,
+      currentComposerText: latestComposerText,
+      clearOnMismatch: false
+    })) {
+      return true;
+    }
+
+    await wait(100);
+  }
+
+  return restorePersistedUndeliveredResultSession({
+    conversationPath: window.location.pathname,
+    currentComposerText: latestComposerText,
+    clearOnMismatch: true
+  });
+}
+
 function failureFromError(tool: string, error: unknown): ToolCallFailure {
   const details = error && typeof error === 'object' && 'details' in error ? (error as { details?: unknown }).details : undefined;
   const code = error && typeof error === 'object' && 'code' in error ? String((error as { code: unknown }).code) : 'INTERNAL_ERROR';
@@ -645,7 +666,9 @@ function failureFromError(tool: string, error: unknown): ToolCallFailure {
 }
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', startBridge, { once: true });
+  document.addEventListener('DOMContentLoaded', () => {
+    void startBridge();
+  }, { once: true });
 } else {
-  startBridge();
+  void startBridge();
 }

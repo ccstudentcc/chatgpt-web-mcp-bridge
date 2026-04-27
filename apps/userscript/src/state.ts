@@ -307,10 +307,12 @@ export function syncPersistedUndeliveredResultSession({
 
 export function restorePersistedUndeliveredResultSession({
   conversationPath,
-  currentComposerText
+  currentComposerText,
+  clearOnMismatch = true
 }: {
   conversationPath: string;
   currentComposerText: string;
+  clearOnMismatch?: boolean;
 }): boolean {
   const restored = readPersistedUndeliveredResultSession(conversationPath);
   if (!restored) {
@@ -318,7 +320,9 @@ export function restorePersistedUndeliveredResultSession({
   }
 
   if (!matchesPersistedComposerState(restored, currentComposerText)) {
-    GM_setValue(UNDELIVERED_RESULT_SESSION_KEY, '');
+    if (clearOnMismatch) {
+      GM_setValue(UNDELIVERED_RESULT_SESSION_KEY, '');
+    }
     return false;
   }
 

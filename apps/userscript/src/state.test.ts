@@ -207,4 +207,34 @@ describe('state runtime snapshot helpers', () => {
     expect(restored).toBe(false);
     expect(setValue).toHaveBeenCalledWith('cwmb_undelivered_result_session', '');
   });
+
+  it('does not clear an undelivered result snapshot during a non-destructive startup probe', async () => {
+    const setValue = vi.fn();
+    vi.stubGlobal('GM_getValue', vi.fn((key: string, defaultValue = '') => {
+      if (key === 'cwmb_undelivered_result_session') {
+        return JSON.stringify({
+          conversationPath: '/c/test-thread',
+          status: 'inserted',
+          lastResult: 'tool-result',
+          executedCallIds: ['call-1'],
+          executedBatchIds: []
+        });
+      }
+      return defaultValue;
+    }));
+    vi.stubGlobal('GM_setValue', setValue);
+
+    const {
+      restorePersistedUndeliveredResultSession
+    } = await import('./state.js');
+
+    const restored = restorePersistedUndeliveredResultSession({
+      conversationPath: '/c/test-thread',
+      currentComposerText: '',
+      clearOnMismatch: false
+    });
+
+    expect(restored).toBe(false);
+    expect(setValue).not.toHaveBeenCalledWith('cwmb_undelivered_result_session', '');
+  });
 });
