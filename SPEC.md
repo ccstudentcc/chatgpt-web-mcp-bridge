@@ -8,46 +8,49 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is complete. No later extraction or capability slice is open yet.
+Phase 1 shared-contract freeze is complete. The active next slice is Phase 2 turn-runtime extraction.
 
-That completed slice exists so Codex could start concrete work without reopening the whole v0.9 surface at once.
+This slice exists so the repo can make a larger structural move without reopening multiple axes at once.
 
 Primary battleground:
 
-- shared contracts and narrow runtime adapters
+- Final Core
+
+Primary axis:
+
+- extension runtime boundary extraction
+
+Current goal:
+
+- move parser-level turn normalization and nearby turn-runtime seams behind the extension `turn-runtime` owner while preserving the proven live browser behavior
 
 Primary file surfaces:
 
-- `packages/protocol/*`
-- current gateway route shapes under `apps/gateway/src/routes/*`
-- current userscript request/result call sites that consume protocol types
-- `apps/extension/src/chatgpt-adapter/*`
-- `apps/extension/src/injection-runtime/*`
-- `apps/extension/src/operator-panel/*`
 - `apps/extension/src/turn-runtime/*`
-- `docs/protocols/*`
+- `apps/userscript/src/parser.ts`
+- `apps/userscript/src/chatgpt-mcp-bridge.user.ts`
+- `apps/userscript/src/detection-state.ts`
+- `apps/userscript/src/round-guard.ts`
+- current userscript tests that exercise turn parsing, invalid-turn handling, duplicate guard, and startup/history rescan
 - `docs/operations/chatgpt-web-runtime-evidence.md`
 - the root task-control docs
 
 ## Slice Intent
 
-Define one shared contract vocabulary for the future extension runtime and gateway kernel before any large extraction work begins.
+Create one explicit extension-owned turn-runtime boundary so the browser-side runtime stops behaving like a single giant userscript before gateway-kernel extraction or capability rollout begins.
 
 At minimum, this slice should make it possible to implement against a stable target for:
 
-- catalog truth
-- gateway health truth
-- browser-local runtime snapshot truth
-- execution request/response
-- policy decisions
-- result envelopes
-- turn context and operator intent
+- assistant turn normalization
+- invalid-turn classification
+- duplicate guard seams
+- latest-open-turn tracking and startup/history rescan
+- `ExecuteRequest` creation inputs owned by browser runtime turn truth
 
 ## In Scope
 
-- Promote the v0.9 doc pack from planning-only material to the active repo mainline truth.
 - Keep the current live runtime behavior documented in `docs/prd.md` as the migration floor rather than the active product target.
-- Preserve current live contracts during early v0.9 work unless a migration path is explicitly documented:
+- Preserve current live contracts during this extraction slice unless a migration path is explicitly documented:
   - `/health`
   - `/tools`
   - `/call-tool`
@@ -55,41 +58,29 @@ At minimum, this slice should make it possible to implement against a stable tar
   - invalid-turn enforcement
   - startup/history rescan
   - execute / insert / send runtime semantics
-- Define and sequence the first concrete v0.9 delivery slice instead of treating all target-state capabilities as equally active at once.
-- Keep `docs/operations/*` and `docs/protocols/*` truthful for both:
-  - the current proven runtime baseline
-  - the target-state architecture and migration constraints
 - Update root task-control docs whenever the active v0.9 slice, gate, or sequencing truth changes.
-- Define the concrete Phase 1 shared-contract freeze so implementation can start without guessing the first slice.
-- Freeze target names and minimum payload surfaces for:
-  - `CatalogContract`
-  - `GatewayHealthContract`
-  - `GatewayRuntimeSnapshot`
-  - `ExecuteRequest`
-  - `ExecuteResponse`
-  - `PolicyDecision`
-  - `ResultEnvelope`
-  - `TurnContext`
-- Clarify which current live payloads remain canonical during the freeze and which future fields may be added compatibly.
 - Treat draft v0.9 docs and draft contract surfaces as reference/target truth, not as compatibility obligations by themselves. Compatibility effort in this slice belongs to the current live runtime floor, not to preserving interim draft wording.
-- Limit early implementation work to shared contracts, route adapters, and contract-consumer alignment.
-- Establish `docs/operations/chatgpt-web-runtime-evidence.md` as the only allowed repository source for ChatGPT Web DOM/request-shape/selectors evidence.
-- Establish `apps/extension/src/chatgpt-adapter/` as the canonical v0.9 code owner for ChatGPT Web page facts, with current userscript code consuming those facts only through compatibility wiring.
-- Allow narrow `apps/extension/src/injection-runtime/*` target-owner scaffolding when it removes duplicated request-injection mode/status semantics without opening broader request-hook extraction.
-- Allow narrow `apps/extension/src/operator-panel/*` target-owner scaffolding when it removes userscript-local runtime snapshot semantics without opening panel feature rollout or a second execution state machine.
-- Allow narrow `apps/extension/src/turn-runtime/*` target-owner scaffolding when it removes duplicated invalid-turn state, pending-selection identity, or auto-round guard semantics without opening broad turn-runtime extraction.
+- Continue converging browser-side turn-runtime ownership into `apps/extension/src/turn-runtime/*`.
+- Move parser-level turn analysis and normalization logic out of long-term userscript ownership and behind extension-owned seams.
+- Keep userscript-side consumption on thin compatibility wiring where extraction is not yet complete.
+- Allow a larger same-axis package across parser/analyze, latest-open-turn detection, startup/history rescan, duplicate guard, and nearby turn-runtime orchestration, as long as it stays inside this one extraction axis.
+- Keep `docs/operations/chatgpt-web-runtime-evidence.md` as the only allowed repository source for ChatGPT Web DOM/request-shape/selectors evidence.
 
 ## Out of Scope
 
 - Reopening v0.1 as the active product target.
 - Pretending v0.9 is already shipped because the target docs are mature.
 - Breaking the current userscript + gateway baseline without an explicit migration and re-verification plan.
+- Opening more than one primary axis in the same round.
 - Broad capability rollout such as:
   - full proposal workflow
   - `reviewed` / `yolo` execution rollout
   - `run_pwsh` shipping
   - external/custom MCP rollout
   - extension-first shell migration
+- Major gateway execution-kernel extraction.
+- Full `result-delivery` extraction beyond the narrow seams needed to preserve the current turn-runtime path.
+- Operator-panel feature expansion unrelated to extraction.
 - DOM-heavy runtime rewrites based on unrecorded or scattered page observations.
 - Multi-platform browser AI support.
 - Session management as a primary product line.
@@ -106,6 +97,9 @@ At minimum, this slice should make it possible to implement against a stable tar
   - updated product and migration docs
   - a replacement path
   - re-verification on the real ChatGPT page when browser runtime behavior is affected
+- This slice must keep one primary battleground ring and one primary axis:
+  - ring: Final Core
+  - axis: extension `turn-runtime` extraction
 - The current compatibility floor must remain stable during this slice:
   - `/health`
   - `/tools`
@@ -115,17 +109,18 @@ At minimum, this slice should make it possible to implement against a stable tar
   - startup/history rescan
   - execute / insert / send runtime semantics
 - ChatGPT Web DOM/request-shape facts must be recorded in `docs/operations/chatgpt-web-runtime-evidence.md` rather than duplicated across multiple docs.
-- ChatGPT Web page-fact constants and helpers must converge into `apps/extension/src/chatgpt-adapter/` rather than being redefined inside `apps/userscript/src/*`.
+- Parser-level turn normalization must converge into `apps/extension/src/turn-runtime/*` rather than remaining a long-term truth source inside `apps/userscript/src/parser.ts`.
 - Verification must remain reproducible from the repo root whenever code changes are made.
 
 ## Acceptance Criteria
 
 - Root task-control docs consistently state that v0.1 closed on April 27, 2026 and now serves as a reference baseline only.
 - `docs/v0.9-entrypoint.md`, `docs/prd_vnext.md`, and the root task docs all agree that v0.9 is the active mainline.
-- The first active v0.9 delivery slice is explicit enough that Codex can begin implementation without asking which subsystem opens first.
+- The active Phase 2 slice is explicit enough that implementation can begin without reopening which subsystem or battleground comes next.
 - `IMPLEMENTATION_PLAN.md` contains concrete stage goals, battleground, and file surfaces for the current slice.
 - The current runtime contracts that must survive early migration work are clearly enumerated in repo docs.
 - No active task-control or v0.9 entry doc still says that v0.1 close-out is blocking v0.9 by default.
-- The active slice clearly limits itself to contract freeze and narrow adapters instead of broad new capabilities.
+- The active slice clearly limits itself to one larger `turn-runtime` extraction package instead of broad new capabilities or parallel extraction axes.
 - The repo has one explicit source of truth for ChatGPT Web DOM/request-shape evidence, and the task docs point to it instead of duplicating its content.
-- The repo has one explicit v0.9 code owner for ChatGPT Web page facts, and current userscript modules consume it through compat wiring instead of redefining the same constants locally.
+- The repo has one explicit v0.9 owner for parser-level turn normalization and nearby turn-runtime semantics, and userscript modules are treated as compat consumers rather than the long-term source of truth.
+- Phase 2 close-out requires both repo-root verification and at least one real ChatGPT Web validation pass because the slice changes browser-runtime ownership boundaries.

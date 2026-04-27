@@ -7,8 +7,10 @@
 - Root `SPEC.md`, `IMPLEMENTATION_PLAN.md`, and `TASK_STATUS.md` now track the active v0.9 mainline.
 - `docs/v0.9-entrypoint.md` is the navigation entrypoint for that mainline; `docs/prd_vnext.md` owns the active product-boundary truth; `docs/architecture/v0.9-target-architecture.md` owns the target module-boundary truth.
 - The current codebase still implements the proven userscript + gateway baseline, so v0.9 work must preserve or explicitly migrate the current live contracts rather than pretending they no longer matter.
-- Phase 1 shared-contract freeze is now complete. No later extraction or capability slice has been opened yet.
+- Phase 1 shared-contract freeze is now complete.
+- Phase 2 is now open as the active next slice: a larger but still single-axis `turn-runtime` extraction package inside Final Core.
 - Stage 3 slice-definition work is complete; Stage 4 compat-preserving execution is complete on the same Phase 1 boundary.
+- Stage 5 slice-selection work is now complete as Phase 2 definition; the next open gate is execution and verification of that slice rather than deciding what Phase 2 is.
 - Draft v0.9 docs and draft contract shapes are reference truth only. They are not separate compatibility targets; compatibility work in the current slice applies to the proven live runtime floor and the still-live routes/behaviors it depends on.
 - ChatGPT Web DOM/request-shape/selectors evidence now has one intended home: `docs/operations/chatgpt-web-runtime-evidence.md`.
 - ChatGPT Web page-fact code truth now targets one v0.9 owner: `apps/extension/src/chatgpt-adapter/`; current userscript code should only consume or compat-re-export that truth.
@@ -32,6 +34,9 @@
 - Pure request-injection mode/status semantics now live under `apps/extension/src/injection-runtime/request-injection-state.ts`, while userscript keeps only thin compat re-exports and algorithm-local request-hook logic.
 - The pure runtime-snapshot helper semantics have been lifted out of userscript-local state code into `apps/extension/src/operator-panel/runtime-snapshot.ts`, while `apps/userscript/src/runtime-snapshot.ts` remains a thin compat re-export.
 - Pure invalid-turn state, pending-selection identity, and auto-round guard semantics now live under `apps/extension/src/turn-runtime/*`, while userscript `detection-state.ts`, `round-guard.ts`, and `turn-runtime.ts` only provide compat wiring or local type adaptation.
+- Parser-level turn normalization and the nearby latest-open-turn detection path still have meaningful logic in `apps/userscript/src/parser.ts` and `apps/userscript/src/chatgpt-mcp-bridge.user.ts`; Phase 2 is the explicit slice that will move that longer-lived turn-runtime ownership behind extension-owned seams.
+- The first Phase 2 extraction step is now in code: parser-level MCP turn analysis and normalization logic lives under `apps/extension/src/turn-runtime/mcp-turn-analysis.ts`, while `apps/userscript/src/parser.ts` is reduced to a thin compat wrapper that restores legacy `callId` semantics.
+- The userscript build now resolves `@cwmb/protocol` explicitly for extension-owned turn-runtime source pulled into the bundle, so Phase 2 owner shifts do not depend on pnpm package-boundary luck during esbuild resolution.
 - Shared protocol now owns the current `tool_result_batch` item union and batch envelope helper, including the compat `source.messageId` field used by userscript result insertion.
 - Userscript single-result insertion now formats shared `inline_tool_result` / `execution_error` envelopes instead of serializing raw legacy single-call payloads directly.
 - Userscript batch execution now returns the shared batch envelope shape instead of a local duplicate interface, and batch result formatting consumes the shared envelope directly.
@@ -61,11 +66,12 @@
 - After seeding the extension `injection-runtime` request-injection state owner and switching userscript to compat re-exports, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After seeding the extension `operator-panel` runtime-snapshot owner and switching userscript to a compat re-export, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After seeding the extension `turn-runtime` helper owner and switching userscript invalid-turn / round-guard helpers to compat wiring, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After moving MCP turn analysis ownership into `apps/extension/src/turn-runtime/mcp-turn-analysis.ts`, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` succeeded again.
 
 ## Active Stop Line
 
 - The v0.1 stop line is closed as of April 27, 2026.
-- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. The next gate is to choose and document the first post-Phase-1 extraction-focused Final Core slice without accidentally broadening into capability rollout.
+- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. The active gate is now to execute and verify the chosen Phase 2 turn-runtime extraction slice without accidentally broadening into parallel extraction or capability rollout.
 - Until explicitly migrated, the active compatibility floor includes:
   - `/health`
   - `/tools`
@@ -77,9 +83,10 @@
 
 ## Active Slice
 
-- Most recently completed slice: Phase 1 shared-contract freeze
-- Battleground used: Final Core
-- Completed implementation surfaces:
+- Active slice: Phase 2 turn-runtime extraction
+- Battleground: Final Core
+- Primary axis: extension runtime boundary extraction
+- Phase 1 completed implementation surfaces:
   - `packages/protocol/*`
   - narrow gateway route adapters
   - current userscript protocol consumers
@@ -89,20 +96,34 @@
   - `apps/extension/src/turn-runtime/*`
   - `docs/protocols/*`
   - `docs/operations/chatgpt-web-runtime-evidence.md`
-- Still explicitly not opened by completing Phase 1:
+- Phase 2 planned implementation surfaces:
+  - `apps/extension/src/turn-runtime/*`
+  - `apps/userscript/src/parser.ts`
+  - `apps/userscript/src/chatgpt-mcp-bridge.user.ts`
+  - `apps/userscript/src/detection-state.ts`
+  - `apps/userscript/src/round-guard.ts`
+  - current userscript tests covering parser / detection / duplicate guard behavior
+  - root task-control docs
+- Phase 2 progress landed so far:
+  - `apps/extension/src/turn-runtime/mcp-turn-analysis.ts` is now the long-term owner for MCP turn parsing / normalization
+  - `apps/userscript/src/parser.ts` remains only as a compat wrapper for hashed `callId` output
+  - userscript bundling now explicitly resolves `@cwmb/protocol` for extension-owned turn-runtime imports
+- Still explicitly not opened by Phase 2:
   - extension-first shell migration
   - gateway execution-kernel extraction
   - `reviewed` / `yolo` rollout
   - proposal workflow rollout
   - external/custom MCP rollout
   - broad builtin capability expansion
+  - operator-panel feature expansion unrelated to extraction
+  - broad `result-delivery` redesign as a separate battleground
 
 ## Caveats
 
 - The repo still lacks browser-driven end-to-end automation, so browser-runtime transitions will continue to need real ChatGPT Web verification.
 - The active codebase is still userscript-first today; the v0.9 architecture and protocol docs are active target truth, not evidence that the refactor already happened.
 - The unified ChatGPT Web runtime evidence doc exists now, but it is not yet a fully populated evidence pack; DOM-heavy work should refresh or add evidence there before expanding.
-- The extension target skeleton now covers page-fact ownership plus narrow request-injection, runtime-snapshot, and turn-runtime helper ownership only; this is still not blanket authorization to migrate broader browser runtime logic into `apps/extension` yet.
+- Phase 2 is intentionally larger than the Phase 1 helper seeding work, but that is only because it stays inside one extraction axis; it is not permission to open gateway redesign or broad browser feature work in the same round.
 - Later-scope capabilities remain target-state work rather than shipped behavior:
   - `reviewed` / `yolo`
   - full proposal workflow
@@ -114,10 +135,10 @@
 
 - Use `docs/v0.9-entrypoint.md` first when deciding where new v0.9 truth belongs.
 - Use `docs/prd.md` only as the closed reference baseline for the current proven runtime.
-- Do not reopen Phase 1 implicitly. Start the next round by documenting the next active slice first.
+- Do not reopen Phase 1 implicitly. Phase 2 is already chosen; start from the declared turn-runtime extraction boundary instead of re-deciding the slice.
 - If a change depends on ChatGPT Web DOM/request-shape/selectors facts, put the raw evidence in `docs/operations/chatgpt-web-runtime-evidence.md` instead of scattering it through task docs.
 - If code needs ChatGPT Web page facts, add or update them in `apps/extension/src/chatgpt-adapter/` first, then adapt current userscript consumers through compat wiring.
 - Do not add or keep adapters only to preserve draft-only field names, draft wording, or other reference-only shapes. Keep compatibility only where current live runtime behavior still depends on it.
 - Treat nested `execute` as the only active `/call-tool` execution-metadata compat surface unless a future task doc explicitly reopens that decision with live runtime evidence.
-- The next useful narrowing step is to decide whether `parser.ts`-level turn normalization itself should start moving behind an extension `turn-runtime` owner seam as the first post-Phase-1 extraction slice.
-- If a change tries to expand into extraction or capability rollout, stop and either narrow it back to this slice or first update the task-control docs with a new active slice.
+- The next useful implementation step is to move the nearby latest-open-turn detection seam out of `apps/userscript/src/chatgpt-mcp-bridge.user.ts` and behind extension-owned `turn-runtime` helpers.
+- If a change tries to expand beyond this one extraction axis, stop and either narrow it back to Phase 2 or first update the task-control docs with a new active slice.

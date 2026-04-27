@@ -134,17 +134,73 @@ Definition of done reached:
   - `apps/extension/src/turn-runtime/*` for invalid-turn state, pending-selection identity, and auto-round guard helper semantics
 - root `pnpm lint`, `pnpm test`, and `pnpm build` all pass after the completed Phase 1 slice
 
-## Stage 5: Select The Next Core Extraction Slice
+## Stage 5: Define The Phase 2 Extraction Slice
 
-Status: pending
+Status: completed
 
 - Decide the first post-Phase-1 extraction-focused slice before opening broader capability work.
 - Keep the next slice inside Final Core unless task docs are deliberately retargeted.
-- Current leading candidate: start a narrow `turn-runtime` extraction around parser-level turn normalization and duplicate-guard seams without opening mode rollout or gateway kernel extraction.
+- Decision reached: Phase 2 is a larger but still single-axis `turn-runtime` extraction package.
+- Primary battleground ring: Final Core.
+- Primary axis: extension runtime boundary extraction.
+- Phase 2 target:
+  - move parser-level turn normalization and nearby turn-runtime orchestration behind `apps/extension/src/turn-runtime/*`
+  - keep userscript as a compat shell rather than the long-term turn-runtime owner
+- Phase 2 must not expand into:
+  - gateway execution-kernel extraction
+  - `result-delivery` as a separate broad battleground
+  - operator-panel feature expansion
+  - `reviewed` / `yolo` rollout
+  - proposal or external MCP capability work
+
+## Stage 6: Execute Phase 2 Turn-Runtime Extraction
+
+Status: pending
+
+- Implement the chosen Phase 2 slice without opening a second structural axis.
+- Preserve the current proven browser-runtime floor while shifting long-term ownership away from userscript.
+- Treat this stage as a bigger same-axis package for efficiency, not as permission to mix multiple slices.
+
+Concrete work in this stage:
+
+1. Move parser-level turn analysis and normalization behind extension-owned seams:
+   - `apps/extension/src/turn-runtime/*`
+   - `apps/userscript/src/parser.ts` becomes compat wiring or a thin adapter only if still needed
+2. Tighten latest-open-turn detection and startup/history rescan ownership so the turn-runtime flow no longer lives primarily inside `apps/userscript/src/chatgpt-mcp-bridge.user.ts`.
+3. Keep duplicate guard, invalid-turn blocking, and pending-selection behavior aligned with the extension `turn-runtime` owner instead of scattering fresh logic back into userscript files.
+4. Update tests and task docs around the actual Phase 2 battleground:
+   - userscript parser / detection / round-guard tests
+   - any new extension-side turn-runtime tests needed to make the ownership shift explicit
+   - root task-control docs
+5. Avoid opening:
+   - gateway execution-kernel extraction
+   - proposal flow
+   - mode rollout
+   - panel feature expansion unrelated to extraction
+   - broad delivery-path redesign
+
+Initial likely implementation surfaces:
+
+- `apps/extension/src/turn-runtime/*`
+- `apps/userscript/src/parser.ts`
+- `apps/userscript/src/chatgpt-mcp-bridge.user.ts`
+- `apps/userscript/src/detection-state.ts`
+- `apps/userscript/src/round-guard.ts`
+- current userscript tests covering turn parsing and duplicate guard
+- root task-control docs
+
+Definition of done for this stage:
+
+- parser-level turn normalization no longer lives as long-term truth in `apps/userscript/src/parser.ts`
+- latest-open-turn detection plus startup/history rescan no longer depend on userscript owning the full turn-runtime story
+- invalid-turn blocking and duplicate guard behavior remain stable on the live runtime path
+- hidden injection, execute / insert / send behavior, and result delivery do not regress as collateral damage from the extraction
+- root `pnpm lint`, `pnpm test`, and `pnpm build` all pass after the Phase 2 slice
+- at least one real ChatGPT Web validation pass confirms the proven runtime baseline still works after the ownership shift
 
 ## Risks
 
 - The codebase still implements the proven userscript-first runtime, so the target docs are ahead of the structure.
 - Hidden request-layer injection, invalid-turn enforcement, and result delivery are still real-page behaviors; browser-only regressions cannot be dismissed by passing unit tests alone.
-- The first v0.9 slice can sprawl if boundary extraction, mode rollout, and capability expansion are mixed together.
+- Phase 2 can still sprawl if turn-runtime extraction, result-delivery extraction, and gateway redesign are mixed together.
 - The repo still lacks browser-driven end-to-end automation, so major browser-runtime transitions will continue to depend on real ChatGPT Web manual verification.

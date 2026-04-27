@@ -14,6 +14,15 @@ describe('parseMcpBlocks', () => {
     expect(result.blocks[0]?.block.args.path).toBe('README.md');
   });
 
+  it('assigns stable call ids for the same raw MCP candidate', async () => {
+    const raw = '{"tool":"read_file","args":{"path":"README.md"}}';
+    const first = await parseMcpCandidateStrings([raw]);
+    const second = await parseMcpCandidateStrings([raw]);
+
+    expect(first.blocks[0]?.callId).toBeTruthy();
+    expect(first.blocks[0]?.callId).toBe(second.blocks[0]?.callId);
+  });
+
   it('preserves block order when multiple mcp blocks appear in the same reply', async () => {
     const result = await parseMcpBlocks([
       '```mcp',
