@@ -10,5 +10,9 @@
       "@cwmb/protocol": ["../../packages/protocol/dist/index.d.ts"]
     }
   },
-  "include": ["src/**/*.ts", "../extension/src/chatgpt-adapter/chatgpt-runtime-facts.ts"]
+  "include": [
+    "src/**/*.ts",
+    "../extension/src/chatgpt-adapter/chatgpt-runtime-facts.ts",
+    "../extension/src/result-delivery/**/*.ts"
+  ]
 }

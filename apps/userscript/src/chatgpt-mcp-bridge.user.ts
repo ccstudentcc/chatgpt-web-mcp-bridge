@@ -14,8 +14,9 @@ import { createBatchId, executeBatch } from './batch.js';
 import { callTool, health, listCatalog } from './gateway-client.js';
 import { extractVisibleText, findLatestOpenAssistantMessage, findLatestUserMessage, onChatMutation } from './dom.js';
 import { sha256Normalized } from './hash.js';
-import { formatBatchToolResult, formatToolResult, insertIntoChatInput, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
+import { insertIntoChatInput, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
 import { describeRequestHookStatus } from './request-injection-state.js';
+import { deliverResult, formatBatchToolResult, formatToolResult, type DeliveryPhase } from './result-delivery.js';
 import { canAutoRunForRequest, recordAutoRunForRequest, syncAutoRoundRequest } from './round-guard.js';
 import { installPageRequestHook, syncRequestPrompt, type RequestHookStatus } from './request-hook.js';
 import {
@@ -85,6 +86,8 @@ async function refreshGatewayStatus(): Promise<void> {
   renderPanel();
   void maybeAutoRunPending();
 }
+
+type ReadyDeliveryStatus = Extract<BridgeStatus, 'failed' | 'result_ready' | 'batch_result_ready' | 'batch_stopped_on_failure'>;
 
 async function scanLatestAssistantMessage(): Promise<void> {
   if (state.status === 'executing' || state.status === 'batch_executing') return;
@@ -201,7 +204,7 @@ async function runPending(): Promise<void> {
     state.retryableBatch = undefined;
     state.lastResult = formatToolResult(pending.block.tool, resultEnvelope);
     addLogEntry('success', `Tool completed: ${pending.block.tool}${executeCompat ? ` [${executeCompat.executionId}]` : ''}`);
-    state.status = await deliverLastResult('single', 'result_ready', 'inserted', 'sent');
+    state.status = await deliverLastResult('result_ready');
   } catch (err) {
     const errorCode = err && typeof err === 'object' && 'code' in err ? String((err as { code: unknown }).code) : '';
     const executeCompat = getExecuteResponseCompat(err);
@@ -222,7 +225,7 @@ async function runPending(): Promise<void> {
         state.executedCallIds.add(consumedPending.executedCallId);
       }
       applyPendingSelectionUpdate(consumedPending);
-      state.status = await deliverLastResult('single', 'failed', 'inserted', 'sent');
+      state.status = await deliverLastResult('failed');
     }
   }
   renderPanel();
@@ -289,17 +292,17 @@ async function runStoredBatch(batch: StoredBatch): Promise<void> {
     };
     state.lastError = buildBatchFailureMessage(response.items, true);
     addLogEntry('warn', `Batch stopped after a failure in ${response.items.find((item): item is BatchResultFailureItem => 'ok' in item && item.ok === false)?.tool ?? 'unknown'}.`);
-    state.status = await deliverLastResult('batch', 'batch_stopped_on_failure', 'batch_inserted', 'batch_sent');
+    state.status = await deliverLastResult('batch_stopped_on_failure');
   } else if (!response.ok) {
     state.retryableBatch = undefined;
     state.lastError = buildBatchFailureMessage(response.items, false);
     addLogEntry('warn', `Batch completed with ${response.summary.failed} failed tool call(s).`);
-    state.status = await deliverLastResult('batch', 'batch_result_ready', 'batch_inserted', 'batch_sent');
+    state.status = await deliverLastResult('batch_result_ready');
   } else {
     state.retryableBatch = undefined;
     state.lastError = undefined;
     addLogEntry('success', `Batch completed: ${response.summary.completed} tool call(s).`);
-    state.status = await deliverLastResult('batch', 'batch_result_ready', 'batch_inserted', 'batch_sent');
+    state.status = await deliverLastResult('batch_result_ready');
   }
   renderPanel();
 }
@@ -366,27 +369,7 @@ function buildBatchFailureMessage(items: BatchResultItem[], stoppedOnFailure: bo
 
 async function insertLastResult(): Promise<void> {
   if (!state.lastResult) return;
-  const inserted = insertIntoChatInput(state.lastResult);
-  if (inserted) {
-    addLogEntry('success', 'Inserted result into ChatGPT composer.');
-    if (state.autoSendResult) {
-      if (await sendCurrentChatInput()) {
-        addLogEntry('success', 'Sent result back to ChatGPT.');
-        state.status = state.status === 'batch_result_ready' || state.status === 'batch_stopped_on_failure' ? 'batch_sent' : 'sent';
-      } else {
-        state.lastError = state.status === 'batch_result_ready' || state.status === 'batch_stopped_on_failure'
-          ? 'Batch result inserted, but the send button was not found.'
-          : 'Tool result inserted, but the send button was not found.';
-        addLogEntry('warn', state.lastError);
-        state.status = state.status === 'batch_result_ready' || state.status === 'batch_stopped_on_failure' ? 'batch_inserted' : 'inserted';
-      }
-    } else {
-      state.status = state.status === 'batch_result_ready' || state.status === 'batch_stopped_on_failure' ? 'batch_inserted' : 'inserted';
-    }
-  } else {
-    state.lastError = 'Chat input not found. Result copied to clipboard fallback.';
-    addLogEntry('warn', 'Could not find chat input. Result copied to clipboard fallback.');
-  }
+  state.status = await performLastResultDelivery(getReadyDeliveryStatus(state.status));
   renderPanel();
 }
 
@@ -457,55 +440,13 @@ async function maybeAutoRunPending(): Promise<void> {
 }
 
 async function deliverLastResult(
-  kind: 'single' | 'batch',
-  readyStatus: BridgeStatus,
-  insertedStatus: BridgeStatus,
-  sentStatus: BridgeStatus
+  readyStatus: ReadyDeliveryStatus
 ): Promise<BridgeStatus> {
   if (!state.autoInsertResult || !state.lastResult) {
     return readyStatus;
   }
 
-  const inserted = insertIntoChatInput(state.lastResult);
-  if (!inserted) {
-    if (!state.lastError) {
-      state.lastError = 'Chat input not found. Copied the result to clipboard instead.';
-    }
-    addLogEntry('warn', 'Could not find chat input. Result copied to clipboard fallback.');
-    return readyStatus;
-  }
-
-  addLogEntry('success', kind === 'batch'
-    ? 'Inserted batch result into ChatGPT composer.'
-    : 'Inserted result into ChatGPT composer.');
-
-  if (!state.autoSendResult) {
-    return insertedStatus;
-  }
-
-  const expectedComposerText = state.lastResult;
-  const sent = await sendCurrentChatInput();
-  const confirmed = sent ? await waitForSubmittedComposer(expectedComposerText) : false;
-  if (!sent && !state.lastError) {
-    state.lastError = kind === 'batch'
-      ? 'Batch result inserted, but the send button was not found.'
-      : 'Tool result inserted, but the send button was not found.';
-  }
-  if (sent && confirmed) {
-    addLogEntry('success', kind === 'batch'
-      ? 'Sent batch result back to ChatGPT.'
-      : 'Sent result back to ChatGPT.');
-  } else {
-    if (sent && !confirmed && !state.lastError) {
-      state.lastError = kind === 'batch'
-        ? 'Batch result was inserted and the send button was clicked, but ChatGPT did not submit the composer.'
-        : 'Tool result was inserted and the send button was clicked, but ChatGPT did not submit the composer.';
-    }
-    addLogEntry('warn', state.lastError ?? (kind === 'batch'
-      ? 'Batch result inserted, but the send button was not found.'
-      : 'Tool result inserted, but the send button was not found.'));
-  }
-  return sent && confirmed ? sentStatus : insertedStatus;
+  return performLastResultDelivery(readyStatus);
 }
 
 async function refreshToolCatalog(): Promise<void> {
@@ -577,28 +518,57 @@ function installRequestHookDiagnostics(): void {
   });
 }
 
-async function waitForSubmittedComposer(expectedText: string): Promise<boolean> {
-  const deadline = Date.now() + 3_000;
-  const expected = normalizeForSubmissionCheck(expectedText);
-  while (Date.now() < deadline) {
-    const current = normalizeForSubmissionCheck(readCurrentChatInputText());
-    if (!current) {
-      return true;
-    }
-    if (current !== expected) {
-      return true;
-    }
-    await wait(100);
-  }
-  return false;
-}
-
-function normalizeForSubmissionCheck(value: string): string {
-  return value.replace(/\u00a0/g, ' ').trim();
-}
-
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function performLastResultDelivery(readyStatus: ReadyDeliveryStatus): Promise<BridgeStatus> {
+  const lastResult = state.lastResult;
+  if (!lastResult) {
+    return readyStatus;
+  }
+
+  const outcome = await deliverResult({
+    kind: isBatchReadyDeliveryStatus(readyStatus) ? 'batch' : 'single',
+    payload: lastResult,
+    autoSend: state.autoSendResult,
+    existingError: state.lastError,
+    insert: insertIntoChatInput,
+    send: sendCurrentChatInput,
+    readCurrentInput: readCurrentChatInputText,
+    wait
+  });
+
+  state.lastError = outcome.nextError;
+  for (const event of outcome.events) {
+    addLogEntry(event.level, event.message);
+  }
+
+  return resolveDeliveredBridgeStatus(readyStatus, outcome.phase);
+}
+
+function getReadyDeliveryStatus(status: BridgeStatus): ReadyDeliveryStatus {
+  if (status === 'result_ready' || status === 'batch_result_ready' || status === 'batch_stopped_on_failure' || status === 'failed') {
+    return status;
+  }
+
+  return state.retryableBatch ? 'batch_result_ready' : 'result_ready';
+}
+
+function isBatchReadyDeliveryStatus(status: ReadyDeliveryStatus): boolean {
+  return status === 'batch_result_ready' || status === 'batch_stopped_on_failure';
+}
+
+function resolveDeliveredBridgeStatus(readyStatus: ReadyDeliveryStatus, phase: DeliveryPhase): BridgeStatus {
+  if (phase === 'ready') {
+    return readyStatus;
+  }
+
+  if (phase === 'sent') {
+    return isBatchReadyDeliveryStatus(readyStatus) ? 'batch_sent' : 'sent';
+  }
+
+  return isBatchReadyDeliveryStatus(readyStatus) ? 'batch_inserted' : 'inserted';
 }
 
 function startBridge(): void {

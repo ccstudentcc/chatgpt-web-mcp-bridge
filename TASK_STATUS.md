@@ -59,6 +59,9 @@
 - Userscript single-result insertion now formats shared `inline_tool_result` / `execution_error` envelopes instead of serializing raw legacy single-call payloads directly.
 - Userscript batch execution now returns the shared batch envelope shape instead of a local duplicate interface, and batch result formatting consumes the shared envelope directly.
 - App-local `lint`, `test`, and `build` scripts for `apps/userscript` and `apps/gateway` now rebuild required workspace package outputs first, so new `@cwmb/protocol` / `@cwmb/shared` exports do not depend on manual build ordering.
+- The first Stage 8 `result-delivery` owner is now in code: `apps/extension/src/result-delivery/result-formatting.ts` owns bridge-visible single-result and batch-result payload formatting, while `apps/userscript/src/inserter.ts` keeps only the DOM-specific composer shell plus thin compat re-exports.
+- Composer delivery timing now also has one extension-owned owner path at `apps/extension/src/result-delivery/composer-delivery.ts`, so manual insert and auto-insert now share the same insertion, send-confirmation, and clipboard-fallback semantics instead of drifting inside `apps/userscript/src/chatgpt-mcp-bridge.user.ts`.
+- Delivery failure handling on the live compat path now keeps execution meaning separate from delivery warnings: send-button and submission failures are logged explicitly, but a pre-existing batch or tool failure summary is not overwritten just because bridge delivery could not finish cleanly.
 
 ## Verified Reference Baseline
 
@@ -96,6 +99,7 @@
 - After normalizing assistant scan candidates back to the outer assistant turn container when present, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After promoting visible rendered `mcp` text to a first-class turn-analysis source and adding a regression for prose-wrapped rendered replies with DOM-format drift, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After moving request-identity plus latest-assistant scan orchestration into `apps/extension/src/turn-runtime/turn-runtime-poll.ts` and adding direct owner-level regression coverage, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After seeding `apps/extension/src/result-delivery/*`, unifying manual and automatic result delivery on the same owner semantics, and adding direct owner-level delivery tests, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 
 ## Active Stop Line
 
@@ -166,8 +170,10 @@
   - `apps/extension/src/turn-runtime/turn-source.ts` is now the long-term owner for latest assistant/user turn-source lookup orchestration, request-identity fallback, and latest-open-turn source assembly ahead of the shared scan pipeline
   - `apps/extension/src/turn-runtime/pending-runtime-effects.ts` is now the long-term owner for pending selection clear/consume/ignore mutations across detection reset, single-tool execution, batch completion, and ignore flows
   - `apps/extension/src/turn-runtime/turn-runtime-poll.ts` is now the long-term owner for current-request identity resolution plus latest-assistant turn scan orchestration on the live startup/history rescan path
+  - `apps/extension/src/result-delivery/result-formatting.ts` is now the long-term owner for bridge-visible single-result and batch-result payload formatting
+  - `apps/extension/src/result-delivery/composer-delivery.ts` is now the long-term owner for insertion outcome, auto-send confirmation timing, and clipboard-fallback semantics shared by single-result and batch-result delivery
   - `apps/userscript/src/parser.ts` remains only as a compat wrapper for hashed `callId` output
-  - `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now delegates request identity resolution, latest turn-source orchestration, pending-turn classification, live turn analysis, message-identity tracking, pending-selection mutations, scan-state decisions, and scan-result runtime effects instead of owning the full detection algorithm
+  - `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now delegates request identity resolution, latest turn-source orchestration, pending-turn classification, live turn analysis, message-identity tracking, pending-selection mutations, scan-state decisions, scan-result runtime effects, and result-delivery timing semantics instead of owning those pure decision paths locally
   - userscript bundling now explicitly resolves `@cwmb/protocol` for extension-owned turn-runtime imports
 - The Stage 7 `turn-runtime` module stage is now closed. Userscript files touched there remain reference or temporary bridge surfaces, not target-state ownership destinations by themselves.
 - Still explicitly not opened while `result-delivery` is the active module stage:
@@ -206,6 +212,6 @@
 - Do not add or keep adapters only to preserve draft-only field names, draft wording, or other reference-only shapes. Keep compatibility only where current live runtime behavior still depends on it.
 - Treat nested `execute` as the only active `/call-tool` execution-metadata compat surface unless a future task doc explicitly reopens that decision with live runtime evidence.
 - The next required live verification is to exercise insert-only, insert-plus-send, and insertion-failure recovery on the real ChatGPT page before claiming the `result-delivery` stage complete.
-- The next useful implementation step is to start moving result formatting, composer insertion, and auto-send timing toward `apps/extension/src/result-delivery/*` without reopening turn-runtime or gateway modules as new primary stages.
+- The next useful implementation step is to keep shrinking `apps/userscript/src/chatgpt-mcp-bridge.user.ts` and adjacent delivery helpers around the new `apps/extension/src/result-delivery/*` owner, especially copy/retry fallback and panel-facing delivery-state wiring, without reopening turn-runtime or gateway modules as new primary stages.
 - Use the expanded `IMPLEMENTATION_PLAN.md` stage contract as the execution source of truth for module boundaries, allowed supporting surfaces, validation, and stage exit conditions; do not re-invent those rules ad hoc in code review.
 - If a change tries to activate a second Phase 2 module at the same time, stop and either narrow it back to the active module stage or first update the task-control docs to resequence the program.
