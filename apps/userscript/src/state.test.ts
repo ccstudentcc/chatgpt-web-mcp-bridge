@@ -289,6 +289,37 @@ describe('state runtime snapshot helpers', () => {
     expect(setValue).not.toHaveBeenCalledWith('cwmb_undelivered_result_session', '');
   });
 
+  it('clears an undelivered result snapshot after hydration reveals a different non-empty draft', async () => {
+    const setValue = vi.fn();
+    vi.stubGlobal('GM_getValue', vi.fn((key: string, defaultValue = '') => {
+      if (key === 'cwmb_undelivered_result_session') {
+        return JSON.stringify({
+          conversationPath: '/c/test-thread',
+          status: 'inserted',
+          lastResult: 'tool-result',
+          composerSnapshot: 'tool-result',
+          executedCallIds: ['call-1'],
+          executedBatchIds: []
+        });
+      }
+      return defaultValue;
+    }));
+    vi.stubGlobal('GM_setValue', setValue);
+
+    const {
+      restorePersistedUndeliveredResultSession
+    } = await import('./state.js');
+
+    const restored = restorePersistedUndeliveredResultSession({
+      conversationPath: '/c/test-thread',
+      currentComposerText: 'user kept draft',
+      clearOnMismatch: true
+    });
+
+    expect(restored).toBe(false);
+    expect(setValue).toHaveBeenCalledWith('cwmb_undelivered_result_session', '');
+  });
+
   it('reports that a persisted undelivered result session still exists for the same conversation', async () => {
     vi.stubGlobal('GM_getValue', vi.fn((key: string, defaultValue = '') => {
       if (key === 'cwmb_undelivered_result_session') {

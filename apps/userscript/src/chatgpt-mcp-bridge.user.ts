@@ -668,7 +668,7 @@ async function restoreUndeliveredResultSessionOnStartup(): Promise<boolean> {
   return restorePersistedUndeliveredResultSession({
     conversationPath: window.location.pathname,
     currentComposerText: latestComposerText,
-    clearOnMismatch: normalizeStartupComposerText(latestComposerText).length === 0
+    clearOnMismatch: normalizeStartupComposerText(latestComposerText).length > 0
   });
 }
 
