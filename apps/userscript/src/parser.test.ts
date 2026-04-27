@@ -137,6 +137,24 @@ describe('analyzeMcpTurn', () => {
     expect(result.violationReason).toContain('after MCP tool-call blocks');
   });
 
+  it('recovers when a valid MCP block is followed only by a ChatGPT thinking label', async () => {
+    const codeText = 'mcp\n{\n  "tool": "read_file",\n  "args": {\n    "path": "docs/prd_vnext.md"\n  }\n}';
+    const visibleText = [
+      codeText,
+      '',
+      'Thought for a couple of seconds'
+    ].join('\n');
+    const fakeContainer = {
+      querySelectorAll: () => [{ textContent: codeText }]
+    } as unknown as ParentNode;
+
+    const result = await analyzeMcpTurn(fakeContainer, visibleText);
+    expect(result.status).toBe('recoverable');
+    expect(result.warningReason).toContain('thinking/status label');
+    expect(result.blocks).toHaveLength(1);
+    expect(result.blocks[0]?.block.args.path).toBe('docs/prd_vnext.md');
+  });
+
   it('rejects prose between two fenced MCP blocks', async () => {
     const visibleText = [
       '```mcp',

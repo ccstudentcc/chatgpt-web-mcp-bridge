@@ -17,7 +17,9 @@
 - The rendered-code parser now tolerates ChatGPT code blocks whose visible text includes the `mcp` label or extra wrapper text before the JSON body, reducing regressions where a visible `mcp` block stayed undetected.
 - The userscript now scans the current page once at startup, so an MCP block that is already rendered before the observer attaches still becomes runnable without waiting for a later DOM mutation.
 - Startup and history rescans now only consider the latest assistant turn that is still open; once a later bridge `tool_result` / `tool_result_batch` has been inserted, the older MCP turn is treated as closed and will not re-run on refresh or `.mhtml` replay.
+- Refresh/startup scanning now also skips trailing empty assistant shells and thinking-only placeholder turns, so a page reload can still rediscover the latest substantive MCP turn instead of stopping on an empty final assistant node.
 - MCP-turn validation now allows a natural-language prefix before the first fenced `mcp` block, while still rejecting prose or other non-block content between MCP blocks or after the first MCP block has appeared.
+- The parser now has one additional narrow recovery path for real ChatGPT UI chrome: if a valid MCP turn is followed only by a short thinking/status label such as `Thought for a couple of seconds`, the userscript ignores that residual, logs a warning, and still executes the valid MCP block instead of blocking the turn.
 - Single-tool deduplication is now scoped to the current assistant message identity instead of only the raw JSON body, so the same MCP request can appear again in a new conversation without being suppressed as already executed.
 - Result insertion now prefers the visible `#prompt-textarea` / contenteditable composer over hidden fallback textareas and waits briefly for the real send button state before declaring auto-send failure.
 - `tool_result` and `tool_result_batch` insertion now chooses an outer fence long enough to survive embedded triple-backtick content from files such as prompt templates, preventing composer/render corruption that previously broke auto-send.
@@ -55,6 +57,8 @@
 - Automatic result delivery now logs insert/send success and send-button misses explicitly, and waits longer for the real send button to enable before downgrading to "inserted but not sent".
 - Auto-send now requires post-click confirmation from the composer state before reporting `sent`; clicking the button alone no longer counts as a successful submission.
 - Assistant reply scanning now anchors on the latest open assistant turn instead of walking back through historical assistant replies, which prevents already-closed MCP history from being rediscovered after refreshes or archive playback.
+- Re-scanning the same still-pending assistant MCP turn now keeps the existing pending state instead of clearing and re-detecting it, so `Run` / `Run all` no longer flicker away during repeated scans.
+- Invalid MCP-turn blocking now waits for the same malformed reply snapshot to stay stable through the grace window; streaming assistant replies that are still changing no longer get warned as final invalid turns too early.
 - `search_files` now preserves its case-insensitive path-substring semantics while using `rg` for candidate prefilter when available and falling back to the Node walker if `rg` is missing or fails.
 - `read_file` now blocks only high-confidence secret material and otherwise returns redacted content for lower-confidence assignment-style patterns such as `token = ...` or `api_key = ...`, avoiding full-file rejection during code review.
 - `grep_files` now follows the same two-tier sensitive-content policy as `read_file`: high-confidence secrets block the response, while lower-confidence assignment-style patterns are redacted inline.
@@ -115,6 +119,8 @@
 - `pnpm --filter @cwmb/userscript build` succeeded again after the latest hidden-contract wording update.
 - `pnpm --filter @cwmb/protocol build` succeeded again before validating the userscript runtime enforcement follow-up.
 - `pnpm --filter @cwmb/userscript test` now succeeds with 9 passing files and 42 passing tests after adding strict MCP-turn validation coverage for pure turns versus mixed prose-plus-JSON replies.
+- `pnpm --filter @cwmb/userscript test` now also covers the real-page residual-thinking case from `tmp/完善prd_vnext.md文档.mhtml`, ensuring a trailing ChatGPT thinking/status label no longer blocks an otherwise valid MCP turn.
+- `pnpm --filter @cwmb/userscript test` now also covers refresh-style fallback selection where the last assistant node is empty or thinking-only, ensuring startup rescan still returns the preceding real MCP turn.
 - `pnpm --filter @cwmb/userscript lint` succeeded again after adding the invalid-turn state and workspace boundary prompt wording.
 - `pnpm --filter @cwmb/userscript build` succeeded again after the invalid-turn runtime enforcement and `/mnt/data` boundary prompt update.
 - `pnpm --filter @cwmb/userscript test` now succeeds with 10 passing files and 45 passing tests after adding log-scroll preservation coverage.

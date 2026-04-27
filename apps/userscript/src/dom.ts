@@ -16,12 +16,16 @@ export function findAssistantMessages(): HTMLElement[] {
 
 export function findLatestOpenAssistantMessage(): HTMLElement | null {
   const candidates = findAssistantMessages();
-  const latest = candidates[candidates.length - 1] ?? null;
-  if (!latest) {
-    return null;
+  for (let index = candidates.length - 1; index >= 0; index -= 1) {
+    const candidate = candidates[index];
+    if (!candidate || hasLaterBridgeResult(candidate) || isIgnorableAssistantPlaceholder(candidate)) {
+      continue;
+    }
+
+    return candidate;
   }
 
-  return hasLaterBridgeResult(latest) ? null : latest;
+  return null;
 }
 
 export function findLatestAssistantMessage(): HTMLElement | null {
@@ -97,16 +101,60 @@ function isDocumentFollowing(reference: HTMLElement, candidate: HTMLElement): bo
 
 function fallbackFindCodeContainers(): HTMLElement[] {
   const codeBlocks = Array.from(document.querySelectorAll(chatgptSelectors.codeBlock)) as HTMLElement[];
-  return codeBlocks
-    .slice(-8)
-    .map((node) => {
-      const pre = node.closest('pre') as HTMLElement | null;
-      const assistantTurn = node.closest('[data-turn="assistant"], [data-message-author-role="assistant"]') as HTMLElement | null;
-      return pre ?? assistantTurn;
-    })
+  const recentCandidates = codeBlocks.slice(-12);
+  const seen = new Set<HTMLElement>();
+
+  return recentCandidates
+    .map((node) => normalizeFallbackCodeContainer(node))
     .filter((node): node is HTMLElement => Boolean(node))
     .filter((node) => {
-      const text = node.innerText || node.textContent || '';
-      return /(^|\n)\s*mcp\s*\n[\s\S]*"tool"[\s\S]*"args"/i.test(text);
-    });
+      if (seen.has(node)) {
+        return false;
+      }
+      seen.add(node);
+      return true;
+    })
+    .filter((node) => looksLikeExplicitMcpRenderedBlock(extractVisibleText(node)));
+}
+
+function normalizeFallbackCodeContainer(node: HTMLElement): HTMLElement | null {
+  const assistantTurn = node.closest('[data-turn="assistant"], [data-message-author-role="assistant"]') as HTMLElement | null;
+  if (assistantTurn) {
+    return assistantTurn;
+  }
+
+  const pre = node.closest('pre') as HTMLElement | null;
+  return pre ?? node;
+}
+
+function looksLikeExplicitMcpRenderedBlock(text: string): boolean {
+  const trimmed = text.replace(/\u00a0/g, ' ').trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  if (/^```mcp\b/i.test(trimmed)) {
+    return true;
+  }
+
+  const firstBrace = trimmed.indexOf('{');
+  if (firstBrace === -1) {
+    return false;
+  }
+
+  const prelude = trimmed.slice(0, firstBrace).trim().toLowerCase();
+  return /^mcp\b/.test(prelude) && trimmed.includes('"tool"') && trimmed.includes('"args"');
+}
+
+function isIgnorableAssistantPlaceholder(node: HTMLElement): boolean {
+  const text = extractVisibleText(node).replace(/\u00a0/g, ' ').trim();
+  if (!text) {
+    return true;
+  }
+
+  return /^thought for .+$/i.test(text)
+    || /^reasoned for .+$/i.test(text)
+    || /^思考了.+$/u.test(text)
+    || /^已思考.+$/u.test(text)
+    || /^思考中$/u.test(text);
 }

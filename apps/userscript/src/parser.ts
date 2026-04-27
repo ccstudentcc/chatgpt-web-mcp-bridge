@@ -39,6 +39,13 @@ const renderedBlockSelector = [
   '[class*="CodeBlock"]',
   '[class*="whitespace-pre"]'
 ].join(', ');
+const ignorableUiResidualPatterns = [
+  /^thought for .+$/i,
+  /^reasoned for .+$/i,
+  /^思考了.+$/u,
+  /^已思考.+$/u,
+  /^思考中$/u
+];
 
 export async function parseMcpBlocks(text: string): Promise<ParseResult> {
   return parseMcpCandidateStrings(extractFencedBlockBodies(text));
@@ -336,6 +343,14 @@ function finalizeTurnAnalysis(parsed: ParseResult, residual: TurnResidualSegment
       };
     }
 
+    if (hasExplicitMcpBlock && isIgnorableUiResidual(trailingResidual)) {
+      return {
+        ...parsed,
+        status: 'recoverable',
+        warningReason: 'Assistant reply included a ChatGPT thinking/status label after valid MCP blocks. Ignoring the UI residual and using only the valid MCP block(s).'
+      };
+    }
+
     return {
       ...parsed,
       status: 'invalid',
@@ -377,6 +392,20 @@ function looksLikeMcpLikeResidual(text: string): boolean {
   return /^(```\s*)?mcp\b/i.test(trimmed)
     || trimmed.startsWith('{')
     || trimmed.startsWith('[');
+}
+
+function isIgnorableUiResidual(text: string): boolean {
+  const normalizedLines = text
+    .replace(/\u00a0/g, ' ')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  if (normalizedLines.length === 0) {
+    return false;
+  }
+
+  return normalizedLines.every((line) => ignorableUiResidualPatterns.some((pattern) => pattern.test(line)));
 }
 
 function parseLooseMcpResidual(text: string): { ok: boolean } {

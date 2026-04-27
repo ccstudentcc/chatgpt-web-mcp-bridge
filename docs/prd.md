@@ -167,11 +167,14 @@ userscript 基于 `/tools` 动态生成一份 live catalog prompt，并在 ChatG
 - 对路径和目标工具都已明确的简单本地文件请求，注入 prompt 还应鼓励模型直接发出对应的 `mcp` block，而不是先声明自己是否能访问工作区、是否执行了 MCP，或反问用户是否继续。
 - 对这类简单请求，注入 prompt 还应给出一条精确的 fenced `mcp` 回复形状，并明确禁止模型在收到真实 `tool_result` 之前擅自宣称“调用失败”“未执行”“已看到结果”或“不可用”。
 - assistant 发出 `mcp` block 后必须立刻停止，等待 userscript 回填真实 `tool_result` / `tool_result_batch`；不得自行伪造、复述或脑补这些结果内容。
-- assistant 在发起 `mcp` 工具调用前，可以先给出必要的自然语言上下文；但一旦首个 fenced `mcp` block 已经出现，后续内容就不得再夹带自然语言、分析、阶段性结论，或任何“边想边说”的中途思考文本。
+- assistant 在发起 `mcp` 工具调用前，可以先给出必要的自然语言上下文；但一旦首个 fenced `mcp` block 已经出现，后续内容就不得再夹带自然语言、分析、阶段性结论，或任何“边想边说”的中途思考文本。仅当真实 ChatGPT 页面额外渲染出短的 thinking/status 标签、且该标签不属于模型正文时，userscript 才可在日志记 warning 后忽略它。
 - userscript 对 rendered code block 的自动检测只应接受明确标记为 `mcp` 的代码块；普通 JSON / TypeScript / 示例代码块即使碰巧含有 `tool` / `args` 结构，也不得被当成 MCP 调用。
 - 如果 assistant 仍然产出混合回复，userscript 执行层必须把该回合判为非法 `mcp` turn：不自动执行、不进入 pending 队列，并在面板中明确显示格式违规原因。
+- 非法 `mcp` turn 的判定应在当前 assistant 回复内容稳定后再落锤；对仍在流式增长中的半成品 `mcp` / JSON 片段，不应过早显示最终格式违规告警。
 - userscript 在页面启动或重新扫描历史时，只允许把“最新且尚未被后续 bridge `tool_result` / `tool_result_batch` 回填闭合”的 assistant turn 当作候选 MCP 回合；旧的历史 `mcp` turn 一旦后面已经出现 bridge 回填结果，就不得再次触发执行。
+- 如果最新 assistant turn 只是空壳占位或仅包含 ChatGPT 页面自己的短 thinking/status 占位，而不含真实模型正文或 MCP 内容，启动扫描应继续回看上一条实质 assistant turn，而不是把这类占位节点误当成最新候选回合。
 - 为兼顾鲁棒性，如果回复里已经包含合法的 fenced / rendered `mcp` block，而额外残留只有另一段 unfenced MCP 风格 JSON 噪声、没有自然语言，则 userscript 可忽略那段噪声、继续执行合法 block，并在日志中记 warning。
+- 同样地，如果合法 `mcp` block 后只残留 ChatGPT 页面自己的短 thinking/status 标签，而没有模型正文 prose，userscript 也可忽略该标签并继续执行，但必须记录 warning，且不得把这条豁免扩大成对任意自然语言尾巴的容忍。
 - 为减少格式漂移和元话术自说自话，隐藏注入 prompt 应优先压缩成高信噪比的短分节结构，例如 `Context`、`Use`、`Before any tool_result arrives`、`Output format requirement`；最关键的格式要求应放在 prompt 末尾。
 - 面板活动日志应能区分三类信号：会话请求已注入、会话请求早于 prompt 就到达、以及会话请求命中但 body shape 未被改写，方便排查“为什么模型没看到 catalog”。
 - 默认自动注入应使用最短可工作的 bootstrap prompt；完整 catalog 仅保留给 `Insert MCP list` / `Copy MCP list` 诊断路径。

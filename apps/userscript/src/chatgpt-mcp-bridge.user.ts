@@ -6,6 +6,7 @@ import type { BatchFailureItem, BatchResultItem } from './batch.js';
 import { createBatchId, executeBatch } from './batch.js';
 import { callTool, health, listTools } from './gateway-client.js';
 import { extractVisibleText, findLatestOpenAssistantMessage, findLatestUserMessage, onChatMutation } from './dom.js';
+import { isSamePendingSelection, updatePendingInvalidTurn, type PendingInvalidTurnState } from './detection-state.js';
 import { sha256Normalized } from './hash.js';
 import { formatBatchToolResult, formatToolResult, insertIntoChatInput, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
 import { analyzeMcpTurn } from './parser.js';
@@ -32,7 +33,7 @@ void warmRequestPromptFromGateway();
 
 let lastRequestHookStatusKey = '';
 let nextEphemeralMessageId = 1;
-let pendingInvalidTurn: { messageId: string; reason: string; firstSeenAt: number } | null = null;
+let pendingInvalidTurn: PendingInvalidTurnState | null = null;
 const ephemeralMessageIds = new WeakMap<HTMLElement, string>();
 const INVALID_TURN_GRACE_MS = 2_000;
 
@@ -85,7 +86,12 @@ async function scanLatestAssistantMessage(): Promise<void> {
     return;
   }
 
-  if (!('invalidReason' in detection)) {
+  if (detection.status === 'unchanged') {
+    pendingInvalidTurn = null;
+    return;
+  }
+
+  if (detection.status === 'pending') {
     const { next, messageId, batchId } = detection;
     pendingInvalidTurn = null;
     if ('warningReason' in detection) {
@@ -108,16 +114,13 @@ async function scanLatestAssistantMessage(): Promise<void> {
   }
 
   const now = Date.now();
-  if (!pendingInvalidTurn || pendingInvalidTurn.messageId !== detection.messageId || pendingInvalidTurn.reason !== detection.invalidReason) {
-    pendingInvalidTurn = {
-      messageId: detection.messageId,
-      reason: detection.invalidReason,
-      firstSeenAt: now
-    };
-    return;
-  }
-
-  if (now - pendingInvalidTurn.firstSeenAt < INVALID_TURN_GRACE_MS) {
+  const invalidTurnState = updatePendingInvalidTurn(pendingInvalidTurn, {
+    messageId: detection.messageId,
+    reason: detection.invalidReason,
+    fingerprint: detection.fingerprint
+  }, now, INVALID_TURN_GRACE_MS);
+  pendingInvalidTurn = invalidTurnState.next;
+  if (!invalidTurnState.shouldBlock) {
     return;
   }
 
@@ -340,12 +343,6 @@ function getMessageIdentity(message: HTMLElement, messageText: string): string {
     ephemeralMessageIds.set(message, ephemeralId);
   }
   return ephemeralId;
-}
-
-function isSamePending(next: typeof state.pending, batchId?: string): boolean {
-  if (next.length !== state.pending.length) return false;
-  if (batchId !== state.pendingBatchId) return false;
-  return next.every((item, index) => item.callId === state.pending[index]?.callId);
 }
 
 function applyBatchExecutionMarkers(items: BatchResultItem[], batchId: string): void {
@@ -582,25 +579,33 @@ function installRequestHookDiagnostics(): void {
 }
 
 async function detectPendingBlocksFromMessage(message: HTMLElement): Promise<{
+  status: 'pending';
   next: typeof state.pending;
   messageId: string;
   batchId?: string;
 } | {
+  status: 'invalid';
   messageId: string;
   invalidReason: string;
+  fingerprint: string;
 } | {
+  status: 'pending';
   next: typeof state.pending;
   messageId: string;
   batchId?: string;
   warningReason: string;
+} | {
+  status: 'unchanged';
 } | null> {
   const messageText = extractVisibleText(message);
   const messageId = getMessageIdentity(message, messageText);
   const analysis = await analyzeMcpTurn(message, messageText);
   if (analysis.status === 'invalid') {
     return {
+      status: 'invalid',
       messageId,
-      invalidReason: analysis.violationReason ?? 'Assistant reply contained an invalid MCP tool-call turn.'
+      invalidReason: analysis.violationReason ?? 'Assistant reply contained an invalid MCP tool-call turn.',
+      fingerprint: normalizeDetectionFingerprint(messageText)
     };
   }
 
@@ -617,13 +622,15 @@ async function detectPendingBlocksFromMessage(message: HTMLElement): Promise<{
   if (batchId && state.executedBatchIds.has(batchId)) {
     return null;
   }
-  if (isSamePending(next, batchId)) {
-    return null;
+  if (isSamePendingSelection(state.pending, state.pendingBatchId, next, batchId)) {
+    return {
+      status: 'unchanged'
+    };
   }
 
   return analysis.status === 'recoverable'
-    ? { next, messageId, batchId, warningReason: analysis.warningReason ?? 'Recovered a valid MCP block from a mixed reply.' }
-    : { next, messageId, batchId };
+    ? { status: 'pending', next, messageId, batchId, warningReason: analysis.warningReason ?? 'Recovered a valid MCP block from a mixed reply.' }
+    : { status: 'pending', next, messageId, batchId };
 }
 
 async function waitForSubmittedComposer(expectedText: string): Promise<boolean> {
@@ -643,6 +650,10 @@ async function waitForSubmittedComposer(expectedText: string): Promise<boolean> 
 }
 
 function normalizeForSubmissionCheck(value: string): string {
+  return value.replace(/\u00a0/g, ' ').trim();
+}
+
+function normalizeDetectionFingerprint(value: string): string {
   return value.replace(/\u00a0/g, ' ').trim();
 }
 
