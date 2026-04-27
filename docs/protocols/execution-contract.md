@@ -70,6 +70,10 @@ Policy decisions must explicitly distinguish:
 
 The response must not force the browser runtime to infer policy from generic error text.
 
+Current implementation note:
+
+- `/call-tool` now begins surfacing compatibility `requestId`, `executionId`, `decisions`, and `result` fields alongside the legacy single-call payload, so early Phase 1 consumers can start reading the shared contract without breaking existing userscript behavior.
+
 ## 5. Invariants
 
 ### 5.1 Browser Runtime Owns Turn Truth

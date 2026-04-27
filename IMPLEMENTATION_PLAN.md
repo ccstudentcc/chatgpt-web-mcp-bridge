@@ -60,6 +60,7 @@ Concrete work in this stage:
    - consumers that must align with the shared contract vocabulary
    - target-owner scaffolding under `apps/extension/src/chatgpt-adapter/*` when it prevents page-fact truth from staying scattered in `apps/userscript/src/*`
    - contract and repo docs
+   - materialized `/tools` metadata that carries the Phase 1 catalog contract without breaking current consumers
 4. Centralize ChatGPT Web runtime evidence in one durable doc:
    - `docs/operations/chatgpt-web-runtime-evidence.md`
    - use it as the only source of raw DOM/request-shape/selectors evidence
@@ -79,6 +80,7 @@ Definition of done for this stage:
 
 - the first slice is concrete enough that Codex can start work from the repo docs alone
 - shared contract names and minimum surfaces are stable in docs
+- shared contract names and minimum surfaces are seeded in `packages/protocol` with schemas/tests, not only described in docs
 - the first implementation work can begin in `packages/protocol` and narrow adapters without reopening scope
 - the docs clearly say which current runtime contracts remain canonical during the freeze
 - ChatGPT Web DOM/request-shape evidence has a single maintained home before any DOM-heavy slice expands

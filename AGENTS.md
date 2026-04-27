@@ -21,6 +21,8 @@
 
 - When a change modifies the proven runtime baseline or validation floor, update `docs/prd.md` and sync the task-control docs in the same pass.
 - When a change modifies the active v0.9 product boundary, migration order, or target ownership, update the matching `docs/prd_vnext.md`, `docs/v0.9-entrypoint.md`, `docs/architecture/*`, `docs/protocols/*`, or `docs/operations/*` docs in the same pass, then sync the task-control docs.
+- When the user authorizes sustained v0.9 progress with automatic commits, create a dedicated `agent/*` branch before the first code change, keep each commit scoped to one phase-aligned slice, and sync `TASK_STATUS.md` before every commit or session handoff.
+- For Phase 1 shared-contract freeze work, land shared `packages/protocol` contract surfaces first and keep same-pass app changes limited to narrow compatibility adapters; do not mix this slice with broader extension or gateway extraction.
 - When a change modifies the gateway-to-userscript contract, such as `/health`, `/tools`, or `mcp_list` metadata, update the matching gateway/userscript tests in the same pass.
 - Keep ChatGPT Web DOM/request-shape/selectors evidence in one place only: `docs/operations/chatgpt-web-runtime-evidence.md`. Do not scatter the same runtime facts across task docs or neighboring runbooks.
 - Before changing ChatGPT Web DOM-sensitive behavior, collect or refresh the relevant real-page evidence in `docs/operations/chatgpt-web-runtime-evidence.md` first. If the evidence is missing, partial, or stale, do not promote the assumption into repo truth.

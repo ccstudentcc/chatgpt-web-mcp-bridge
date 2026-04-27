@@ -24,6 +24,10 @@ The minimum result family must distinguish:
 
 Current repo truth requires `tool_result_batch` to remain a first-class result family, not an incidental variant hidden inside generic tool output.
 
+Current implementation note:
+
+- `/call-tool` compatibility responses now attach either an inline tool-result envelope or an execution-error envelope in parallel with the legacy payload, while userscript-delivered multi-call batches still use `tool_result_batch`.
+
 ## 3. Minimum Semantics
 
 ### 3.1 Inline Tool Result

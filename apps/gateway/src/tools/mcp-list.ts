@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { ToolDescriptor } from '@cwmb/protocol';
+import type { CatalogToolDescriptor } from '@cwmb/protocol';
 import type { LocalTool } from './index.js';
 
 const McpListArgsSchema = z.object({
@@ -9,7 +9,7 @@ const McpListArgsSchema = z.object({
 type McpListArgs = z.infer<typeof McpListArgsSchema>;
 
 export interface McpListResult {
-  tools: ToolDescriptor[];
+  tools: CatalogToolDescriptor[];
   total: number;
   enabled: number;
   disabled: number;
@@ -40,14 +40,28 @@ export function createMcpListTool(getTools: () => LocalTool[]): LocalTool<McpLis
   };
 }
 
-export function toToolDescriptor(tool: Pick<LocalTool, 'name' | 'title' | 'description' | 'risk' | 'requiresConfirmation' | 'enabled' | 'exampleArgs'>): ToolDescriptor {
+export function toToolDescriptor(tool: Pick<LocalTool, 'name' | 'title' | 'description' | 'risk' | 'requiresConfirmation' | 'enabled' | 'exampleArgs'>): CatalogToolDescriptor {
   return {
     name: tool.name,
     title: tool.title,
+    displayName: tool.title,
     description: tool.description,
+    source: 'builtin',
     risk: tool.risk,
     requiresConfirmation: tool.requiresConfirmation,
     enabled: tool.enabled,
+    schemaId: `builtin.${tool.name}.v1`,
+    availability: tool.enabled
+      ? {
+          legacy_auto: tool.requiresConfirmation ? 'confirmation_required' : 'execute',
+          reviewed: tool.requiresConfirmation ? 'confirmation_required' : 'execute',
+          yolo: 'execute'
+        }
+      : {
+          legacy_auto: 'deny',
+          reviewed: 'deny',
+          yolo: 'deny'
+        },
     exampleArgs: tool.exampleArgs
   };
 }
