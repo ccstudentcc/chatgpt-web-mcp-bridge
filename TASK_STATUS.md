@@ -9,6 +9,7 @@
 - The current codebase still implements the proven userscript + gateway baseline, so v0.9 work must preserve or explicitly migrate the current live contracts rather than pretending they no longer matter.
 - The current active v0.9 slice is Phase 1 shared-contract freeze, not broad feature rollout and not extension migration.
 - Stage 3 slice-definition work is complete; Stage 4 compat-preserving execution is now in progress on the same Phase 1 boundary.
+- Draft v0.9 docs and draft contract shapes are reference truth only. They are not separate compatibility targets; compatibility work in the current slice applies to the proven live runtime floor and the still-live routes/behaviors it depends on.
 - ChatGPT Web DOM/request-shape/selectors evidence now has one intended home: `docs/operations/chatgpt-web-runtime-evidence.md`.
 - ChatGPT Web page-fact code truth now targets one v0.9 owner: `apps/extension/src/chatgpt-adapter/`; current userscript code should only consume or compat-re-export that truth.
 - Phase 1 implementation has started in code, not only in docs: `@cwmb/protocol` now exports the first shared `CatalogContract`, `TurnContext`, `ExecuteRequest`, `ExecuteResponse`, `ToolDecision`, and `ResultEnvelope` surfaces with matching schemas/tests.
@@ -87,5 +88,6 @@
 - Start concrete work from the Phase 1 shared-contract freeze.
 - If a change depends on ChatGPT Web DOM/request-shape/selectors facts, put the raw evidence in `docs/operations/chatgpt-web-runtime-evidence.md` instead of scattering it through task docs.
 - If code needs ChatGPT Web page facts, add or update them in `apps/extension/src/chatgpt-adapter/` first, then adapt current userscript consumers through compat wiring.
+- Do not add or keep adapters only to preserve draft-only field names, draft wording, or other reference-only shapes. Keep compatibility only where current live runtime behavior still depends on it.
 - The next useful narrowing step is to decide whether single-result insertion text should also pivot from raw legacy payloads toward shared inline result-envelope helpers, so inserted bridge messages stop mixing legacy and target-state result semantics.
 - If a change tries to expand into extraction or capability rollout, stop and either narrow it back to this slice or first update the task-control docs with a new active slice.

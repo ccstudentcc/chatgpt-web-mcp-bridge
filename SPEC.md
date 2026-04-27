@@ -64,6 +64,7 @@ At minimum, this slice should make it possible to implement against a stable tar
   - `ResultEnvelope`
   - `TurnContext`
 - Clarify which current live payloads remain canonical during the freeze and which future fields may be added compatibly.
+- Treat draft v0.9 docs and draft contract surfaces as reference/target truth, not as compatibility obligations by themselves. Compatibility effort in this slice belongs to the current live runtime floor, not to preserving interim draft wording.
 - Limit early implementation work to shared contracts, route adapters, and contract-consumer alignment.
 - Establish `docs/operations/chatgpt-web-runtime-evidence.md` as the only allowed repository source for ChatGPT Web DOM/request-shape/selectors evidence.
 - Establish `apps/extension/src/chatgpt-adapter/` as the canonical v0.9 code owner for ChatGPT Web page facts, with current userscript code consuming those facts only through compatibility wiring.
@@ -90,6 +91,7 @@ At minimum, this slice should make it possible to implement against a stable tar
 - On April 27, 2026, the user confirmed live signed-in ChatGPT Web acceptance and formally closed the v0.1 stop line.
 - `docs/prd.md` is now a closed reference baseline: useful for current runtime truth, but no longer the active product target.
 - Root `SPEC.md`, `IMPLEMENTATION_PLAN.md`, and `TASK_STATUS.md` now track the active v0.9 program, not the old v0.1 close-out loop.
+- Draft-marked v0.9 docs remain editable target-state references. They do not create extra compatibility obligations unless the current live runtime or task-control docs explicitly adopt the relevant field/path/behavior as part of the active floor.
 - No v0.9 slice may silently invalidate a current live contract or runtime guarantee without:
   - updated product and migration docs
   - a replacement path
