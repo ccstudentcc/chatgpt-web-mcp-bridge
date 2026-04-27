@@ -1,0 +1,120 @@
+# ChatGPT Web Runtime Evidence
+
+## 0. Document Status
+
+- Status: draft v1
+- Scope: the single repository source of truth for real-page ChatGPT Web runtime evidence that affects DOM selectors, request shapes, injection timing, rendered message extraction, and result delivery behavior
+
+This file exists to stop DOM/request-shape facts from being scattered across task docs, architecture notes, ad hoc comments, or stale troubleshooting bullets.
+
+## 1. Ownership Rule
+
+If a fact is about real ChatGPT Web runtime behavior, it belongs here first.
+
+That includes:
+
+- request endpoints and request body shapes
+- composer selectors and send-button facts
+- assistant/user turn DOM structure
+- rendered code-block extraction behavior
+- placeholder / thinking-status node behavior
+- refresh / startup / history-rescan observations
+- visible fallback paths that depend on real page behavior
+
+Other docs may summarize or depend on these facts, but they should point back here instead of carrying their own drifting copy.
+
+The v0.9 code module that may materialize these verified facts is `apps/extension/src/chatgpt-adapter/`. Keep the raw evidence here and the curated runtime constants/helpers there.
+
+## 2. What Does Not Belong Here
+
+Do not use this file for:
+
+- target-state architecture ownership
+- policy vocabulary
+- gateway-only behavior
+- temporary task plans
+- reference-project analysis
+
+Those belong in:
+
+- `docs/architecture/*`
+- `docs/protocols/*`
+- `docs/operations/{gateway,security,tool-policy}.md`
+- `SPEC.md` / `IMPLEMENTATION_PLAN.md` / `TASK_STATUS.md`
+- `docs/reference-*.md`
+
+## 3. Evidence Record Format
+
+Each evidence update should capture enough detail that a later Codex run can reason from the same page truth without re-reading scattered notes.
+
+Record at least:
+
+1. date collected
+2. collection method
+3. page state
+4. observation
+5. impact on current runtime or migration work
+6. affected code/docs surfaces
+
+Recommended shape:
+
+```markdown
+## Evidence: <short name>
+
+- Date: 2026-04-27
+- Method: real signed-in page / HAR / DOM snapshot / manual repro
+- Page state: new chat / existing thread / refresh / streaming / post-result
+- Observation:
+  - ...
+- Impact:
+  - ...
+- Affected surfaces:
+  - ...
+```
+
+## 4. Collection Rules
+
+Before changing ChatGPT Web DOM-sensitive behavior, collect or refresh evidence here if the change depends on:
+
+- selectors
+- request-hook matching
+- request payload shape
+- rendered-message parsing
+- startup/history rescan behavior
+- result insertion or send-button readiness
+
+Minimum collection standard:
+
+- one success-path observation
+- one failure-path or drift-path observation when available
+- the relevant page state called out explicitly
+
+If the evidence is stale, partial, or missing, do not silently upgrade an assumption into repo truth.
+
+## 5. Current Status
+
+There is not yet a fully populated unified evidence pack here.
+
+Current repo truth already says:
+
+- real-page behavior matters more than prompt-only confidence
+- the proven userscript runtime baseline exists and must be preserved or explicitly migrated
+- the seeded v0.9 page-facts code owner currently covers selectors, conversation endpoints, turn-container fallbacks, send-button recognition, and ignorable status-text patterns
+
+But the underlying DOM/request-shape observations still need to be centralized here before any DOM-heavy slice should expand.
+
+## 6. How Other Docs Should Use This File
+
+- `AGENTS.md` should point here for durable execution rules about ChatGPT Web DOM/request-shape evidence.
+- `SPEC.md` and `IMPLEMENTATION_PLAN.md` should gate DOM-heavy slices on evidence collection or refresh.
+- `TASK_STATUS.md` should record whether the evidence pack is sufficient for the active slice, not duplicate the raw findings.
+- `docs/operations/troubleshooting.md` should send DOM/request-shape diagnosis here as the detailed evidence source.
+- `apps/extension/src/chatgpt-adapter/` may turn verified evidence into canonical v0.9 runtime constants/helpers, but it must not become a second evidence log.
+
+## 7. Related Documents
+
+- [../prd.md](../prd.md)
+- [../prd_vnext.md](../prd_vnext.md)
+- [../v0.9-entrypoint.md](../v0.9-entrypoint.md)
+- [troubleshooting.md](./troubleshooting.md)
+- [../architecture/extension-runtime.md](../architecture/extension-runtime.md)

@@ -2,154 +2,77 @@
 
 ## Current Truth
 
-- `docs/prd.md` 已经切到新的 v0.1 真相：ChatGPT Web only、trusted local mode 默认开启、`mcp_list` 进入默认工具面、三个自动化开关彼此独立且默认全开。
-- The repository now appears code-complete for the documented v0.1 browser-to-gateway flow.
-- Gateway tool descriptors now include example arguments, and a new low-risk `mcp_list` tool can return the current gateway catalog to ChatGPT itself.
-- The userscript now builds a live MCP catalog prompt from `/tools` and injects it into outgoing ChatGPT conversation requests, so tool discovery no longer depends on visibly seeding the composer first.
-- The userscript panel still exposes catalog copy/insert actions, but they are now fallback diagnostics instead of the primary capability-discovery path, and the manual MCP list now carries the same non-native MCP contract quality as the hidden injected prompt.
-- The injected prompt now also distinguishes the host repo configured as `workspaceRoot` from ChatGPT sandbox storage such as `/mnt/data`, so local bridge paths are less likely to be mistaken for sandbox paths.
-- The userscript now consumes gateway automation flags, auto-executes enabled tools, auto-inserts results, and auto-sends them by default while still gating execution on live `/tools` capabilities.
-- Gateway now defaults to trusted local mode, so localhost `userscript -> gateway` calls no longer require a pairing token unless the user explicitly turns token auth back on.
-- README and PRD now align on request-layer catalog injection as the default path, formalize the current `tool_result_batch` shape, and spell out threat-model / error-path acceptance examples more explicitly.
-- In trusted local mode, the panel now reports `Token: off (trusted local mode)` and hides the token setup button instead of prompting for a pairing token that the default flow no longer needs.
-- Updating the token or Gateway base URL in the panel now re-syncs gateway health and `/tools` capabilities immediately, so executable actions do not stay hidden until the next poll.
-- The userscript now parses rendered ChatGPT code blocks from the real DOM instead of relying only on fenced markdown text, so automatic execution can start from actual ChatGPT replies where triple backticks are no longer visible.
-- The rendered-code parser now tolerates ChatGPT code blocks whose visible text includes the `mcp` label or extra wrapper text before the JSON body, reducing regressions where a visible `mcp` block stayed undetected.
-- The userscript now scans the current page once at startup, so an MCP block that is already rendered before the observer attaches still becomes runnable without waiting for a later DOM mutation.
-- Startup and history rescans now only consider the latest assistant turn that is still open; once a later bridge `tool_result` / `tool_result_batch` has been inserted, the older MCP turn is treated as closed and will not re-run on refresh or `.mhtml` replay.
-- Refresh/startup scanning now also skips trailing empty assistant shells and thinking-only placeholder turns, so a page reload can still rediscover the latest substantive MCP turn instead of stopping on an empty final assistant node.
-- MCP-turn validation now allows a natural-language prefix before the first fenced `mcp` block, while still rejecting prose or other non-block content between MCP blocks or after the first MCP block has appeared.
-- The parser now has one additional narrow recovery path for real ChatGPT UI chrome: if a valid MCP turn is followed only by a short thinking/status label such as `Thought for a couple of seconds`, the userscript ignores that residual, logs a warning, and still executes the valid MCP block instead of blocking the turn.
-- Single-tool deduplication is now scoped to the current assistant message identity instead of only the raw JSON body, so the same MCP request can appear again in a new conversation without being suppressed as already executed.
-- Result insertion now prefers the visible `#prompt-textarea` / contenteditable composer over hidden fallback textareas and waits briefly for the real send button state before declaring auto-send failure.
-- `tool_result` and `tool_result_batch` insertion now chooses an outer fence long enough to survive embedded triple-backtick content from files such as prompt templates, preventing composer/render corruption that previously broke auto-send.
-- The userscript now installs its request hook at `document-start`, then delays UI/DOM observers until `DOMContentLoaded`, so the first ChatGPT message request can still be patched without breaking panel startup.
-- The userscript now bootstraps the request-hook prompt from the last successful `/tools` snapshot before `DOMContentLoaded`, then warms it from a fresh gateway call in parallel so new-chat first turns do not depend solely on the current page's async panel sync.
-- The injected tool-catalog prompt now explicitly tells ChatGPT to prefer Local MCP Bridge tools for `workspaceRoot` file tasks over unrelated built-in connectors such as GitHub or Gmail, and to report specific disabled bridge tools instead of claiming local tools are unavailable.
-- The injected prompt now also states the storage boundary directly: bridge tool paths are relative to the host repo configured as `workspaceRoot`, not ChatGPT sandbox storage such as `/mnt/data`.
-- Automatic request injection now uses a short bootstrap MCP prompt, while `Insert MCP list` / `Copy MCP list` still expose the full catalog for manual diagnostics.
-- Hidden request injection now reuses the full live catalog prompt, but leads with direct operating rules that push ChatGPT to call obvious local tools immediately instead of talking about workspace access, MCP availability, or whether it should continue.
-- The hidden system contract now also enforces stage ordering for complex tasks: if local workspace context is still needed, the next assistant reply must contain only the required `mcp` blocks and must not jump ahead into plans, summaries, caveats, or write-step discussion.
-- The same hidden operating rules now also tell ChatGPT not to emit "I cannot access the workspace" or "do you want me to continue" filler for simple local-file reads when the path and tool are already clear.
-- The hidden operating rules now pin simple local-file reads to an exact fenced `mcp` reply shape and explicitly forbid ChatGPT from declaring tool-call failure before any real `tool_result` has arrived.
-- The hidden operating rules now also state the non-native execution boundary explicitly: an `mcp` block only asks the userscript to execute a tool, and ChatGPT must wait for a later bridge-inserted `tool_result` / `tool_result_batch` message instead of pretending it already saw the output.
-- The hidden operating rules now also forbid any natural-language filler, analysis text, or chain-of-thought leakage while issuing `mcp` calls: a tool-call turn must be fenced `mcp` block(s) only.
-- The userscript execution path now treats any mixed MCP reply containing valid MCP plus natural language as an explicit invalid turn: it is blocked before pending/autorun, and the panel surfaces an `invalid_mcp_turn` error instead of silently accepting partial JSON.
-- The execution path now also has one narrow recovery case: if ChatGPT emits unfenced MCP-like JSON noise but also includes a valid fenced/rendered MCP block with no prose, the userscript ignores the unfenced fragment, logs a warning, and still executes the valid block.
-- The hidden injected prompt is now organized as a higher-signal role/situation/instructions/constraints/template contract so ChatGPT sees the non-native MCP boundary, stop-and-wait rule, and output shape more clearly without losing critical guidance.
-- Rendered-block detection now requires an explicit `mcp` language label instead of treating arbitrary JSON code blocks with `tool` / `args` keys as MCP calls.
-- Code-block fallback detection no longer treats user-authored `tool_result` replies as assistant MCP turns when the normal assistant-message selector is unavailable.
-- The main panel now treats `Synthetic system` as the normal operator-facing mode; prepend-user remains in code only as a hidden fallback path instead of a visible mode switch.
-- Gateway startup now auto-creates `config.json` and backfills `workspaceRoot` from the current startup directory when the config is missing or incomplete.
-- The userscript panel is now a collapsible inspector-style surface with runtime badges, expandable batch/result payloads, and an in-panel activity log stream.
-- Expanded `Batch / pending details` and `Last result payload` disclosures now stay open across panel rerenders, so inspector-log refreshes no longer collapse the section the user is reading.
-- The inspector log is now more compact and preserves both panel scroll and log-stream scroll across rerenders, so reviewing older log entries no longer jumps back to the newest row on each refresh.
-- The panel activity log now records request-hook diagnostics for real ChatGPT conversation requests: injected, prompt-not-ready race, or matched-but-unpatched body. The userscript listens for page-hook `postMessage` events and rerenders immediately when those diagnostics arrive, so the hook status is visible in-panel during the same turn.
-- Request-hook matching now targets the exact ChatGPT conversation endpoints instead of any pathname containing `/conversation`, so `POST /backend-api/f/conversation/prepare` no longer shows up as a false "body shape was not patched" warning.
-- HAR evidence from `tmp/chatgpt.com.har` showed a real `POST /backend-api/f/conversation` request without the injected prompt marker, which confirmed the hook path was correct but the Tampermonkey sandbox-to-page prompt bridge was not. Prompt sync and diagnostics now use `postMessage` plus a shared DOM attribute instead of cross-world custom window events.
-- HAR evidence from `tmp/chatgpt.com3.har` confirmed that prepend-user injection worked technically but leaked the injected prompt into persisted conversation content and share pages. A local request-injection mode switch now defaults to the synthetic `system` experiment so that hidden injection can be A/B tested without rebuilding the userscript.
-- HAR evidence from `tmp/chatgpt.com4.har` confirmed the synthetic `system` path was serialized as a separate system message while preserving the user's visible message body, so the visible prepend-user switch is no longer needed in the main UI.
-- The userscript panel is now draggable and remembers its last user-placed position instead of staying fixed in one corner.
-- The collapsed userscript panel now exposes the key immediate actions (`Run` / `Run all`, `Ignore`, `Retry batch`, `Insert result`) so pending tool handling no longer requires reopening the full inspector first.
-- `Auto execute`, `Auto insert`, and `Auto send` now behave as real userscript-local overrides instead of passive status display.
-- A userscript-local `Continue on error` toggle now defaults to off; when enabled, a batch keeps executing later tools after one tool call fails.
-- Structured failure results now follow the same insert/send automation path as successful tool results.
-- Automatic result delivery now logs insert/send success and send-button misses explicitly, and waits longer for the real send button to enable before downgrading to "inserted but not sent".
-- Auto-send now requires post-click confirmation from the composer state before reporting `sent`; clicking the button alone no longer counts as a successful submission.
-- Assistant reply scanning now anchors on the latest open assistant turn instead of walking back through historical assistant replies, which prevents already-closed MCP history from being rediscovered after refreshes or archive playback.
-- Re-scanning the same still-pending assistant MCP turn now keeps the existing pending state instead of clearing and re-detecting it, so `Run` / `Run all` no longer flicker away during repeated scans.
-- Invalid MCP-turn blocking now waits for the same malformed reply snapshot to stay stable through the grace window; streaming assistant replies that are still changing no longer get warned as final invalid turns too early.
-- `search_files` now preserves its case-insensitive path-substring semantics while using `rg` for candidate prefilter when available and falling back to the Node walker if `rg` is missing or fails.
-- `read_file` now blocks only high-confidence secret material and otherwise returns redacted content for lower-confidence assignment-style patterns such as `token = ...` or `api_key = ...`, avoiding full-file rejection during code review.
-- `grep_files` now follows the same two-tier sensitive-content policy as `read_file`: high-confidence secrets block the response, while lower-confidence assignment-style patterns are redacted inline.
-- `grep_files` now uses an explicit search contract: default `mode=literal` with either `query` or `patterns[]`, optional `mode=regex`, file-scope `match=all` for literal multi-pattern searches, and `engine` / `interpretedAs` metadata so zero-match results stay explainable.
-- `grep_files` literal mode now uses `rg` only as a candidate-file prefilter when available; Node still owns final line matching, context assembly, secret handling, and truncation so `rg` availability cannot silently change the result contract.
-- The injected userscript tool-catalog prompt now teaches the `grep_files` split explicitly: use `query` for one literal term, `patterns[]` for multiple literal terms, and `mode: "regex"` only when regex semantics are intentional.
-- Single-tool failures now clear the pending item after result generation, preventing later gateway refreshes from re-running the same failed call implicitly.
-- `mcp_list` now returns the full live gateway catalog including `mcp_list` itself, so its totals align with `/tools` and the injected MCP prompt.
-- Gateway `/health` now exposes `maxToolRounds`, and the userscript now enforces that automatic tool-round guard per detected user request while leaving manual `Run` / `Run All` available.
-- The gateway now ships an optional high-risk `write_file` tool behind `allowWrite=true`; it remains disabled by default and stays outside the automatic execution path even when enabled.
-- Userscript automatic execution is now limited to enabled low-risk tools that do not require confirmation, so high-risk manual tools no longer ride the auto-run path by accident.
-- Repository-level `lint`, `test`, and `build` entrypoints now pass across the workspace.
+- On April 27, 2026, the user confirmed that the real signed-in ChatGPT Web flow is usable and formally closed the v0.1 stop line.
+- `docs/prd.md` is now the closed v0.1 reference baseline: a useful behavior reference for the proven userscript + gateway runtime, but no longer the active product target.
+- Root `SPEC.md`, `IMPLEMENTATION_PLAN.md`, and `TASK_STATUS.md` now track the active v0.9 mainline.
+- `docs/v0.9-entrypoint.md` is the navigation entrypoint for that mainline; `docs/prd_vnext.md` owns the active product-boundary truth; `docs/architecture/v0.9-target-architecture.md` owns the target module-boundary truth.
+- The current codebase still implements the proven userscript + gateway baseline, so v0.9 work must preserve or explicitly migrate the current live contracts rather than pretending they no longer matter.
+- The current active v0.9 slice is Phase 1 shared-contract freeze, not broad feature rollout and not extension migration.
+- ChatGPT Web DOM/request-shape/selectors evidence now has one intended home: `docs/operations/chatgpt-web-runtime-evidence.md`.
+- ChatGPT Web page-fact code truth now targets one v0.9 owner: `apps/extension/src/chatgpt-adapter/`; current userscript code should only consume or compat-re-export that truth.
 
-## Latest Verified Evidence
+## Verified Reference Baseline
 
-- `pnpm --filter @cwmb/protocol test` succeeded with 1 passing file and 3 passing tests.
-- `pnpm --filter @cwmb/gateway lint` succeeded.
-- `pnpm --filter @cwmb/gateway test` succeeded with 6 passing files and 13 passing tests.
-- `pnpm --filter @cwmb/gateway build` succeeded.
-- `pnpm --filter @cwmb/protocol build` succeeded.
-- `pnpm --filter @cwmb/userscript lint` succeeded.
-- `pnpm --filter @cwmb/userscript test` succeeded with 6 passing files and 19 passing tests.
-- `pnpm --filter @cwmb/userscript build` succeeded.
-- `pnpm --filter @cwmb/userscript lint` succeeded again after the inspector-panel and batch-control updates.
-- `pnpm --filter @cwmb/userscript test` succeeded again with 7 passing files and 28 passing tests after the batch continue-on-error coverage was added.
-- `pnpm --filter @cwmb/userscript build` succeeded again after the panel rewrite.
-- `pnpm --filter @cwmb/gateway test` succeeded again with 7 passing files and 14 passing tests after adding `mcp_list` self-catalog and `/health` coverage.
-- `pnpm --filter @cwmb/userscript test` succeeded again with 8 passing files and 31 passing tests after adding `maxToolRounds` round-guard coverage.
-- `pnpm --filter @cwmb/gateway test` now succeeds with 8 passing files and 21 passing tests, including `write_file` coverage plus `search_files` coverage for `rg` success, `rg` failure fallback, and result alignment with the Node walker.
-- `pnpm --filter @cwmb/shared test` now covers the split between blocking secrets and redaction-only assignment patterns.
-- `pnpm --filter @cwmb/gateway test` now succeeds with 9 passing files and 23 passing tests, including `read_file` coverage for redacted placeholder assignments versus blocked high-confidence secrets.
-- `pnpm --filter @cwmb/gateway test` now also covers `grep_files` with the same split: placeholder assignments are redacted in results, while high-confidence secrets raise `SENSITIVE_CONTENT_BLOCKED`.
-- `pnpm --filter @cwmb/gateway lint` succeeded again after the `grep_files` contract change to `query` / `patterns[]` / `regex`.
-- `pnpm --filter @cwmb/gateway test` now succeeds with 9 passing files and 27 passing tests, including `grep_files` schema validation, literal multi-pattern `match=all`, explicit regex mode, and the fixed `rg` candidate-file path handling.
-- `pnpm --filter @cwmb/userscript test` now succeeds with 8 passing files and 32 passing tests after syncing MCP examples from `grep_files.pattern` to `grep_files.query`.
-- `pnpm --filter @cwmb/userscript test` succeeded again after adding the prompt-level `grep_files` usage guidance.
-- `pnpm --filter @cwmb/userscript build` succeeded again after the catalog prompt update.
-- `pnpm --filter @cwmb/userscript test` now covers manual-only gating for high-risk or confirmation-required tools.
-- `pnpm --filter @cwmb/protocol build` succeeded again before the latest userscript verification pass.
-- `pnpm --filter @cwmb/userscript lint` succeeded again after adding stored catalog bootstrap support for first-turn request injection.
-- `pnpm --filter @cwmb/userscript test` now succeeds with 9 passing files and 38 passing tests, including stored tool-catalog bootstrap coverage.
-- `pnpm --filter @cwmb/userscript build` succeeded again after the startup bootstrap change.
-- `pnpm --filter @cwmb/userscript test` now also covers the stronger catalog prompt wording for native-connector override guidance.
-- `pnpm --filter @cwmb/userscript test` now also covers the short injected bootstrap prompt and synthetic-system request injection mode.
-- `tmp/chatgpt.com4.har` review showed the noisy "body shape was not patched" warnings were coming from `POST /backend-api/f/conversation/prepare`, not the real `POST /backend-api/f/conversation` submit path.
-- User live validation showed the short hidden prompt still allowed mixed natural-language plus `mcp` replies unless the full catalog prompt had first been injected visibly into the chat, so the hidden path now uses the full catalog with stronger system-contract framing too.
-- User live validation also showed that complex multi-step asks still drifted into natural-language planning before tool calls, so the hidden contract now spells out the required phase order: gather local context first, then summarize or write.
-- `pnpm --filter @cwmb/protocol build` succeeded again after tightening request-hook endpoint matching and extending auto-send wait time.
-- `pnpm --filter @cwmb/userscript lint` succeeded again after tightening request-hook endpoint matching and extending auto-send wait time.
-- `pnpm --filter @cwmb/userscript test` succeeded again with 9 passing files and 38 passing tests after excluding `/conversation/prepare` from request-hook matching.
-- `pnpm --filter @cwmb/userscript build` succeeded again after the request-hook and auto-send diagnostics follow-up.
-- `pnpm --filter @cwmb/userscript lint` succeeded again after switching hidden request injection to the full strict catalog prompt, broadening assistant-message scanning, and requiring composer-clear confirmation before `sent`.
-- `pnpm --filter @cwmb/userscript test` now succeeds with 9 passing files and 39 passing tests after covering the stricter injected prompt and composer text reads used by send confirmation.
-- `pnpm --filter @cwmb/userscript build` succeeded again after the prompt-strengthening and auto-send confirmation follow-up.
-- `pnpm --filter @cwmb/protocol build` succeeded again after tightening the hidden MCP contract against prose and chain-of-thought leakage during tool-call turns.
-- `pnpm --filter @cwmb/userscript lint` succeeded again after adding the stricter injected-tool-call wording.
-- `pnpm --filter @cwmb/userscript test` succeeded again with 9 passing files and 39 passing tests after extending the injected-prompt assertions to ban reasoning / analysis text around `mcp` blocks.
-- `pnpm --filter @cwmb/userscript build` succeeded again after the latest hidden-contract wording update.
-- `pnpm --filter @cwmb/protocol build` succeeded again before validating the userscript runtime enforcement follow-up.
-- `pnpm --filter @cwmb/userscript test` now succeeds with 9 passing files and 42 passing tests after adding strict MCP-turn validation coverage for pure turns versus mixed prose-plus-JSON replies.
-- `pnpm --filter @cwmb/userscript test` now also covers the real-page residual-thinking case from `tmp/完善prd_vnext.md文档.mhtml`, ensuring a trailing ChatGPT thinking/status label no longer blocks an otherwise valid MCP turn.
-- `pnpm --filter @cwmb/userscript test` now also covers refresh-style fallback selection where the last assistant node is empty or thinking-only, ensuring startup rescan still returns the preceding real MCP turn.
-- `pnpm --filter @cwmb/userscript lint` succeeded again after adding the invalid-turn state and workspace boundary prompt wording.
-- `pnpm --filter @cwmb/userscript build` succeeded again after the invalid-turn runtime enforcement and `/mnt/data` boundary prompt update.
-- `pnpm --filter @cwmb/userscript test` now succeeds with 10 passing files and 45 passing tests after adding log-scroll preservation coverage.
-- `pnpm --filter @cwmb/userscript lint` succeeded again after compacting the inspector log layout and preserving rerender scroll state.
-- `pnpm --filter @cwmb/userscript build` succeeded again after the inspector log UX follow-up.
-- `pnpm --filter @cwmb/userscript test` now succeeds with 10 passing files and 46 passing tests after covering recovery from unfenced MCP-like JSON noise around a valid MCP block.
-- `pnpm --filter @cwmb/userscript lint` succeeded again after adding the recoverable mixed-reply branch.
-- `pnpm --filter @cwmb/userscript build` succeeded again after the recoverable mixed-reply follow-up.
-- `pnpm --filter @cwmb/protocol build` succeeded again after clarifying the non-native MCP wait-for-`tool_result` contract in prompt and result wording.
-- `pnpm --filter @cwmb/userscript test` now succeeds with 10 passing files and 48 passing tests after tightening mixed prose-plus-MCP turns to hard invalidation and covering the bridge-delivered `tool_result` wording.
-- `pnpm --filter @cwmb/userscript lint` succeeded again after the stricter non-native MCP prompt and result-insertion wording update.
-- `pnpm --filter @cwmb/userscript build` succeeded again after the latest prompt/result-boundary follow-up.
-- `pnpm --filter @cwmb/userscript test` now succeeds with 11 passing files and 50 passing tests after optimizing the hidden contract wording, rejecting unlabeled rendered JSON blocks, and covering fallback exclusion of user `tool_result` replies.
-- `pnpm --filter @cwmb/userscript lint` succeeded again after the explicit-rendered-`mcp` detection and hidden-contract restructuring follow-up.
-- `pnpm --filter @cwmb/userscript build` succeeded again after the latest prompt-quality and MCP-detection-boundary update.
-- `pnpm -r lint` succeeded.
-- `pnpm -r test` succeeded across protocol, shared, gateway, and userscript.
-- `pnpm -r build` succeeded across protocol, shared, gateway, and userscript.
+- The current runtime baseline has user-confirmed real-page validation for the browser-to-gateway flow.
+- The current runtime baseline already includes:
+  - hidden request-layer catalog injection
+  - `/tools` and `mcp_list` catalog alignment
+  - invalid-turn enforcement with recoverable-noise handling
+  - startup/history rescan of the latest open assistant MCP turn
+  - execute / insert / send automation semantics
+  - trusted-local default gateway flow
+- Root `pnpm -r lint`, `pnpm -r test`, and `pnpm -r build` previously succeeded for the documented baseline implementation.
 
-## Stop Line
+## Active Stop Line
 
-- The main remaining work is live manual validation against real ChatGPT Web traffic after the request-layer prompt injection switch.
-- The main remaining work is live manual validation against real ChatGPT Web traffic for the startup race boundary: cached-catalog bootstrap is now covered by unit tests, but a truly first-ever session without cache still needs manual confirmation.
-- The other remaining acceptance item is real-page confirmation that the stronger prompt wording is enough to stop ChatGPT from falling back to unrelated native connectors when local bridge tools are available.
-- The next acceptance step is a browser session that confirms three things together: hidden tool-hint injection, actual MCP block emission by ChatGPT, and end-to-end execute/insert/send behavior on the real page.
+- The v0.1 stop line is closed as of April 27, 2026.
+- The current program gate is no longer v0.1 acceptance. The next gate is to complete and begin executing a concrete Phase 1 shared-contract freeze without breaking the proven runtime baseline by accident.
+- Until explicitly migrated, the active compatibility floor includes:
+  - `/health`
+  - `/tools`
+  - `/call-tool`
+  - hidden request-layer injection
+  - invalid-turn enforcement
+  - startup/history rescan
+  - execute / insert / send runtime semantics
+
+## Active Slice
+
+- Slice name: Phase 1 shared-contract freeze
+- Primary battleground: Final Core
+- Immediate implementation surfaces:
+  - `packages/protocol/*`
+  - narrow gateway route adapters
+  - current userscript protocol consumers
+  - `apps/extension/src/chatgpt-adapter/*`
+  - `docs/protocols/*`
+  - `docs/operations/chatgpt-web-runtime-evidence.md`
+- Explicitly not open in this slice:
+  - extension-first shell migration
+  - gateway execution-kernel extraction
+  - `reviewed` / `yolo` rollout
+  - proposal workflow rollout
+  - external/custom MCP rollout
+  - broad builtin capability expansion
 
 ## Caveats
 
-- This repo still lacks browser-driven end-to-end automation, so the final v0.1 claim depends on manual live acceptance rather than only unit and build checks.
-- Because ChatGPT Web can change its request payload shape, the new invisible injection path is best-effort and should degrade to the panel's manual catalog actions when the outgoing JSON shape drifts.
-- The new automation controls are userscript-local overrides today; there is still no gateway `/settings` API for persisting them centrally.
-- Optional or later-scope PRD items remain intentionally out of scope: dynamic `/settings`, `/logs` endpoint work, `write_file_proposal`, `run_pwsh`, `apply_proposal`, and Chrome extension migration; `write_file` exists only as a gated local self-hosting escape hatch, not as a default v0.1 workflow.
+- The repo still lacks browser-driven end-to-end automation, so browser-runtime transitions will continue to need real ChatGPT Web verification.
+- The active codebase is still userscript-first today; the v0.9 architecture and protocol docs are active target truth, not evidence that the refactor already happened.
+- The unified ChatGPT Web runtime evidence doc exists now, but it is not yet a fully populated evidence pack; DOM-heavy work should refresh or add evidence there before expanding.
+- The extension target skeleton exists only for page-fact ownership right now; this is not blanket authorization to migrate broader browser runtime logic into `apps/extension` yet.
+- Later-scope capabilities remain target-state work rather than shipped behavior:
+  - `reviewed` / `yolo`
+  - full proposal workflow
+  - `run_pwsh` as a shipped capability
+  - external/custom MCP as a shipped extension ring
+  - Chrome Extension as the primary browser shell
+
+## Next Handoff
+
+- Use `docs/v0.9-entrypoint.md` first when deciding where new v0.9 truth belongs.
+- Use `docs/prd.md` only as the closed reference baseline for the current proven runtime.
+- Start concrete work from the Phase 1 shared-contract freeze.
+- If a change depends on ChatGPT Web DOM/request-shape/selectors facts, put the raw evidence in `docs/operations/chatgpt-web-runtime-evidence.md` instead of scattering it through task docs.
+- If code needs ChatGPT Web page facts, add or update them in `apps/extension/src/chatgpt-adapter/` first, then adapt current userscript consumers through compat wiring.
+- If a change tries to expand into extraction or capability rollout, stop and either narrow it back to this slice or first update the task-control docs with a new active slice.

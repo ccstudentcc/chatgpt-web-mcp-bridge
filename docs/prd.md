@@ -3,7 +3,8 @@
 ## 0. 文档信息
 
 - 产品名称：ChatGPT Web MCP Bridge
-- 当前版本：v0.1
+- 当前版本：v0.1 reference baseline
+- 状态：用户已于 2026-04-27 完成真实页面可用性确认；本文保留为参考基线草稿，不再作为主产品目标
 - 目标平台：ChatGPT Web + Windows + Chrome
 - 本地 Shell 口径：`pwsh`
 - 产品定位：面向开发者本地项目工作流的、安全优先的 ChatGPT Web 本地工具桥
@@ -667,4 +668,4 @@ v0.1 的正确产品定义不是“通用网页 AI 工具平台”，而是：
 
 > 一个只服务 ChatGPT Web、面向 Windows 本地开发工作流、默认只读、默认三开关全自动、但安全边界清晰的本地工具桥。
 
-这份 PRD 以该定义为唯一真相。
+这份 PRD 以该定义作为 v0.1 reference baseline 的参考真相。

@@ -1,62 +1,107 @@
 # Implementation Plan
 
-## Stage 1: MCP Discovery Gap Review
+Current boundary: as of April 27, 2026, v0.1 close-out is complete. This plan now tracks the active v0.9 mainline program.
+
+## Stage 1: Close And Archive The v0.1 Baseline
 
 Status: completed
 
-- Re-read the PRD/UI flow and identify where ChatGPT still lacks live MCP tool discovery.
-- Confirm that `/tools` is only used for capability gating today and does not teach the model what it can call.
-- Keep batch failure semantics and live capability gating intact while adding catalog visibility.
+- Record that the user completed real signed-in ChatGPT Web validation on April 27, 2026.
+- Formally close the v0.1 stop line.
+- Keep `docs/prd.md` as the closed reference baseline for the proven userscript + gateway behavior.
 
-## Stage 2: Tool Catalog Exposure And Injection
-
-Status: completed
-
-- Extend tool descriptors with example arguments.
-- Add the low-risk `mcp_list` tool so ChatGPT can explicitly ask the gateway for current capabilities.
-- Let the userscript build a live MCP catalog prompt from `/tools` and expose insert/copy affordances in the panel.
-
-## Stage 3: Composer DOM Repair
+## Stage 2: Promote v0.9 Docs To Active Mainline Truth
 
 Status: completed
 
-- Prefer the visible `#prompt-textarea` / contenteditable composer over hidden fallback textareas.
-- Keep clipboard fallback for true insert failures.
-- Wait for the current ChatGPT send button state to appear after insertion before declaring auto-send failure.
+- Make `docs/v0.9-entrypoint.md` the navigation home for the active target-state doc pack.
+- Repoint root task-control docs away from v0.1 close-out and toward v0.9 mainline coordination.
+- Align authority and read order across:
+  - `docs/v0.9-entrypoint.md`
+  - `docs/prd_vnext.md`
+  - `docs/architecture/*`
+  - `docs/protocols/*`
+  - `docs/operations/*`
 
-## Stage 4: Inspector Panel And Failure Controls
+## Stage 3: Define The First Concrete v0.9 Delivery Slice
 
-Status: completed
+Status: in progress
 
-- Redesign the userscript panel into a collapsible inspector surface with runtime badges, expandable payload details, and an activity log stream.
-- Turn `Execute`, `Insert`, and `Send` into real local override toggles that affect later detections/results immediately.
-- Add a local `Continue on error` toggle for batch execution, defaulting to fail-stop behavior.
-- Keep structured failure results on the same insert/send delivery path as successful results.
+Active slice: Phase 1 shared-contract freeze.
 
-## Stage 5: Verification And Close-Out
+Primary battleground:
 
-Status: completed
+- Final Core
 
-- Make `mcp_list` return the exact live catalog, including `mcp_list` itself, so totals stay aligned with `/tools` and the injected prompt.
-- Expose `maxToolRounds` through `/health` and enforce it in the userscript's automatic execution loop without blocking manual continuation.
-- Add a gated high-risk `write_file` tool for local self-hosting, and tighten userscript auto-execution so only low-risk non-confirmation tools can run automatically.
-- Run `pnpm --filter @cwmb/protocol build`.
-- Run `pnpm --filter @cwmb/gateway lint`.
-- Run `pnpm --filter @cwmb/gateway test`.
-- Run `pnpm --filter @cwmb/gateway build`.
-- Run `pnpm --filter @cwmb/userscript lint`.
-- Run `pnpm --filter @cwmb/userscript test`.
-- Run `pnpm --filter @cwmb/userscript build`.
-- Run `pnpm -r lint`.
-- Run `pnpm -r test`.
-- Run `pnpm -r build`.
+Current goal:
+
+- freeze one shared contract vocabulary before any broad extraction or capability rollout
+
+Concrete work in this stage:
+
+1. Define stable target shapes and ownership for:
+   - `CatalogContract`
+   - `ExecuteRequest`
+   - `ExecuteResponse`
+   - `PolicyDecision`
+   - `ResultEnvelope`
+   - `TurnContext`
+2. Keep the current live compatibility floor explicit while those target contracts are introduced:
+   - `/health`
+   - `/tools`
+   - `/call-tool`
+   - hidden request-layer injection
+   - invalid-turn enforcement
+   - startup/history rescan
+   - execute / insert / send behavior
+3. Limit implementation work to:
+   - `packages/protocol/*`
+   - narrow route/request/response adapters
+   - consumers that must align with the shared contract vocabulary
+   - target-owner scaffolding under `apps/extension/src/chatgpt-adapter/*` when it prevents page-fact truth from staying scattered in `apps/userscript/src/*`
+   - contract and repo docs
+4. Centralize ChatGPT Web runtime evidence in one durable doc:
+   - `docs/operations/chatgpt-web-runtime-evidence.md`
+   - use it as the only source of raw DOM/request-shape/selectors evidence
+   - make neighboring docs reference it instead of repeating the same facts
+5. Centralize ChatGPT Web page-fact code truth in one v0.9 owner:
+   - `apps/extension/src/chatgpt-adapter/*`
+   - keep current userscript modules on thin compat re-exports instead of minting fresh local copies
+6. Avoid opening:
+   - extension shell migration
+   - gateway kernel extraction
+   - proposal workflow rollout
+   - mode rollout
+   - external MCP rollout
+   - broad builtin capability expansion
+
+Definition of done for this stage:
+
+- the first slice is concrete enough that Codex can start work from the repo docs alone
+- shared contract names and minimum surfaces are stable in docs
+- the first implementation work can begin in `packages/protocol` and narrow adapters without reopening scope
+- the docs clearly say which current runtime contracts remain canonical during the freeze
+- ChatGPT Web DOM/request-shape evidence has a single maintained home before any DOM-heavy slice expands
+- ChatGPT Web page-fact constants and helpers have a single v0.9 target owner before broader extension extraction starts
+
+## Stage 4: Execute The First Compat-Preserving Core Slice
+
+Status: pending
+
+- Implement the Phase 1 shared-contract freeze defined above.
+- Keep current live behavior stable or explicitly migrated with updated docs and verification.
+- Use the v0.9 architecture ring discipline instead of mixing core extraction, mode rollout, and capability expansion in one pass.
+
+Initial likely implementation surfaces:
+
+- `packages/protocol/*`
+- `apps/gateway/src/routes/*`
+- current userscript protocol consumers
+- contract-focused tests
 
 ## Risks
 
-- The largest remaining risk is still real-page DOM drift: the new composer path now prefers visible contenteditable nodes and `#composer-submit-button`, but ChatGPT can change those selectors again.
-- Tool discovery now depends on `/tools` being available and current; if gateway capability refresh fails, the catalog prompt can become stale.
-- First-turn injection now bootstraps from the last successful catalog snapshot, but a truly first-ever session with no cache still depends on the initial `/tools` refresh winning the race.
-- Even with bootstrap in place, ChatGPT may still ignore or override prompt hints; request-hook diagnostics and stronger prompt wording reduce ambiguity, but real-page behavior remains the final authority.
-- Synthetic `system` message injection is still experimental: ChatGPT may accept it, ignore it, or later surface it differently than prepend-user injection, so HAR and share-page validation remain necessary.
-- Once synthetic `system` injection is validated on real ChatGPT traffic, prepend-user should be downgraded from an operator-facing control to a hidden compatibility fallback.
-- Trusted local mode intentionally removes token friction, so the remaining safety boundary depends more heavily on localhost-only binding, origin checks, and conservative default tool scope.
+- The codebase still implements the proven userscript-first runtime, so the target docs are ahead of the structure.
+- Hidden request-layer injection, invalid-turn enforcement, and result delivery are still real-page behaviors; browser-only regressions cannot be dismissed by passing unit tests alone.
+- The first v0.9 slice can sprawl if boundary extraction, mode rollout, and capability expansion are mixed together.
+- The repo still lacks browser-driven end-to-end automation, so major browser-runtime transitions will continue to depend on real ChatGPT Web manual verification.

@@ -1,64 +1,119 @@
 # Current Scope Spec
 
+Current boundary: as of April 27, 2026, the v0.1 real-page stop line is closed. This file now tracks the active v0.9 mainline scope. `docs/prd.md` remains the closed v0.1 reference baseline; [docs/v0.9-entrypoint.md](docs/v0.9-entrypoint.md) and [docs/prd_vnext.md](docs/prd_vnext.md) are the active target-state entry docs.
+
 ## Goal
 
-Close the remaining v0.1 browser usability gaps around the userscript panel: keep live MCP discovery and real composer insertion working, while making automation controls, batch-failure behavior, and runtime inspection legible on the current ChatGPT Web UI.
+Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product target: ChatGPT Web Local Agent Bridge, while keeping the current live runtime contracts explicit until each one is intentionally migrated or replaced.
+
+## Current Slice
+
+Phase 1 shared-contract freeze is the current active slice.
+
+This slice exists so Codex can start concrete work without reopening the whole v0.9 surface at once.
+
+Primary battleground:
+
+- shared contracts and narrow runtime adapters
+
+Primary file surfaces:
+
+- `packages/protocol/*`
+- current gateway route shapes under `apps/gateway/src/routes/*`
+- current userscript request/result call sites that consume protocol types
+- `apps/extension/src/chatgpt-adapter/*`
+- `docs/protocols/*`
+- `docs/operations/chatgpt-web-runtime-evidence.md`
+- the root task-control docs
+
+## Slice Intent
+
+Define one shared contract vocabulary for the future extension runtime and gateway kernel before any large extraction work begins.
+
+At minimum, this slice should make it possible to implement against a stable target for:
+
+- catalog truth
+- execution request/response
+- policy decisions
+- result envelopes
+- turn context and operator intent
 
 ## In Scope
 
-- Expose MCP tool examples from the gateway tool catalog and add an `mcp_list` tool for in-chat discovery.
-- Keep `/tools`, injected prompt hints, and `mcp_list` responses aligned on the same live catalog counts and metadata.
-- Let the userscript generate a current MCP catalog prompt from live `/tools` data, inject it into outgoing ChatGPT conversation requests by default, and keep insert/copy actions as fallback diagnostics.
-- Bootstrap the request-hook prompt from the last successful tool catalog snapshot so a new chat's first user turn does not wait on the current page's async gateway sync.
-- Make the injected catalog prompt explicit that local workspace file tasks should prefer the Local MCP Bridge over unrelated native connectors, and surface request-hook diagnostics in the panel log.
-- Add a local request-injection mode switch so synthetic `system` message insertion can be A/B tested against prepend-user injection without rebuilding the script each time.
-- After the experiment validates synthetic `system` injection, remove prepend-user switching from the main UI and keep it only as a hidden fallback path.
-- Fix result insertion so the userscript targets the visible `contenteditable` composer instead of hidden fallback textareas, then waits for the real send button state.
-- Make the panel collapsible and more inspector-like, with expandable batch/result details plus an activity log stream.
-- Ensure the `Execute`, `Insert`, and `Send` automation controls behave as true local overrides rather than passive status labels.
-- Add a gated high-risk `write_file` tool that stays disabled until `allowWrite=true` and remains manual-only even when enabled.
-- Add a userscript-local `Continue on error` toggle for batch execution, defaulting to fail-stop.
-- Enforce `maxToolRounds` for automatic tool execution without blocking manual `Run` / `Run All`.
-- Make structured failure results follow the same insert/send automation path as success results.
-- Refresh PRD, README, and task-control docs to reflect the new discovery flow and current DOM assumptions.
-- Ensure the repository-level lint, test, and build entrypoints all pass after the change.
+- Promote the v0.9 doc pack from planning-only material to the active repo mainline truth.
+- Keep the current live runtime behavior documented in `docs/prd.md` as the migration floor rather than the active product target.
+- Preserve current live contracts during early v0.9 work unless a migration path is explicitly documented:
+  - `/health`
+  - `/tools`
+  - `/call-tool`
+  - hidden request-layer injection
+  - invalid-turn enforcement
+  - startup/history rescan
+  - execute / insert / send runtime semantics
+- Define and sequence the first concrete v0.9 delivery slice instead of treating all target-state capabilities as equally active at once.
+- Keep `docs/operations/*` and `docs/protocols/*` truthful for both:
+  - the current proven runtime baseline
+  - the target-state architecture and migration constraints
+- Update root task-control docs whenever the active v0.9 slice, gate, or sequencing truth changes.
+- Define the concrete Phase 1 shared-contract freeze so implementation can start without guessing the first slice.
+- Freeze target names and minimum payload surfaces for:
+  - `CatalogContract`
+  - `ExecuteRequest`
+  - `ExecuteResponse`
+  - `PolicyDecision`
+  - `ResultEnvelope`
+  - `TurnContext`
+- Clarify which current live payloads remain canonical during the freeze and which future fields may be added compatibly.
+- Limit early implementation work to shared contracts, route adapters, and contract-consumer alignment.
+- Establish `docs/operations/chatgpt-web-runtime-evidence.md` as the only allowed repository source for ChatGPT Web DOM/request-shape/selectors evidence.
+- Establish `apps/extension/src/chatgpt-adapter/` as the canonical v0.9 code owner for ChatGPT Web page facts, with current userscript code consuming those facts only through compatibility wiring.
 
 ## Out of Scope
 
-- Windows + Chrome live acceptance in a real signed-in browser session.
-- P1 or later features such as `write_file_proposal`, `run_pwsh`, `apply_proposal`, or dynamic `/settings`.
-- Chrome extension migration or stdio MCP adapter work.
+- Reopening v0.1 as the active product target.
+- Pretending v0.9 is already shipped because the target docs are mature.
+- Breaking the current userscript + gateway baseline without an explicit migration and re-verification plan.
+- Broad capability rollout such as:
+  - full proposal workflow
+  - `reviewed` / `yolo` execution rollout
+  - `run_pwsh` shipping
+  - external/custom MCP rollout
+  - extension-first shell migration
+- DOM-heavy runtime rewrites based on unrecorded or scattered page observations.
+- Multi-platform browser AI support.
+- Session management as a primary product line.
+- Automatic remote MCP execution as the default workflow.
+- Store, analytics, remote config, or marketplace work as the mainline.
 
 ## Constraints
 
-- Keep the automation scope limited to gateway-enabled v0.1 tools; disabled tools may be discoverable but must stay non-runnable.
-- Treat the PRD as the authority for product semantics and keep `AGENTS.md` focused on execution rules.
-- Keep verification reproducible from the repo root.
+- On April 27, 2026, the user confirmed live signed-in ChatGPT Web acceptance and formally closed the v0.1 stop line.
+- `docs/prd.md` is now a closed reference baseline: useful for current runtime truth, but no longer the active product target.
+- Root `SPEC.md`, `IMPLEMENTATION_PLAN.md`, and `TASK_STATUS.md` now track the active v0.9 program, not the old v0.1 close-out loop.
+- No v0.9 slice may silently invalidate a current live contract or runtime guarantee without:
+  - updated product and migration docs
+  - a replacement path
+  - re-verification on the real ChatGPT page when browser runtime behavior is affected
+- The current compatibility floor must remain stable during this slice:
+  - `/health`
+  - `/tools`
+  - `/call-tool`
+  - hidden request-layer injection
+  - invalid-turn enforcement
+  - startup/history rescan
+  - execute / insert / send runtime semantics
+- ChatGPT Web DOM/request-shape facts must be recorded in `docs/operations/chatgpt-web-runtime-evidence.md` rather than duplicated across multiple docs.
+- ChatGPT Web page-fact constants and helpers must converge into `apps/extension/src/chatgpt-adapter/` rather than being redefined inside `apps/userscript/src/*`.
+- Verification must remain reproducible from the repo root whenever code changes are made.
 
 ## Acceptance Criteria
 
-- Gateway `/tools` and `mcp_list` expose the same current tool metadata with runnable state and example arguments, including `mcp_list` itself.
-- `write_file` is present as a high-risk tool, stays disabled by default, becomes enabled only with `allowWrite=true`, and remains outside the automatic execution path.
-- Userscript injects the live MCP catalog prompt into outgoing ChatGPT conversation requests by default, while `Insert MCP list` / `Copy MCP list` remain fallback diagnostics.
-- Whenever an assistant reply is issuing MCP tool calls, natural-language context may appear before the first fenced `mcp` block, but there must be no prose, raw JSON outside fences, or intermediate reasoning text between MCP blocks or after the first one appears, except for a narrow allowlist of ChatGPT UI thinking/status labels that are ignored with a warning.
-- The injected prompt makes it explicit that this bridge is not native MCP: an `mcp` block only requests execution, and the model must wait for a later bridge-inserted `tool_result` or `tool_result_batch` message before continuing.
-- The injected prompt makes the storage boundary explicit: bridge tools operate on the host repository configured as `workspaceRoot`, not ChatGPT sandbox paths such as `/mnt/data`.
-- If ChatGPT emits a mixed reply instead, the userscript blocks execution, does not queue pending tools from that turn, and surfaces an explicit invalid-turn error in the panel.
-- When a reply contains a valid fenced/rendered MCP block plus separate unfenced MCP-like JSON noise but no prose, the userscript recovers by using only the valid MCP block and logging a warning.
-- When a reply contains a valid fenced/rendered MCP block plus only a short ChatGPT thinking/status label after it, the userscript recovers by ignoring that UI residual, logging a warning, and still executing the valid MCP block.
-- Startup or history rescans only consider the latest assistant turn that is not already closed by a later bridge-inserted `tool_result` or `tool_result_batch`, so archived or already-completed MCP turns do not re-execute.
-- Startup or history rescans must also skip trailing empty assistant placeholders or thinking-only placeholder turns, so a refresh still finds the latest substantive open MCP turn.
-- After at least one successful gateway sync, a later page load can still inject the catalog into the first outgoing chat request before the fresh `/tools` refresh finishes.
-- The panel activity log distinguishes between successful request injection, prompt-not-ready races, and matched-but-unpatched request bodies so manual troubleshooting can identify why ChatGPT missed the catalog.
-- Automatic request injection now uses a short bootstrap prompt; the full tool catalog remains a manual diagnostics fallback.
-- The main UI should show the current injection mode as read-only runtime status, not expose prepend-user as a normal daily toggle.
-- Userscript result insertion targets the real visible composer and auto-send can find the current send button after insertion.
-- The userscript panel can collapse, shows activity logs, and exposes expandable batch/result details.
-- Expanded batch/result detail disclosures stay open across panel rerenders triggered by logs or status updates.
-- The `Execute`, `Insert`, and `Send` controls all change runtime behavior immediately for later detections/results.
-- Automatic tool execution stops after `maxToolRounds` for the current detected user request and leaves manual `Run` / `Run All` available.
-- With `Continue on error` off, batch execution stops on first failure and returns one consolidated `tool_result_batch`, including skipped items after the first failure.
-- With `Continue on error` on, later tools still run after one batch item fails and the consolidated batch result reports failed items without synthetic skips.
-- Structured single-tool and batch failure results still follow the current insert/send automation toggles.
-- Root `pnpm -r lint`, `pnpm -r test`, and `pnpm -r build` all succeed.
-- Remaining work, if any, is limited to live manual acceptance rather than missing code-level v0.1 functionality.
+- Root task-control docs consistently state that v0.1 closed on April 27, 2026 and now serves as a reference baseline only.
+- `docs/v0.9-entrypoint.md`, `docs/prd_vnext.md`, and the root task docs all agree that v0.9 is the active mainline.
+- The first active v0.9 delivery slice is explicit enough that Codex can begin implementation without asking which subsystem opens first.
+- `IMPLEMENTATION_PLAN.md` contains concrete stage goals, battleground, and file surfaces for the current slice.
+- The current runtime contracts that must survive early migration work are clearly enumerated in repo docs.
+- No active task-control or v0.9 entry doc still says that v0.1 close-out is blocking v0.9 by default.
+- The active slice clearly limits itself to contract freeze and narrow adapters instead of broad new capabilities.
+- The repo has one explicit source of truth for ChatGPT Web DOM/request-shape evidence, and the task docs point to it instead of duplicating its content.
+- The repo has one explicit v0.9 code owner for ChatGPT Web page facts, and current userscript modules consume it through compat wiring instead of redefining the same constants locally.

@@ -4,6 +4,15 @@ A safe local tool bridge that lets ChatGPT Web request read-only project context
 
 > This is not an official ChatGPT MCP client. It is a local bridge for Windows + Chrome users who want a conservative, auditable workflow.
 
+## Documentation map
+
+- Active v0.9 mainline entrypoint: [`docs/v0.9-entrypoint.md`](docs/v0.9-entrypoint.md)
+- Active v0.9 product boundary: [`docs/prd_vnext.md`](docs/prd_vnext.md)
+- Active mainline task coordination: [`SPEC.md`](SPEC.md), [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md), [`TASK_STATUS.md`](TASK_STATUS.md)
+- Closed v0.1 reference baseline: [`docs/prd.md`](docs/prd.md)
+- Current operator troubleshooting: [`docs/operations/troubleshooting.md`](docs/operations/troubleshooting.md)
+- Current v0.9 ChatGPT page-facts code owner: `apps/extension/src/chatgpt-adapter/`
+
 ## Safety model
 
 Default behavior is intentionally conservative:
@@ -216,7 +225,9 @@ Default enabled:
 Optional gated:
 - `write_file` (`allowWrite=true`, high risk, manual-only)
 
-## Roadmap
+## Historical Roadmap
+
+The bullets below are the older v0.1-era incremental roadmap and are kept only as historical context. The active route now lives in [`docs/v0.9-entrypoint.md`](docs/v0.9-entrypoint.md), [`docs/prd_vnext.md`](docs/prd_vnext.md), and the root task-control docs.
 
 - v0.2: Chrome Extension, `write_file_proposal`, diff confirmation UI
 - v0.3: restricted `run_pwsh` with strong confirmation
