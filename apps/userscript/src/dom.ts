@@ -1,8 +1,9 @@
 import {
   chatgptSelectors,
-  findNearestChatGptAssistantTurn,
   findNearestChatGptUserTurn,
-  isIgnorableChatGptStatusText,
+  isIgnorableChatGptAssistantPlaceholderText,
+  listChatGptCodeBlockNodes,
+  normalizeChatGptAssistantTurnCandidate,
   normalizeChatGptRuntimeText
 } from './chatgpt-runtime-facts.js';
 
@@ -106,7 +107,7 @@ function isDocumentFollowing(reference: HTMLElement, candidate: HTMLElement): bo
 }
 
 function fallbackFindCodeContainers(): HTMLElement[] {
-  const codeBlocks = Array.from(document.querySelectorAll(chatgptSelectors.codeBlock)) as HTMLElement[];
+  const codeBlocks = listChatGptCodeBlockNodes(document).filter((node): node is HTMLElement => node instanceof HTMLElement);
   const recentCandidates = codeBlocks.slice(-12);
   const seen = new Set<HTMLElement>();
 
@@ -127,7 +128,7 @@ function normalizeAssistantCandidates(candidates: HTMLElement[]): HTMLElement[] 
   const seen = new Set<HTMLElement>();
 
   return candidates
-    .map((candidate) => findNearestChatGptAssistantTurn(candidate) ?? candidate)
+    .map((candidate) => normalizeChatGptAssistantTurnCandidate(candidate) ?? candidate)
     .filter((candidate) => {
       if (seen.has(candidate)) {
         return false;
@@ -138,7 +139,7 @@ function normalizeAssistantCandidates(candidates: HTMLElement[]): HTMLElement[] 
 }
 
 function normalizeFallbackCodeContainer(node: HTMLElement): HTMLElement | null {
-  const assistantTurn = findNearestChatGptAssistantTurn(node);
+  const assistantTurn = normalizeChatGptAssistantTurnCandidate(node);
   if (assistantTurn) {
     return assistantTurn;
   }
@@ -167,10 +168,5 @@ function looksLikeExplicitMcpRenderedBlock(text: string): boolean {
 }
 
 function isIgnorableAssistantPlaceholder(node: HTMLElement): boolean {
-  const text = normalizeChatGptRuntimeText(extractVisibleText(node));
-  if (!text) {
-    return true;
-  }
-
-  return isIgnorableChatGptStatusText(text);
+  return isIgnorableChatGptAssistantPlaceholderText(extractVisibleText(node));
 }

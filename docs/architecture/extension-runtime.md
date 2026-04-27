@@ -47,6 +47,7 @@ Owns:
 - assistant/user turn snapshots
 - observer hooks and page diagnostics
 - the canonical v0.9 code module for ChatGPT Web page facts, currently seeded at `apps/extension/src/chatgpt-adapter/chatgpt-runtime-facts.ts`
+- newly discovered ChatGPT-page helpers such as selector refinements, placeholder recognition, turn-id extraction, and other runtime normalization facts before they are consumed elsewhere
 
 Does not own:
 
@@ -61,6 +62,11 @@ Minimum public surface:
 - observe turn stream
 - expose page diagnostics facts
 - expose shared page-fact constants/helpers without forcing compat consumers to redefine them
+
+Rule:
+
+- if a fact is primarily about how ChatGPT Web renders, labels, structures, or identifies page elements, add it here first and let downstream modules consume it
+- `turn-runtime`, `injection-runtime`, `result-delivery`, and current userscript compat code should not each grow their own copies of page-fact logic
 
 ### 3.2 `injection-runtime`
 

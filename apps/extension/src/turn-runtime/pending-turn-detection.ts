@@ -1,3 +1,4 @@
+import { getChatGptTurnId } from '../chatgpt-adapter/index.js';
 import type { McpTurnAnalysis, ParsedMcpCandidate } from './mcp-turn-analysis.js';
 import { isSamePendingSelection } from './pending-selection.js';
 
@@ -43,7 +44,7 @@ export function getMessageIdentity(
   messageId: string;
   nextEphemeralMessageId: number;
 } {
-  const explicitId = message.dataset.messageId || message.id;
+  const explicitId = getChatGptTurnId(message);
   if (explicitId) {
     return {
       messageId: explicitId,

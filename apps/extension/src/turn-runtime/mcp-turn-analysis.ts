@@ -2,6 +2,8 @@ import { McpBlockSchema, type McpBlock } from '@cwmb/protocol';
 import {
   chatgptSelectors,
   isIgnorableChatGptStatusText
+  ,
+  listChatGptCodeBlockNodes
 } from '../chatgpt-adapter/index.js';
 
 export interface ParsedMcpCandidate {
@@ -32,6 +34,7 @@ interface TurnResidualSegments {
 }
 
 const fencedBlockPattern = /```mcp\s*\n([\s\S]*?)\n```/g;
+const visibleRenderedBlockPattern = /(?:^|\n)([ \t]*mcp[ \t\r\n]*)(\{)/gi;
 
 export async function parseMcpBlocks(text: string): Promise<ParseResult> {
   return parseMcpCandidateStrings(extractFencedBlockBodies(text));
@@ -58,6 +61,22 @@ export async function analyzeMcpTurn(container: ParentNode, visibleText: string)
     }
     if (parsed.errors.length > 0) {
       fencedFailure = parsed;
+    }
+  }
+
+  const visibleRenderedMatches = extractVisibleRenderedBlockMatches(visibleText);
+  let visibleRenderedFailure: ParseResult | null = null;
+  if (visibleRenderedMatches.length > 0) {
+    const parsed = await parseMcpCandidateStrings(visibleRenderedMatches.map((match) => match.body));
+    if (parsed.blocks.length > 0) {
+      return finalizeTurnAnalysis(
+        parsed,
+        splitResidualSegments(visibleText, visibleRenderedMatches.map(({ start, end }) => ({ start, end }))),
+        true
+      );
+    }
+    if (parsed.errors.length > 0) {
+      visibleRenderedFailure = parsed;
     }
   }
 
@@ -93,7 +112,7 @@ export async function analyzeMcpTurn(container: ParentNode, visibleText: string)
     );
   }
 
-  const fallbackFailure = renderedFailure ?? fencedFailure;
+  const fallbackFailure = visibleRenderedFailure ?? renderedFailure ?? fencedFailure;
   if (fallbackFailure) {
     return finalizeTurnAnalysis(fallbackFailure, {
       prefix: normalizeResidualText(visibleText),
@@ -142,11 +161,46 @@ function extractFencedBlockMatches(text: string): Array<TextRange & { body: stri
   }).filter((match) => match.body.length > 0 && match.start >= 0 && match.end >= 0);
 }
 
+function extractVisibleRenderedBlockMatches(text: string): Array<TextRange & { body: string }> {
+  const matches: Array<TextRange & { body: string }> = [];
+  visibleRenderedBlockPattern.lastIndex = 0;
+
+  while (true) {
+    const match = visibleRenderedBlockPattern.exec(text);
+    if (!match) {
+      break;
+    }
+
+    const fullText = match[0] ?? '';
+    const startOffset = fullText.startsWith('\n') ? 1 : 0;
+    const start = (match.index ?? 0) + startOffset;
+    const braceStart = (match.index ?? 0) + fullText.lastIndexOf('{');
+    const braceEnd = findBalancedJsonObjectEnd(text, braceStart);
+    if (braceStart < 0 || braceEnd < 0) {
+      continue;
+    }
+
+    const body = text.slice(braceStart, braceEnd + 1).trim();
+    if (!body) {
+      continue;
+    }
+
+    matches.push({
+      body,
+      start,
+      end: braceEnd + 1
+    });
+    visibleRenderedBlockPattern.lastIndex = braceEnd + 1;
+  }
+
+  return matches;
+}
+
 function extractRenderedCandidates(container: ParentNode): Array<{ rawText: string; normalized: string }> {
   const seen = new Set<string>();
   const results: Array<{ rawText: string; normalized: string }> = [];
 
-  for (const node of Array.from(container.querySelectorAll(chatgptSelectors.codeBlock))) {
+  for (const node of listChatGptCodeBlockNodes(container)) {
     const rawText = (node.textContent ?? '').trim();
     if (!looksLikeExplicitMcpRenderedBlock(rawText)) {
       continue;
@@ -362,10 +416,17 @@ function finalizeTurnAnalysis(parsed: ParseResult, residual: TurnResidualSegment
       };
     }
 
+    if (isIgnorableUiResidual(residual.prefix)) {
+      return {
+        ...parsed,
+        status: 'recoverable',
+        warningReason: 'Assistant reply included a ChatGPT thinking/status label before valid MCP blocks. Ignoring the UI residual and using only the valid MCP block(s).'
+      };
+    }
+
     return {
       ...parsed,
-      status: 'invalid',
-      violationReason: 'Assistant reply added natural language or other non-block content before MCP tool-call blocks. If a fenced `mcp` block is needed, the reply must start with MCP-only content.'
+      status: 'valid'
     };
   }
 
@@ -472,6 +533,58 @@ function extractLooseJsonObjects(text: string): string[] {
   }
 
   return objects;
+}
+
+function findBalancedJsonObjectEnd(text: string, start: number): number {
+  if (start < 0 || text[start] !== '{') {
+    return -1;
+  }
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (!char) {
+      continue;
+    }
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (char === '{') {
+      depth += 1;
+      continue;
+    }
+
+    if (char !== '}') {
+      continue;
+    }
+
+    depth -= 1;
+    if (depth === 0) {
+      return index;
+    }
+    if (depth < 0) {
+      return -1;
+    }
+  }
+
+  return -1;
 }
 
 function isValidMcpJsonCandidate(candidate: string): boolean {

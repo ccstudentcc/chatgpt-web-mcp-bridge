@@ -168,7 +168,7 @@ userscript 基于 `/tools` 动态生成一份 live catalog prompt，并在 ChatG
 - 对路径和目标工具都已明确的简单本地文件请求，注入 prompt 还应鼓励模型直接发出对应的 `mcp` block，而不是先声明自己是否能访问工作区、是否执行了 MCP，或反问用户是否继续。
 - 对这类简单请求，注入 prompt 还应给出一条精确的 fenced `mcp` 回复形状，并明确禁止模型在收到真实 `tool_result` 之前擅自宣称“调用失败”“未执行”“已看到结果”或“不可用”。
 - assistant 发出 `mcp` block 后必须立刻停止，等待 userscript 回填真实 `tool_result` / `tool_result_batch`；不得自行伪造、复述或脑补这些结果内容。
-- assistant 在发起 `mcp` 工具调用前，可以先给出必要的自然语言上下文；但一旦首个 fenced `mcp` block 已经出现，后续内容就不得再夹带自然语言、分析、阶段性结论，或任何“边想边说”的中途思考文本。仅当真实 ChatGPT 页面额外渲染出短的 thinking/status 标签、且该标签不属于模型正文时，userscript 才可在日志记 warning 后忽略它。
+- assistant 在发起 `mcp` 工具调用前，可以先给出必要的自然语言上下文；真实 ChatGPT 页面若在首个 `mcp` block 前额外渲染出短的 thinking/status 标签、且该标签不属于模型正文，userscript 也可在日志记 warning 后忽略它。仅在首个 fenced `mcp` block 已经出现之后，后续内容才不得再夹带自然语言、分析、阶段性结论，或任何“边想边说”的中途思考文本。
 - userscript 对 rendered code block 的自动检测只应接受明确标记为 `mcp` 的代码块；普通 JSON / TypeScript / 示例代码块即使碰巧含有 `tool` / `args` 结构，也不得被当成 MCP 调用。
 - 如果 assistant 仍然产出混合回复，userscript 执行层必须把该回合判为非法 `mcp` turn：不自动执行、不进入 pending 队列，并在面板中明确显示格式违规原因。
 - 非法 `mcp` turn 的判定应在当前 assistant 回复内容稳定后再落锤；对仍在流式增长中的半成品 `mcp` / JSON 片段，不应过早显示最终格式违规告警。

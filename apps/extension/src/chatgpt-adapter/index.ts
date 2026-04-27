@@ -1,13 +1,24 @@
 export {
   chatgptConversationPaths,
+  chatgptAssistantShellLinePatterns,
+  chatgptCodeBlockFallbackSelectors,
+  chatgptCodeBlockStrictSelectors,
   chatgptIgnorableStatusLinePatterns,
   chatgptSelectors,
   findNearestChatGptAssistantTurn,
   findNearestChatGptUserTurn,
+  getChatGptTurnId,
   isIgnorableChatGptStatusLine,
+  isIgnorableChatGptAssistantPlaceholderText,
   isIgnorableChatGptStatusText,
   isKnownChatGptConversationPath,
+  isKnownChatGptAssistantShellLine,
+  isKnownChatGptAssistantShellText,
+  isSubstantiveChatGptAssistantText,
+  listChatGptCodeBlockNodes,
   looksLikeChatGptSendButton,
+  normalizeChatGptAssistantTurnCandidate,
   normalizeChatGptConversationPath,
-  normalizeChatGptRuntimeText
+  normalizeChatGptRuntimeText,
+  partitionChatGptStatusLines
 } from './chatgpt-runtime-facts.js';

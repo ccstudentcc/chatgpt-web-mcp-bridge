@@ -21,6 +21,26 @@ function createAnalysis(
 }
 
 describe('getMessageIdentity', () => {
+  it('prefers the outer ChatGPT turn id when present', () => {
+    const message = {
+      dataset: {
+        turnId: 'request-WEB:assistant-42',
+        messageId: 'assistant-42'
+      },
+      id: ''
+    } as unknown as HTMLElement;
+
+    const result = getMessageIdentity(message, 'hello', {
+      ephemeralMessageIds: new WeakMap(),
+      nextEphemeralMessageId: 3
+    });
+
+    expect(result).toEqual({
+      messageId: 'request-WEB:assistant-42',
+      nextEphemeralMessageId: 3
+    });
+  });
+
   it('reuses explicit message ids without advancing the ephemeral counter', () => {
     const message = {
       dataset: {

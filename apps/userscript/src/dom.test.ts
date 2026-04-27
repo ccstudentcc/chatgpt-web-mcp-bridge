@@ -318,4 +318,46 @@ describe('findAssistantMessages fallback', () => {
 
     expect(findLatestOpenAssistantMessage()).toBe(latestMcp);
   });
+
+  it('skips a trailing ChatGPT shell placeholder and falls back to the latest real MCP turn', () => {
+    class FakeHTMLElement {
+      innerText: string;
+      textContent: string;
+      readonly order: number;
+
+      constructor(text: string, order: number) {
+        this.innerText = text;
+        this.textContent = text;
+        this.order = order;
+      }
+
+      closest(): FakeHTMLElement | null {
+        return this;
+      }
+
+      compareDocumentPosition(other: FakeHTMLElement): number {
+        return this.order < other.order ? 4 : 2;
+      }
+    }
+
+    const latestMcp = new FakeHTMLElement('mcp\n{\n  "tool": "read_file",\n  "args": {\n    "path": "docs/prd_vnext.md"\n  }\n}', 1);
+    const trailingShellAssistant = new FakeHTMLElement('ChatGPT 说：', 2);
+
+    const documentStub = {
+      querySelectorAll: (selector: string) => {
+        if (selector === '[data-message-author-role="assistant"]') {
+          return [latestMcp, trailingShellAssistant];
+        }
+        if (selector === '[data-message-author-role="user"]') {
+          return [];
+        }
+        return [];
+      }
+    };
+
+    Object.defineProperty(globalThis, 'document', { value: documentStub, configurable: true });
+    Object.defineProperty(globalThis, 'HTMLElement', { value: FakeHTMLElement, configurable: true });
+
+    expect(findLatestOpenAssistantMessage()).toBe(latestMcp);
+  });
 });

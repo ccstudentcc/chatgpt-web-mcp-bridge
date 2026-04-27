@@ -27,6 +27,7 @@ describe('buildToolCatalogPrompt', () => {
     expect(prompt).toContain('```mcp');
     expect(prompt).toContain('Output template:');
     expect(prompt).toContain('Output rules:');
+    expect(prompt).toContain('You may add brief natural-language context before the first fenced `mcp` block when it helps frame the next local action.');
     expect(prompt).toContain('"tool": "mcp_list"');
     expect(prompt).toContain('"tool": "read_file"');
     expect(prompt).toContain('`grep_files` defaults to literal search');
@@ -57,7 +58,7 @@ describe('buildInjectedToolPrompt', () => {
     expect(prompt).toContain('Never invent, simulate, restate, or paraphrase `tool_result` or `tool_result_batch` payloads yourself.');
     expect(prompt).toContain('Output template:');
     expect(prompt).toContain('Output rules:');
-    expect(prompt).toContain('If you emit any fenced `mcp` block, do not add natural-language context before it.');
+    expect(prompt).toContain('You may add brief natural-language context before the first fenced `mcp` block when it helps frame the next local action.');
     expect(prompt).toContain('Never output raw JSON outside fenced `mcp` blocks.');
     expect(prompt).toContain('After the first fenced `mcp` block appears, do not add prose, analysis, or thinking text between or after tool-call blocks.');
     expect(prompt).toContain('"tool": "mcp_list"');

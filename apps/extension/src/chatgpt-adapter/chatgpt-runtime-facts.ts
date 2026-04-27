@@ -1,17 +1,24 @@
+export const chatgptCodeBlockStrictSelectors = [
+  'pre code',
+  'pre',
+  'code',
+  '[data-testid*="code"]',
+  '[class*="code-block"]',
+  '[class*="CodeBlock"]'
+] as const;
+
+export const chatgptCodeBlockFallbackSelectors = [
+  '[class*="whitespace-pre"]'
+] as const;
+
 export const chatgptSelectors = {
   assistantMessage: '[data-message-author-role="assistant"]',
   userMessage: '[data-message-author-role="user"]',
   assistantTurnContainer: '[data-turn="assistant"], [data-message-author-role="assistant"]',
   userTurnContainer: '[data-turn="user"], [data-message-author-role="user"]',
-  codeBlock: [
-    'pre code',
-    'pre',
-    'code',
-    '[data-testid*="code"]',
-    '[class*="code-block"]',
-    '[class*="CodeBlock"]',
-    '[class*="whitespace-pre"]'
-  ].join(', '),
+  codeBlockStrict: chatgptCodeBlockStrictSelectors.join(', '),
+  codeBlockFallback: chatgptCodeBlockFallbackSelectors.join(', '),
+  codeBlock: [...chatgptCodeBlockStrictSelectors, ...chatgptCodeBlockFallbackSelectors].join(', '),
   editableInputs: [
     '#prompt-textarea[contenteditable="true"]',
     '[contenteditable="true"][role="textbox"]',
@@ -47,6 +54,11 @@ export const chatgptIgnorableStatusLinePatterns = [
   /^思考了.+$/u,
   /^已思考.+$/u,
   /^思考中$/u
+] as const;
+
+export const chatgptAssistantShellLinePatterns = [
+  /^chatgpt says:?$/i,
+  /^chatgpt 说：?$/iu
 ] as const;
 
 export function normalizeChatGptRuntimeText(text: string): string {
@@ -87,6 +99,95 @@ export function isIgnorableChatGptStatusText(text: string): boolean {
   }
 
   return normalizedLines.every((line) => isIgnorableChatGptStatusLine(line));
+}
+
+export function partitionChatGptStatusLines(text: string): {
+  statusLines: string[];
+  contentLines: string[];
+} {
+  const normalizedLines = text
+    .replace(/\u00a0/g, ' ')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  return normalizedLines.reduce<{
+    statusLines: string[];
+    contentLines: string[];
+  }>((acc, line) => {
+    if (isIgnorableChatGptStatusLine(line)) {
+      acc.statusLines.push(line);
+    } else {
+      acc.contentLines.push(line);
+    }
+    return acc;
+  }, { statusLines: [], contentLines: [] });
+}
+
+export function isKnownChatGptAssistantShellLine(line: string): boolean {
+  const normalized = normalizeChatGptRuntimeText(line);
+  if (!normalized) {
+    return false;
+  }
+
+  return chatgptAssistantShellLinePatterns.some((pattern) => pattern.test(normalized));
+}
+
+export function isKnownChatGptAssistantShellText(text: string): boolean {
+  const normalizedLines = text
+    .replace(/\u00a0/g, ' ')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  if (normalizedLines.length === 0) {
+    return false;
+  }
+
+  return normalizedLines.every((line) => isKnownChatGptAssistantShellLine(line));
+}
+
+export function isIgnorableChatGptAssistantPlaceholderText(text: string): boolean {
+  const normalized = normalizeChatGptRuntimeText(text);
+  if (!normalized) {
+    return true;
+  }
+
+  if (isKnownChatGptAssistantShellText(normalized)) {
+    return true;
+  }
+
+  const partitioned = partitionChatGptStatusLines(normalized);
+  return partitioned.contentLines.length === 0 && partitioned.statusLines.length > 0;
+}
+
+export function isSubstantiveChatGptAssistantText(text: string): boolean {
+  return !isIgnorableChatGptAssistantPlaceholderText(text);
+}
+
+export function getChatGptTurnId(node: HTMLElement): string | null {
+  return node.dataset.turnId || node.dataset.messageId || node.id || null;
+}
+
+export function normalizeChatGptAssistantTurnCandidate(node: Element): HTMLElement | null {
+  return findNearestChatGptAssistantTurn(node);
+}
+
+export function listChatGptCodeBlockNodes(container: ParentNode): Element[] {
+  const seen = new Set<Element>();
+  const nodes: Element[] = [];
+
+  for (const selector of [chatgptSelectors.codeBlockStrict, chatgptSelectors.codeBlockFallback]) {
+    for (const node of Array.from(container.querySelectorAll(selector))) {
+      if (seen.has(node)) {
+        continue;
+      }
+      seen.add(node);
+      nodes.push(node);
+    }
+  }
+
+  return nodes;
 }
 
 export function findNearestChatGptAssistantTurn(node: Element): HTMLElement | null {

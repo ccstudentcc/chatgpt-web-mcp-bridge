@@ -25,6 +25,12 @@ Other docs may summarize or depend on these facts, but they should point back he
 
 The v0.9 code module that may materialize these verified facts is `apps/extension/src/chatgpt-adapter/`. Keep the raw evidence here and the curated runtime constants/helpers there.
 
+Implementation rule:
+
+- raw page observations stay in this document
+- curated selectors, placeholder rules, turn-id extraction, and other reusable ChatGPT-page helpers belong in `apps/extension/src/chatgpt-adapter/`
+- consumer modules may read or compat-re-export those helpers, but they should not become parallel owners of the same page facts
+
 ## 2. What Does Not Belong Here
 
 Do not use this file for:
@@ -139,3 +145,24 @@ But the underlying DOM/request-shape observations still need to be centralized h
   - `apps/userscript/src/dom.ts`
   - `apps/userscript/src/dom.test.ts`
   - `apps/extension/src/turn-runtime/mcp-turn-analysis.ts`
+
+## Evidence: rendered assistant text can stay prose-wrapped long after streaming completes
+
+- Date: 2026-04-27
+- Method: manual repro on a real signed-in page, console DOM trace, and opt-in userscript runtime diagnostics
+- Page state:
+  - existing thread
+  - assistant reply streamed as natural-language sentence, then rendered `mcp` code block, then trailing natural-language completion text
+  - auto execute enabled
+- Observation:
+  - Real-page console traces showed the latest assistant turn stabilizing as one `SECTION[data-turn="assistant"]` whose visible text remained `prefix prose + rendered mcp block + suffix prose` for more than 9 seconds after the block finished rendering.
+  - The same run did not only expose a timing race: the mixed reply remained present well beyond any short stabilization window.
+  - Opt-in runtime diagnostics confirmed that `scanLatestAssistantTurnSource()` read the full visible assistant text from that outer `SECTION`, but `analyzeMcpTurn()` still classified the mixed rendered reply as `valid` and let it enter `pending`.
+  - This means rendered-turn invalidation cannot rely only on DOM code-block candidate extraction. The visible assistant text itself is a required parsing input for rendered `mcp` blocks, because DOM candidates may differ in formatting from the outer visible text while the live invalid-turn contract still depends on the visible reply content.
+- Impact:
+  - Turn-runtime parsing should treat visible rendered `mcp` text as a first-class source before falling back to DOM code-block candidates.
+  - Adding only a short post-stream stability delay would not fix this failure mode, because the invalid mixed reply remains stable long after streaming has ended.
+- Affected surfaces:
+  - `apps/extension/src/turn-runtime/mcp-turn-analysis.ts`
+  - `apps/userscript/src/parser.test.ts`
+  - `apps/userscript/src/chatgpt-mcp-bridge.user.ts`
