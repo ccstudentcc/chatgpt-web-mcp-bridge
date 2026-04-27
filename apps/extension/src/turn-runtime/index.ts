@@ -14,6 +14,14 @@ export {
   type ParseResult
 } from './mcp-turn-analysis.js';
 export {
+  detectPendingTurn,
+  getMessageIdentity,
+  normalizeDetectionFingerprint,
+  type PendingTurnBlock,
+  type PendingTurnDetectionIdentityContext,
+  type PendingTurnDetectionResult
+} from './pending-turn-detection.js';
+export {
   isSamePendingSelection
 } from './pending-selection.js';
 export {

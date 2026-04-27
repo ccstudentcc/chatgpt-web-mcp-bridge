@@ -13,13 +13,17 @@ import {
 import { createBatchId, executeBatch } from './batch.js';
 import { callTool, health, listCatalog } from './gateway-client.js';
 import { extractVisibleText, findLatestOpenAssistantMessage, findLatestUserMessage, onChatMutation } from './dom.js';
-import { isSamePendingSelection, updatePendingInvalidTurn, type PendingInvalidTurnState } from './detection-state.js';
+import { updatePendingInvalidTurn, type PendingInvalidTurnState } from './detection-state.js';
 import { sha256Normalized } from './hash.js';
 import { formatBatchToolResult, formatToolResult, insertIntoChatInput, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
 import { analyzeMcpTurn } from './parser.js';
 import { describeRequestHookStatus } from './request-injection-state.js';
 import { canAutoRunForRequest, recordAutoRunForRequest, syncAutoRoundRequest } from './round-guard.js';
 import { installPageRequestHook, syncRequestPrompt, type RequestHookStatus } from './request-hook.js';
+import {
+  detectPendingTurn,
+  getMessageIdentity as getTurnMessageIdentity
+} from '../../extension/src/turn-runtime/pending-turn-detection.js';
 import { renderPanel, setUiHandlers } from './ui.js';
 import {
   addLogEntry,
@@ -348,18 +352,16 @@ function hasPendingBatch(): boolean {
 }
 
 function getMessageIdentity(message: HTMLElement, messageText: string): string {
-  const explicitId = message.dataset.messageId || message.id;
-  if (explicitId) {
-    return explicitId;
-  }
-
-  let ephemeralId = ephemeralMessageIds.get(message);
-  if (!ephemeralId) {
-    const textHint = messageText.trim().slice(0, 32);
-    ephemeralId = `ephemeral-message-${nextEphemeralMessageId++}${textHint ? `:${textHint}` : ''}`;
-    ephemeralMessageIds.set(message, ephemeralId);
-  }
-  return ephemeralId;
+  const identity = getTurnMessageIdentity(
+    message,
+    messageText,
+    {
+      ephemeralMessageIds,
+      nextEphemeralMessageId
+    }
+  );
+  nextEphemeralMessageId = identity.nextEphemeralMessageId;
+  return identity.messageId;
 }
 
 function applyBatchExecutionMarkers(items: BatchResultItem[], batchId: string): void {
@@ -611,37 +613,17 @@ async function detectPendingBlocksFromMessage(message: HTMLElement): Promise<{
   const messageText = extractVisibleText(message);
   const messageId = getMessageIdentity(message, messageText);
   const analysis = await analyzeMcpTurn(message, messageText);
-  if (analysis.status === 'invalid') {
-    return {
-      status: 'invalid',
-      messageId,
-      invalidReason: analysis.violationReason ?? 'Assistant reply contained an invalid MCP tool-call turn.',
-      fingerprint: normalizeDetectionFingerprint(messageText)
-    };
-  }
-
-  const normalizedBlocks = await Promise.all(analysis.blocks.map(async (item) => ({
-    ...item,
-    callId: await sha256Normalized(`${messageId}\n\n${item.raw}`)
-  })));
-  const next = normalizedBlocks.filter((item) => !state.executedCallIds.has(item.callId));
-  if (next.length === 0) {
-    return null;
-  }
-
-  const batchId = next.length > 1 ? await createBatchId(messageId, next) : undefined;
-  if (batchId && state.executedBatchIds.has(batchId)) {
-    return null;
-  }
-  if (isSamePendingSelection(state.pending, state.pendingBatchId, next, batchId)) {
-    return {
-      status: 'unchanged'
-    };
-  }
-
-  return analysis.status === 'recoverable'
-    ? { status: 'pending', next, messageId, batchId, warningReason: analysis.warningReason ?? 'Recovered a valid MCP block from a mixed reply.' }
-    : { status: 'pending', next, messageId, batchId };
+  return detectPendingTurn({
+    analysis,
+    messageId,
+    messageText,
+    executedCallIds: state.executedCallIds,
+    executedBatchIds: state.executedBatchIds,
+    currentPendingCallIds: state.pending.map((item) => item.callId),
+    currentPendingBatchId: state.pendingBatchId,
+    createCallId: (raw) => sha256Normalized(`${messageId}\n\n${raw}`),
+    createBatchId
+  });
 }
 
 async function waitForSubmittedComposer(expectedText: string): Promise<boolean> {
@@ -661,10 +643,6 @@ async function waitForSubmittedComposer(expectedText: string): Promise<boolean> 
 }
 
 function normalizeForSubmissionCheck(value: string): string {
-  return value.replace(/\u00a0/g, ' ').trim();
-}
-
-function normalizeDetectionFingerprint(value: string): string {
   return value.replace(/\u00a0/g, ' ').trim();
 }
 
