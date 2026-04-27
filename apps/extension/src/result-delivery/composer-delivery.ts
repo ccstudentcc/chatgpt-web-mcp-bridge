@@ -26,6 +26,7 @@ export interface DeliverResultOptions {
   restore: (value: string) => boolean;
   send: () => Promise<boolean>;
   isSubmitting?: () => boolean;
+  getSubmissionSignal?: () => number;
   readCurrentInput: () => string;
   wait: (ms: number) => Promise<void>;
   now?: () => number;
@@ -54,6 +55,7 @@ export async function deliverResult(options: DeliverResultOptions): Promise<Deli
     restore,
     send,
     isSubmitting,
+    getSubmissionSignal,
     readCurrentInput,
     wait,
     now = Date.now,
@@ -125,11 +127,14 @@ export async function deliverResult(options: DeliverResultOptions): Promise<Deli
   }
 
   const wasSubmittingBeforeSend = isSubmitting?.() ?? false;
+  const submissionSignalBeforeSend = getSubmissionSignal?.() ?? 0;
   const sent = await send();
   const confirmed = sent
     ? await waitForSubmittedComposer({
       expectedText: insertedComposerText,
       isSubmitting,
+      getSubmissionSignal,
+      submissionSignalBeforeSend,
       requireSubmittingTransition: !wasSubmittingBeforeSend,
       readCurrentInput,
       wait,
@@ -207,6 +212,8 @@ function getDeliveryMessages(kind: DeliveryKind): {
 async function waitForSubmittedComposer({
   expectedText,
   isSubmitting,
+  getSubmissionSignal,
+  submissionSignalBeforeSend,
   requireSubmittingTransition,
   readCurrentInput,
   wait,
@@ -216,6 +223,8 @@ async function waitForSubmittedComposer({
 }: {
   expectedText: string;
   isSubmitting?: () => boolean;
+  getSubmissionSignal?: () => number;
+  submissionSignalBeforeSend: number;
   requireSubmittingTransition: boolean;
   readCurrentInput: () => string;
   wait: (ms: number) => Promise<void>;
@@ -224,10 +233,17 @@ async function waitForSubmittedComposer({
   pollIntervalMs: number;
 }): Promise<boolean> {
   const deadline = now() + submissionTimeoutMs;
+  const expectSubmissionSignal = typeof getSubmissionSignal === 'function';
 
   while (now() < deadline) {
-    if (isSubmitting?.() && requireSubmittingTransition) {
+    if (expectSubmissionSignal && (getSubmissionSignal?.() ?? 0) > submissionSignalBeforeSend) {
       return true;
+    }
+
+    if (isSubmitting?.() && requireSubmittingTransition) {
+      if (!expectSubmissionSignal) {
+        return true;
+      }
     }
 
     const current = normalizeComposerText(readCurrentInput());
@@ -320,7 +336,23 @@ export function matchesRecoveredComposerState({
     }
   }
 
-  return isBridgeManagedComposerText(current) && candidates.some((candidate) => isBridgeManagedComposerText(candidate));
+  if (!isBridgeManagedComposerText(current)) {
+    return false;
+  }
+
+  const currentHeading = extractBridgeHeading(current);
+  return candidates.some((candidate) => {
+    if (!isBridgeManagedComposerText(candidate)) {
+      return false;
+    }
+
+    const candidateHeading = extractBridgeHeading(candidate);
+    if (currentHeading && candidateHeading) {
+      return currentHeading === candidateHeading;
+    }
+
+    return currentHeading === null && candidateHeading === null;
+  });
 }
 
 export function matchesAuthoritativeComposerState({
@@ -358,7 +390,12 @@ export function matchesAuthoritativeComposerState({
 
   return candidates.some((candidate) => {
     const candidatePayloads = extractResultBlockPayloads(candidate);
-    return candidatePayloads.some((payloadBlock) => currentPayloads.includes(payloadBlock));
+    if (!candidatePayloads.some((payloadBlock) => currentPayloads.includes(payloadBlock))) {
+      return false;
+    }
+
+    return isBridgeManagedComposerText(current)
+      && stripBridgePayloadBlocks(current) === stripBridgePayloadBlocks(candidate);
   });
 }
 
@@ -454,4 +491,22 @@ function isBridgeManagedComposerText(value: string): boolean {
     || /These results were executed outside the model after your previous .*mcp.* reply\./iu.test(normalized)
     || normalized.includes('Continue only after reading this bridge-provided tool result.')
     || normalized.includes('Continue only after reading these bridge-provided batch results.');
+}
+
+function extractBridgeHeading(value: string): string | null {
+  const firstLine = normalizeComposerText(value).split('\n')[0] ?? '';
+  if (firstLine.startsWith('Bridge tool result for ')) {
+    return firstLine;
+  }
+  if (firstLine === 'Bridge batch tool results for one assistant reply:') {
+    return firstLine;
+  }
+
+  return null;
+}
+
+function stripBridgePayloadBlocks(value: string): string {
+  return normalizeComposerText(
+    value.replace(/(`{3,})(tool_result|tool_result_batch)\n[\s\S]*?\n\1/gu, '').replace(/\n{3,}/g, '\n\n')
+  );
 }

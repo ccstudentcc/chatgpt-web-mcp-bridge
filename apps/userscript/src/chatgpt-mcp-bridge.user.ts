@@ -68,6 +68,7 @@ bootstrapRequestPrompt();
 void warmRequestPromptFromGateway();
 
 let lastRequestHookStatusKey = '';
+let requestHookConversationEventCount = 0;
 let turnScanState = createAssistantTurnScanState();
 const INVALID_TURN_GRACE_MS = 2_000;
 const STARTUP_UNDELIVERED_RECOVERY_GRACE_MS = 2_500;
@@ -518,6 +519,7 @@ function installRequestHookDiagnostics(): void {
     }
 
     const key = `${hookStatus}:${detail.transport ?? 'unknown'}:${detail.url ?? ''}`;
+    requestHookConversationEventCount += 1;
     if (key === lastRequestHookStatusKey) {
       return;
     }
@@ -553,6 +555,7 @@ async function performLastResultDelivery(readyStatus: ReadyDeliveryStatus): Prom
     restore: insertIntoChatInput,
     send: sendCurrentChatInput,
     isSubmitting: isChatInputSubmitting,
+    getSubmissionSignal: () => requestHookConversationEventCount,
     readCurrentInput: readCurrentChatInputText,
     wait
   });

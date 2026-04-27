@@ -120,6 +120,7 @@ describe('deliverResult', () => {
 
   it('restores the preserved draft after ChatGPT enters submission even before the composer clears', async () => {
     let currentTime = 0;
+    let submissionSignal = 0;
     const restore = vi.fn(() => true);
     const outcome = await deliverResult({
       kind: 'single',
@@ -130,9 +131,13 @@ describe('deliverResult', () => {
       restore,
       send: async () => true,
       isSubmitting: () => currentTime >= 100,
+      getSubmissionSignal: () => submissionSignal,
       readCurrentInput: () => 'tool-result',
       wait: async (ms) => {
         currentTime += ms;
+        if (currentTime >= 100) {
+          submissionSignal = 1;
+        }
       },
       now: () => currentTime,
       insertionSettleTimeoutMs: 100,
@@ -191,6 +196,7 @@ describe('deliverResult', () => {
       restore: () => true,
       send: async () => true,
       isSubmitting: () => false,
+      getSubmissionSignal: () => 0,
       readCurrentInput: () => composerText,
       wait: async (ms) => {
         currentTime += ms;
@@ -206,6 +212,72 @@ describe('deliverResult', () => {
 
     expect(outcome.phase).toBe('inserted');
     expect(outcome.recovery?.kind).toBe('submission_not_confirmed');
+  });
+
+  it('confirms recovered send once a real conversation request is observed even before the composer clears', async () => {
+    let currentTime = 0;
+    let submissionSignal = 0;
+    const payload = [
+      'Bridge tool result for `read_file`:',
+      'This result was executed outside the model after your previous `mcp` reply.',
+      '',
+      '```tool_result',
+      '{}',
+      '```'
+    ].join('\n');
+
+    const outcome = await deliverResult({
+      kind: 'single',
+      payload,
+      autoSend: true,
+      allowReuseCurrentComposer: true,
+      insert: () => true,
+      restore: () => true,
+      send: async () => true,
+      isSubmitting: () => currentTime >= 100,
+      getSubmissionSignal: () => submissionSignal,
+      readCurrentInput: () => payload,
+      wait: async (ms) => {
+        currentTime += ms;
+        if (currentTime >= 100) {
+          submissionSignal = 1;
+        }
+      },
+      now: () => currentTime,
+      insertionSettleTimeoutMs: 100,
+      submissionTimeoutMs: 200,
+      pollIntervalMs: 50
+    });
+
+    expect(outcome.phase).toBe('sent');
+  });
+
+  it('keeps confirming later sends when the submission signal repeats with the same endpoint shape', async () => {
+    let currentTime = 0;
+    let submissionSignal = 1;
+    const outcome = await deliverResult({
+      kind: 'single',
+      payload: 'tool-result',
+      autoSend: true,
+      insert: () => true,
+      restore: () => true,
+      send: async () => true,
+      isSubmitting: () => currentTime >= 100,
+      getSubmissionSignal: () => submissionSignal,
+      readCurrentInput: () => 'tool-result',
+      wait: async (ms) => {
+        currentTime += ms;
+        if (currentTime >= 100) {
+          submissionSignal = 2;
+        }
+      },
+      now: () => currentTime,
+      insertionSettleTimeoutMs: 100,
+      submissionTimeoutMs: 200,
+      pollIntervalMs: 50
+    });
+
+    expect(outcome.phase).toBe('sent');
   });
 
   it('does not treat an already-submitting page state as successful send confirmation by itself', async () => {
@@ -386,6 +458,29 @@ describe('deliverResult', () => {
     })).toBe(true);
     expect(matchesAuthoritativeComposerState({
       currentText: 'This result was executed outside the model after your previous `mcp` reply.',
+      payload
+    })).toBe(false);
+    expect(matchesAuthoritativeComposerState({
+      currentText: `manual note before send\n\n${payload}`,
+      payload
+    })).toBe(false);
+  });
+
+  it('does not recover a persisted session from a different bridge result that only shares generic bridge wording', () => {
+    const payload = [
+      'Bridge tool result for `read_file`:',
+      'This result was executed outside the model after your previous `mcp` reply.',
+      '',
+      '```tool_result',
+      '{}',
+      '```'
+    ].join('\n');
+
+    expect(matchesRecoveredComposerState({
+      currentText: [
+        'Bridge tool result for `grep_files`:',
+        'This result was executed outside the model after your previous `mcp` reply.'
+      ].join('\n'),
       payload
     })).toBe(false);
   });
