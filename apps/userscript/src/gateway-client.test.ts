@@ -68,7 +68,7 @@ describe('gateway-client', () => {
     });
   });
 
-  it('still reads the earlier flat compat shape during the transition', async () => {
+  it('keeps flat top-level execute metadata inert when the nested compat payload is absent', async () => {
     vi.stubGlobal('GM_xmlhttpRequest', vi.fn((options: {
       onload?: (response: { status: number; responseText: string }) => void;
     }) => {
@@ -117,6 +117,7 @@ describe('gateway-client', () => {
       tool: 'read_file',
       result: { type: 'inline_tool_result' }
     });
+    expect('execute' in response ? response.execute : undefined).toBeUndefined();
   });
 
   it('throws failures with execute compat metadata preserved on the error object', async () => {

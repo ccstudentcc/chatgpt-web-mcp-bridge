@@ -158,7 +158,7 @@ describe('legacy execute response helpers', () => {
     });
   });
 
-  it('still accepts the earlier flat compat shape during the transition', () => {
+  it('rejects flat top-level execute metadata that is no longer part of the live compat surface', () => {
     expect(getExecuteResponseCompat({
       requestId: 'legacy-call-2',
       executionId: 'legacy-call-2.exec',
@@ -171,11 +171,7 @@ describe('legacy execute response helpers', () => {
           retryable: false
         }
       }
-    })).toMatchObject({
-      requestId: 'legacy-call-2',
-      executionId: 'legacy-call-2.exec',
-      result: { type: 'execution_error' }
-    });
+    })).toBeNull();
   });
 });
 

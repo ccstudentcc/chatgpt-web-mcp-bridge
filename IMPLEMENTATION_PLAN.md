@@ -96,6 +96,7 @@ Status: in progress
 - Current execution inside this stage:
   - shared protocol compat helpers for current single-call bridge request/response shapes
   - nested `/call-tool` `execute` metadata that preserves the legacy top-level `result`
+  - removal of transition-only flat top-level execute-metadata parsing, so compat effort stays aligned to the live runtime floor instead of draft carryover
   - userscript request construction and execute-metadata reading moved onto shared helpers
   - shared batch result-envelope items and helper, with userscript batch assembly and result formatting consuming the shared envelope shape
   - app-local validation scripts that rebuild required workspace package outputs before `lint`, `test`, or `build`

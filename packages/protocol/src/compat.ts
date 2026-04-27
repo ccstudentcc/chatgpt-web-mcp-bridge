@@ -55,8 +55,7 @@ interface CreateToolDecisionOptions {
 
 export type ToolCallCompatResponse<TResult = unknown> =
   ToolCallResponse<TResult>
-  & { execute?: ExecuteResponse }
-  & Partial<ExecuteResponse>;
+  & { execute?: ExecuteResponse };
 
 export function createLegacyToolCallRequest(options: CreateLegacyToolCallRequestOptions): ToolCallRequest {
   return {
@@ -191,22 +190,7 @@ export function getExecuteResponseCompat(value: unknown): ExecuteResponse | null
     }
   }
 
-  const requestId = getStringField(value, 'requestId');
-  const executionId = getStringField(value, 'executionId');
-  const decisions = getArrayField(value, 'decisions');
-  const result = getObjectField(value, 'result');
-  const resultType = result ? getStringField(result, 'type') : undefined;
-
-  if (!requestId || !executionId || !decisions || !result || !resultType) {
-    return null;
-  }
-
-  return {
-    requestId,
-    executionId,
-    decisions: decisions as ToolDecision[],
-    result: result as unknown as ExecuteResponse['result']
-  };
+  return null;
 }
 
 const NON_RETRYABLE_ERROR_CODES = new Set([
