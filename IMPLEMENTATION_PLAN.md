@@ -206,7 +206,7 @@ These rules apply to every Stage 7 through Stage 17 slice:
 
 ## Stage 7: Execute Module Stage - Turn Runtime
 
-Status: in progress
+Status: completed
 
 Goal:
 
@@ -258,9 +258,16 @@ Definition of done:
 - invalid-turn blocking and duplicate-guard behavior remain stable on the live runtime path
 - the extension owner can be tested directly without routing every assertion through the userscript monolith
 
+Definition of done reached:
+
+- `apps/extension/src/turn-runtime/turn-runtime-poll.ts` now owns current-request identity resolution plus latest-assistant turn scan orchestration for clear, pending, invalid-waiting, and invalid runtime outcomes, so `apps/userscript/src/chatgpt-mcp-bridge.user.ts` no longer owns that decision pipeline.
+- Direct owner-level tests now cover the new turn-runtime poll helper alongside parser, pending-turn detection, assistant-turn scan, turn-source, invalid-turn state, and pending-runtime helpers.
+- `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` all succeeded after the Stage 7 close-out slice.
+- The current dialogue-level acceptance summary for April 27, 2026 records the bridge chain, batch behavior, workspace read/search/grep tools, security boundaries, protocol alignment, and real write/UI end-to-end usage as currently usable with no remaining blocker reported for Stage 7 close-out.
+
 ## Stage 8: Execute Module Stage - Result Delivery
 
-Status: pending
+Status: in progress
 
 Goal:
 

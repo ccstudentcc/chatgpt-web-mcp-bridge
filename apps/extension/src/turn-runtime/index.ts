@@ -13,6 +13,10 @@ export {
   type TurnRuntimeMessageSource
 } from './turn-source.js';
 export {
+  pollLatestAssistantTurnRuntime,
+  type TurnRuntimePollResult
+} from './turn-runtime-poll.js';
+export {
   canAutoRunForRequest,
   recordAutoRunForRequest,
   syncAutoRoundRequest,

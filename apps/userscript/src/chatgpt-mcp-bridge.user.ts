@@ -21,15 +21,12 @@ import { installPageRequestHook, syncRequestPrompt, type RequestHookStatus } fro
 import {
   clearPendingSelectionRuntime,
   consumeFirstPendingRuntime,
-  createInvalidTurnRuntimeUpdate,
   createIgnoredPendingRuntimeUpdate,
-  createPendingDetectionUpdate,
   createAssistantTurnScanState,
   getPendingTurnRuntimeStatus,
   hasPendingTurnBatch,
-  resetPendingDetectionRuntime,
-  resolveCurrentRequestIdentity,
-  scanLatestAssistantTurnSource
+  pollLatestAssistantTurnRuntime,
+  resolveCurrentRequestIdentity
 } from '../../extension/src/turn-runtime/index.js';
 import { renderPanel, setUiHandlers } from './ui.js';
 import {
@@ -91,23 +88,20 @@ async function refreshGatewayStatus(): Promise<void> {
 
 async function scanLatestAssistantMessage(): Promise<void> {
   if (state.status === 'executing' || state.status === 'batch_executing') return;
-  const requestIdentity = resolveCurrentRequestIdentity({
+  const detection = await pollLatestAssistantTurnRuntime({
     findLatestUserMessage,
-    extractVisibleText,
-    conversationPath: window.location.pathname,
-    state: turnScanState
-  });
-  turnScanState = requestIdentity.nextState;
-
-  const requestId = requestIdentity.requestId;
-  const detection = await scanLatestAssistantTurnSource({
     findLatestOpenAssistantMessage,
     extractVisibleText,
+    conversationPath: window.location.pathname,
     state: turnScanState,
     executedCallIds: state.executedCallIds,
     executedBatchIds: state.executedBatchIds,
     currentPendingCallIds: state.pending.map((item) => item.callId),
     currentPendingBatchId: state.pendingBatchId,
+    currentStatus: state.status,
+    hasRetryableBatch: Boolean(state.retryableBatch),
+    lastInvalidMcpMessageId: state.lastInvalidMcpMessageId,
+    lastError: state.lastError,
     createCallId: (messageId, raw) => sha256Normalized(`${messageId}\n\n${raw}`),
     createBatchId,
     now: Date.now(),
@@ -115,13 +109,14 @@ async function scanLatestAssistantMessage(): Promise<void> {
   });
   turnScanState = detection.nextState;
 
-  if (detection.status === 'missing') {
-    clearPendingDetection();
-    return;
-  }
-
   if (detection.status === 'clear') {
-    clearPendingDetection();
+    if (!detection.reset.shouldClear) {
+      return;
+    }
+
+    applyPendingSelectionUpdate(clearPendingSelectionRuntime());
+    state.progress = undefined;
+    state.status = detection.reset.nextStatus;
     return;
   }
 
@@ -130,27 +125,23 @@ async function scanLatestAssistantMessage(): Promise<void> {
   }
 
   if (detection.status === 'pending') {
-    const { next, messageId, batchId } = detection;
-    const pendingUpdate = createPendingDetectionUpdate({
-      pending: next,
-      messageId,
-      batchId,
-      requestId
-    });
-    if ('warningReason' in detection) {
+    if (detection.warningReason) {
       addLogEntry('warn', detection.warningReason);
     }
+    const pendingUpdate = detection.update;
     state.pending = pendingUpdate.pending;
     state.pendingMessageId = pendingUpdate.pendingMessageId;
     state.pendingBatchId = pendingUpdate.pendingBatchId;
     state.pendingRequestId = pendingUpdate.pendingRequestId;
     state.lastInvalidMcpMessageId = pendingUpdate.lastInvalidMcpMessageId;
-    syncRoundGuard(requestId);
+    syncRoundGuard(detection.requestId);
     state.progress = pendingUpdate.progress;
     state.retryableBatch = pendingUpdate.retryableBatch;
     state.lastError = pendingUpdate.lastError;
     state.status = pendingUpdate.status;
-    addLogEntry('info', batchId ? `Detected batch with ${next.length} tool calls.` : `Detected tool call: ${next[0]?.block.tool ?? 'unknown'}`);
+    addLogEntry('info', detection.batchId
+      ? `Detected batch with ${pendingUpdate.pending.length} tool calls.`
+      : `Detected tool call: ${pendingUpdate.pending[0]?.block.tool ?? 'unknown'}`);
     renderPanel();
     void maybeAutoRunPending();
     return;
@@ -160,12 +151,7 @@ async function scanLatestAssistantMessage(): Promise<void> {
     return;
   }
 
-  const invalidUpdate = createInvalidTurnRuntimeUpdate({
-    lastInvalidMcpMessageId: state.lastInvalidMcpMessageId,
-    lastError: state.lastError,
-    messageId: detection.messageId,
-    invalidReason: detection.invalidReason
-  });
+  const invalidUpdate = detection.update;
   state.lastInvalidMcpMessageId = invalidUpdate.lastInvalidMcpMessageId;
   state.lastError = invalidUpdate.lastError;
   state.status = invalidUpdate.status;
@@ -173,20 +159,6 @@ async function scanLatestAssistantMessage(): Promise<void> {
     addLogEntry('warn', `Blocked invalid MCP reply: ${detection.invalidReason}`);
   }
   renderPanel();
-}
-
-function clearPendingDetection(): void {
-  const reset = resetPendingDetectionRuntime({
-    status: state.status,
-    hasRetryableBatch: Boolean(state.retryableBatch)
-  });
-  if (!reset.shouldClear) {
-    return;
-  }
-
-  applyPendingSelectionUpdate(clearPendingSelectionRuntime());
-  state.progress = undefined;
-  state.status = reset.nextStatus;
 }
 
 async function runPending(): Promise<void> {

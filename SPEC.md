@@ -8,7 +8,7 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is complete. Phase 2 is now a module-by-module Final Core refactor program. The current active module stage is `turn-runtime`.
+Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage is now complete. Phase 2 remains a module-by-module Final Core refactor program, and the current active module stage is `result-delivery`.
 
 Phase 2 exists so the repo can finish `apps/extension` and `apps/gateway` one module at a time, keeping each stage narrow enough to improve ownership, timing, logic, stability, and test coverage without reopening multiple modules at once.
 
@@ -82,25 +82,28 @@ Exit gate for any Phase 2 stage:
 
 ## Current Active Stage
 
-Active module stage: `turn-runtime`
+Active module stage: `result-delivery`
 
 Current module-stage file surfaces:
 
-- `apps/extension/src/turn-runtime/*`
-- `apps/userscript/src/parser.ts`
+- `apps/extension/src/result-delivery/*`
+- `apps/userscript/src/inserter.ts`
+- `apps/userscript/src/batch.ts`
+- `apps/userscript/src/preview.ts`
 - `apps/userscript/src/chatgpt-mcp-bridge.user.ts`
-- `apps/userscript/src/detection-state.ts`
-- `apps/userscript/src/round-guard.ts`
-- `apps/userscript/src/turn-runtime.ts`
-- current userscript tests that exercise turn parsing, invalid-turn handling, duplicate guard, and startup/history rescan
+- `apps/userscript/src/inserter.test.ts`
+- `apps/userscript/src/batch.test.ts`
+- `apps/userscript/src/preview.test.ts`
+- `apps/userscript/src/ui.test.ts`
+- `packages/protocol/src/*` only if delivery consumes new shared result-envelope helpers
 - `docs/operations/chatgpt-web-runtime-evidence.md`
 - the root task-control docs
 
 Current stage intent:
 
-- finish the `turn-runtime` owner shift without opening `result-delivery`, `injection-runtime`, or gateway extraction as parallel primary stages
-- keep shrinking `apps/userscript/src/chatgpt-mcp-bridge.user.ts` as a long-term logic owner
-- improve startup/history rescan timing, latest-open-turn selection clarity, and invalid-turn/duplicate-guard testability while preserving the live runtime floor
+- make `apps/extension/src/result-delivery/*` the long-term owner for result formatting, composer insertion, auto-send timing, and retry or copy fallback semantics
+- keep delivery semantics separate from turn detection and gateway execution meaning
+- reduce insertion and auto-send timing ambiguity while preserving the live runtime floor
 
 ## In Scope
 
@@ -185,5 +188,5 @@ Current stage intent:
 - No active task-control or v0.9 entry doc still says that v0.1 close-out is blocking v0.9 by default.
 - Phase 2 clearly limits itself to one active module stage at a time instead of broad new capabilities or parallel extraction axes.
 - The repo has one explicit source of truth for ChatGPT Web DOM/request-shape evidence, and the task docs point to it instead of duplicating its content.
-- The `turn-runtime` stage has one explicit v0.9 owner for parser-level turn normalization and nearby turn-runtime semantics, and userscript modules are treated as compat consumers rather than the long-term source of truth.
+- The `result-delivery` stage has one explicit v0.9 owner target for result formatting, insertion, send timing, and retry or copy fallback semantics, and userscript delivery modules are treated as current compat consumers rather than the long-term source of truth.
 - Every Phase 2 stage requires root verification, and browser-runtime stages additionally require real ChatGPT Web validation before being called complete.

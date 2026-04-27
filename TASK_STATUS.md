@@ -14,7 +14,8 @@
 - Phase 2 may still use larger rewrites when they improve efficiency, timing, logic clarity, stability, or test coverage, but only inside the currently active module stage.
 - Stage 3 slice-definition work is complete; Stage 4 compat-preserving execution is complete on the same Phase 1 boundary.
 - Stage 5 execution-model definition is now complete, and the Phase 2 stage-definition pack is now explicit enough for execution: every declared module stage now has owner surfaces, supporting surfaces, optimization targets, validation expectations, and a definition of done in `IMPLEMENTATION_PLAN.md`.
-- Stage 6 module ordering and rationale are now also explicit; the next open gate is still to finish the active `turn-runtime` module stage and then advance module-by-module through the declared order.
+- Stage 6 module ordering and rationale are now also explicit; Stage 7 `turn-runtime` is complete, and the next open gate is now the active `result-delivery` module stage.
+- The current dialogue-level acceptance summary for April 27, 2026 reports the bridge chain, batch behavior, workspace read/search/grep tools, security boundaries, protocol alignment, core gateway/protocol/userscript tracing, and real write/UI end-to-end usage as currently usable with no remaining blocker called out for the just-closed Stage 7 boundary.
 - Draft v0.9 docs and draft contract shapes are reference truth only. They are not separate compatibility targets; compatibility work in the current slice applies to the proven live runtime floor and the still-live routes/behaviors it depends on.
 - ChatGPT Web DOM/request-shape/selectors evidence now has one intended home: `docs/operations/chatgpt-web-runtime-evidence.md`.
 - ChatGPT Web page-fact code truth now targets one v0.9 owner: `apps/extension/src/chatgpt-adapter/`; current userscript code should only consume or compat-re-export that truth.
@@ -38,7 +39,7 @@
 - Pure request-injection mode/status semantics now live under `apps/extension/src/injection-runtime/request-injection-state.ts`, while userscript keeps only thin compat re-exports and algorithm-local request-hook logic.
 - The pure runtime-snapshot helper semantics have been lifted out of userscript-local state code into `apps/extension/src/operator-panel/runtime-snapshot.ts`, while `apps/userscript/src/runtime-snapshot.ts` remains a thin compat re-export.
 - Pure invalid-turn state, pending-selection identity, and auto-round guard semantics now live under `apps/extension/src/turn-runtime/*`, while userscript `detection-state.ts`, `round-guard.ts`, and `turn-runtime.ts` only provide compat wiring or local type adaptation.
-- Parser-level turn normalization and the nearby latest-open-turn detection path still have meaningful logic in `apps/userscript/src/parser.ts` and `apps/userscript/src/chatgpt-mcp-bridge.user.ts`; Phase 2 is the explicit slice that will move that longer-lived turn-runtime ownership behind extension-owned seams.
+- Parser-level turn normalization is now a compat concern only in `apps/userscript/src/parser.ts`, while the latest-open-turn and startup/history rescan decision pipeline now lives under extension-owned turn-runtime helpers.
 - The first Phase 2 extraction step is now in code: parser-level MCP turn analysis and normalization logic lives under `apps/extension/src/turn-runtime/mcp-turn-analysis.ts`, while `apps/userscript/src/parser.ts` is reduced to a thin compat wrapper that restores legacy `callId` semantics.
 - The next Phase 2 extraction step is now also in code: latest-open-turn message identity and pending-turn detection semantics live under `apps/extension/src/turn-runtime/pending-turn-detection.ts`, while `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now only supplies DOM text extraction, current runtime state, and userscript-local hashing/batch helpers.
 - The latest-open-turn scan state transition is now also in code: `apps/extension/src/turn-runtime/assistant-turn-scan.ts` owns the pure clear/pending/invalid-waiting/invalid decision flow for startup/history rescan, while `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now only supplies DOM discovery, visible-text extraction, and runtime side effects for the active turn-runtime path.
@@ -48,6 +49,7 @@
 - Pending scan-result application now also flows through extension-owned `scan-runtime-effects.ts`, so userscript no longer owns the pure clear/pending/invalid runtime update semantics for startup/history rescan.
 - Latest assistant/user turn-source orchestration now also flows through extension-owned `turn-source.ts`, so userscript no longer owns the request-identity fallback or latest-open-turn source assembly around the shared scan pipeline.
 - Pending selection clear/consume/ignore transitions now also flow through extension-owned `pending-runtime-effects.ts`, so userscript no longer owns the pure pending-selection mutation rules for detection reset, single-call consumption, batch completion, or ignore actions.
+- Latest request-identity resolution plus latest-assistant turn scan orchestration for clear, pending, invalid-waiting, and invalid runtime outcomes now also flows through extension-owned `turn-runtime-poll.ts`, so userscript no longer owns the end-to-end startup/history rescan decision assembly.
 - Invalid-turn enforcement now aligns with the `Insert MCP list` / `Copy MCP list` contract: brief natural-language context before the first fenced `mcp` block is allowed, while prose, analysis, or thinking text between or after tool-call blocks is still a hard block.
 - Live-page follow-up from April 27, 2026 showed that strict invalid-turn rules alone were not enough: the assistant scan path also needed to normalize selector hits back to the outer assistant turn container so the analyzer sees surrounding prose instead of only the inner code-block text.
 - The latest live-page diagnostics on April 27, 2026 also showed a second rendered-turn gap: even when the outer assistant `SECTION` visible text already contained `prefix prose + rendered mcp block + suffix prose`, the turn analyzer could still classify the reply as `valid` and enter `pending`.
@@ -93,11 +95,12 @@
 - After realigning invalid-turn enforcement with the manual `Insert MCP list` / `Copy MCP list` contract so brief prose before the first fenced `mcp` block is allowed again, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After normalizing assistant scan candidates back to the outer assistant turn container when present, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After promoting visible rendered `mcp` text to a first-class turn-analysis source and adding a regression for prose-wrapped rendered replies with DOM-format drift, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After moving request-identity plus latest-assistant scan orchestration into `apps/extension/src/turn-runtime/turn-runtime-poll.ts` and adding direct owner-level regression coverage, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 
 ## Active Stop Line
 
 - The v0.1 stop line is closed as of April 27, 2026.
-- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. The active gate is now to complete and verify the active `turn-runtime` module stage without accidentally opening neighboring Phase 2 modules or broad capability rollout.
+- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. Stage 7 `turn-runtime` is complete; the active gate is now to execute the `result-delivery` module stage without accidentally reopening turn-runtime or opening neighboring gateway modules or broad capability rollout.
 - Any Phase 2 stage completion claim now requires direct owner-level tests, adjacent compat-path regression checks, root `pnpm lint` / `test` / `build`, and real ChatGPT Web validation whenever browser runtime timing or DOM behavior changed.
 - Until explicitly migrated, the active compatibility floor includes:
   - `/health`
@@ -113,7 +116,7 @@
 - Active program: Phase 2 module-by-module Final Core refactor
 - Battleground: Final Core
 - Primary axis: extension runtime boundary extraction
-- Active module stage: `turn-runtime`
+- Active module stage: `result-delivery`
 - Phase 1 completed implementation surfaces:
   - `packages/protocol/*`
   - narrow gateway route adapters
@@ -143,13 +146,16 @@
   - stronger direct test coverage than before the stage
   - root verification, plus real-page validation for browser-runtime stages
 - Active module-stage implementation surfaces:
-  - `apps/extension/src/turn-runtime/*`
-  - `apps/userscript/src/parser.ts`
+  - `apps/extension/src/result-delivery/*`
+  - `apps/userscript/src/inserter.ts`
+  - `apps/userscript/src/batch.ts`
+  - `apps/userscript/src/preview.ts`
   - `apps/userscript/src/chatgpt-mcp-bridge.user.ts`
-  - `apps/userscript/src/detection-state.ts`
-  - `apps/userscript/src/round-guard.ts`
-  - `apps/userscript/src/turn-runtime.ts`
-  - current userscript tests covering parser / detection / duplicate guard behavior
+  - `apps/userscript/src/inserter.test.ts`
+  - `apps/userscript/src/batch.test.ts`
+  - `apps/userscript/src/preview.test.ts`
+  - `apps/userscript/src/ui.test.ts`
+  - `packages/protocol/src/*` only if delivery consumes new shared result-envelope helpers
   - root task-control docs
 - Phase 2 progress landed so far:
   - `apps/extension/src/turn-runtime/mcp-turn-analysis.ts` is now the long-term owner for MCP turn parsing / normalization
@@ -159,21 +165,21 @@
   - `apps/extension/src/turn-runtime/scan-runtime-effects.ts` is now the long-term owner for applying clear, pending, and invalid scan outcomes onto the live runtime state
   - `apps/extension/src/turn-runtime/turn-source.ts` is now the long-term owner for latest assistant/user turn-source lookup orchestration, request-identity fallback, and latest-open-turn source assembly ahead of the shared scan pipeline
   - `apps/extension/src/turn-runtime/pending-runtime-effects.ts` is now the long-term owner for pending selection clear/consume/ignore mutations across detection reset, single-tool execution, batch completion, and ignore flows
+  - `apps/extension/src/turn-runtime/turn-runtime-poll.ts` is now the long-term owner for current-request identity resolution plus latest-assistant turn scan orchestration on the live startup/history rescan path
   - `apps/userscript/src/parser.ts` remains only as a compat wrapper for hashed `callId` output
-  - `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now delegates pending-turn classification, live turn analysis, message-identity tracking, latest turn-source orchestration, pending-selection mutations, scan-state decisions, and scan-result runtime effects instead of owning the full detection algorithm
+  - `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now delegates request identity resolution, latest turn-source orchestration, pending-turn classification, live turn analysis, message-identity tracking, pending-selection mutations, scan-state decisions, and scan-result runtime effects instead of owning the full detection algorithm
   - userscript bundling now explicitly resolves `@cwmb/protocol` for extension-owned turn-runtime imports
-- Userscript files named in this slice are now reference or temporary bridge surfaces, not target-state ownership destinations by themselves.
-- Still explicitly not opened while `turn-runtime` is the active module stage:
+- The Stage 7 `turn-runtime` module stage is now closed. Userscript files touched there remain reference or temporary bridge surfaces, not target-state ownership destinations by themselves.
+- Still explicitly not opened while `result-delivery` is the active module stage:
   - extension-first shell migration
-  - `result-delivery` as a primary module stage
   - `injection-runtime` as a primary module stage
   - gateway execution-kernel extraction as a primary module stage
   - `reviewed` / `yolo` rollout
   - proposal workflow rollout
   - external/custom MCP rollout
   - broad builtin capability expansion
-  - operator-panel feature expansion unrelated to extraction
-  - broad `result-delivery` redesign as a separate battleground
+  - operator-panel feature expansion unrelated to delivery extraction
+  - broad panel redesign as a separate battleground
 
 ## Caveats
 
@@ -199,7 +205,7 @@
 - When a cleaner direct implementation exists in `apps/extension` or `apps/gateway`, prefer landing there over recreating new long-term logic in userscript-shaped files.
 - Do not add or keep adapters only to preserve draft-only field names, draft wording, or other reference-only shapes. Keep compatibility only where current live runtime behavior still depends on it.
 - Treat nested `execute` as the only active `/call-tool` execution-metadata compat surface unless a future task doc explicitly reopens that decision with live runtime evidence.
-- The next required live verification is to rerun the prose-wrapped rendered `mcp` repro on the real ChatGPT page and confirm the panel now blocks it as `invalid_mcp_turn` instead of entering `pending` / autorun.
-- The next useful implementation step is to keep shrinking `apps/userscript/src/chatgpt-mcp-bridge.user.ts` around the remaining turn-runtime state application and startup polling shell without reopening `result-delivery` or gateway modules as new primary stages.
+- The next required live verification is to exercise insert-only, insert-plus-send, and insertion-failure recovery on the real ChatGPT page before claiming the `result-delivery` stage complete.
+- The next useful implementation step is to start moving result formatting, composer insertion, and auto-send timing toward `apps/extension/src/result-delivery/*` without reopening turn-runtime or gateway modules as new primary stages.
 - Use the expanded `IMPLEMENTATION_PLAN.md` stage contract as the execution source of truth for module boundaries, allowed supporting surfaces, validation, and stage exit conditions; do not re-invent those rules ad hoc in code review.
 - If a change tries to activate a second Phase 2 module at the same time, stop and either narrow it back to the active module stage or first update the task-control docs to resequence the program.
