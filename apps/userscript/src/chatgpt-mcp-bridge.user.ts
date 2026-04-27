@@ -610,7 +610,7 @@ async function startBridge(): Promise<void> {
   await maybeResumeRecoveredResultDelivery();
   void refreshGatewayStatus();
   void scanLatestAssistantMessage();
-  onChatMutation(() => void scanLatestAssistantMessage());
+  onChatMutation(() => void handleLiveChatMutation());
   setInterval(() => {
     void refreshGatewayStatus();
     void scanLatestAssistantMessage();
@@ -662,6 +662,11 @@ async function restoreUndeliveredResultSessionOnStartup(): Promise<boolean> {
   });
 }
 
+async function handleLiveChatMutation(): Promise<void> {
+  await maybeRestoreUndeliveredResultSessionAfterHydration();
+  await scanLatestAssistantMessage();
+}
+
 function shouldDeferPendingDetectionForComposerDraft(): boolean {
   const composerText = readCurrentChatInputText();
   const hasMatchingRecoveredSession = normalizeStartupComposerText(composerText).length > 0
@@ -709,6 +714,30 @@ async function maybeResumeRecoveredResultDelivery(): Promise<void> {
   state.status = await performLastResultDelivery(getCurrentReadyDeliveryStatus());
   syncUndeliveredResultSession();
   renderPanel();
+}
+
+async function maybeRestoreUndeliveredResultSessionAfterHydration(): Promise<void> {
+  if (state.lastResult) {
+    return;
+  }
+
+  const currentComposerText = readCurrentChatInputText();
+  if (!normalizeStartupComposerText(currentComposerText)) {
+    return;
+  }
+
+  const restored = restorePersistedUndeliveredResultSession({
+    conversationPath: window.location.pathname,
+    currentComposerText,
+    clearOnMismatch: false
+  });
+  if (!restored) {
+    return;
+  }
+
+  addLogEntry('info', 'Restored the undelivered bridge result after composer hydration finished.');
+  renderPanel();
+  await maybeResumeRecoveredResultDelivery();
 }
 
 function failureFromError(tool: string, error: unknown): ToolCallFailure {

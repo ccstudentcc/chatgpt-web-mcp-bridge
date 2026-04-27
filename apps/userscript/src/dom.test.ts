@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { findAssistantMessages, findLatestOpenAssistantMessage } from './dom.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { findAssistantMessages, findLatestOpenAssistantMessage, onChatMutation } from './dom.js';
 
 describe('findAssistantMessages fallback', () => {
   afterEach(() => {
@@ -359,5 +359,68 @@ describe('findAssistantMessages fallback', () => {
     Object.defineProperty(globalThis, 'HTMLElement', { value: FakeHTMLElement, configurable: true });
 
     expect(findLatestOpenAssistantMessage()).toBe(latestMcp);
+  });
+});
+
+describe('onChatMutation', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(globalThis, 'document');
+    Reflect.deleteProperty(globalThis, 'window');
+    Reflect.deleteProperty(globalThis, 'MutationObserver');
+  });
+
+  it('still triggers a scan when frequent mutations keep resetting the settle timer', () => {
+    let observerCallback: (() => void) | undefined;
+    const scheduled = new Map<number, () => void>();
+    let nextTimerId = 1;
+    const callback = vi.fn();
+
+    class FakeMutationObserver {
+      constructor(cb: () => void) {
+        observerCallback = cb;
+      }
+
+      observe(): void {
+        // no-op
+      }
+    }
+
+    Object.defineProperty(globalThis, 'document', {
+      value: {
+        body: {}
+      },
+      configurable: true
+    });
+    Object.defineProperty(globalThis, 'window', {
+      value: {
+        setTimeout: (cb: () => void) => {
+          const id = nextTimerId++;
+          scheduled.set(id, cb);
+          return id;
+        },
+        clearTimeout: (id: number) => {
+          scheduled.delete(id);
+        }
+      },
+      configurable: true
+    });
+    Object.defineProperty(globalThis, 'MutationObserver', {
+      value: FakeMutationObserver,
+      configurable: true
+    });
+
+    onChatMutation(callback);
+    observerCallback?.();
+    observerCallback?.();
+    observerCallback?.();
+
+    expect(callback).not.toHaveBeenCalled();
+    expect(scheduled.size).toBe(2);
+
+    const hardDeadline = [...scheduled.entries()][0];
+    hardDeadline?.[1]();
+
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(scheduled.size).toBe(0);
   });
 });

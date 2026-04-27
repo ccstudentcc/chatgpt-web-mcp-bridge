@@ -51,10 +51,28 @@ export function extractVisibleText(el: HTMLElement): string {
 }
 
 export function onChatMutation(callback: () => void): void {
-  let timer: number | undefined;
+  let settleTimer: number | undefined;
+  let hardDeadlineTimer: number | undefined;
+  const flush = (): void => {
+    if (typeof settleTimer === 'number') {
+      window.clearTimeout(settleTimer);
+      settleTimer = undefined;
+    }
+    if (typeof hardDeadlineTimer === 'number') {
+      window.clearTimeout(hardDeadlineTimer);
+      hardDeadlineTimer = undefined;
+    }
+    callback();
+  };
+
   const observer = new MutationObserver(() => {
-    window.clearTimeout(timer);
-    timer = window.setTimeout(callback, 900);
+    if (typeof hardDeadlineTimer !== 'number') {
+      hardDeadlineTimer = window.setTimeout(flush, 1_500);
+    }
+    if (typeof settleTimer === 'number') {
+      window.clearTimeout(settleTimer);
+    }
+    settleTimer = window.setTimeout(flush, 400);
   });
   observer.observe(document.body, { childList: true, subtree: true, characterData: true });
 }

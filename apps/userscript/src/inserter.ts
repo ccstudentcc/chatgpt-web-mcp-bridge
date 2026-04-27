@@ -61,7 +61,7 @@ export function isChatInputSubmitting(): boolean {
 export function readCurrentChatInputText(): string {
   const editable = findVisibleEditable();
   if (editable) {
-    return normalizeChatInputText(editable.innerText || editable.textContent || '');
+    return normalizeChatInputText(editable.textContent || editable.innerText || '');
   }
 
   const textarea = findVisibleTextarea();
@@ -181,7 +181,7 @@ function normalizeChatInputText(value: string): string {
 }
 
 function matchesEditableText(editable: HTMLElement, expected: string): boolean {
-  return normalizeEditableRoundTripText(editable.innerText || editable.textContent || '')
+  return normalizeEditableRoundTripText(editable.textContent || editable.innerText || '')
     === normalizeEditableRoundTripText(expected);
 }
 

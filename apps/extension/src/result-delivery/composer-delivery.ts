@@ -77,6 +77,7 @@ export async function deliverResult(options: DeliverResultOptions): Promise<Deli
   }
 
   const events: DeliveryLogEvent[] = [{ level: 'success', message: messages.insertedLog }];
+  const insertedComposerText = readCurrentInput() || payload;
   if (!autoSend) {
     return {
       phase: 'inserted',
@@ -86,11 +87,13 @@ export async function deliverResult(options: DeliverResultOptions): Promise<Deli
     };
   }
 
+  const wasSubmittingBeforeSend = isSubmitting?.() ?? false;
   const sent = await send();
   const confirmed = sent
     ? await waitForSubmittedComposer({
-      expectedText: payload,
+      expectedText: insertedComposerText,
       isSubmitting,
+      requireSubmittingTransition: !wasSubmittingBeforeSend,
       readCurrentInput,
       wait,
       now,
@@ -167,6 +170,7 @@ function getDeliveryMessages(kind: DeliveryKind): {
 async function waitForSubmittedComposer({
   expectedText,
   isSubmitting,
+  requireSubmittingTransition,
   readCurrentInput,
   wait,
   now,
@@ -175,6 +179,7 @@ async function waitForSubmittedComposer({
 }: {
   expectedText: string;
   isSubmitting?: () => boolean;
+  requireSubmittingTransition: boolean;
   readCurrentInput: () => string;
   wait: (ms: number) => Promise<void>;
   now: () => number;
@@ -185,7 +190,7 @@ async function waitForSubmittedComposer({
   const expected = normalizeComposerText(expectedText);
 
   while (now() < deadline) {
-    if (isSubmitting?.()) {
+    if (isSubmitting?.() && requireSubmittingTransition) {
       return true;
     }
 

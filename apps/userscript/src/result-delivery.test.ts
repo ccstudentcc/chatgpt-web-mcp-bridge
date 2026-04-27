@@ -140,6 +140,55 @@ describe('deliverResult', () => {
     expect(restore).toHaveBeenCalledWith('user draft');
   });
 
+  it('does not confirm send just because the inserted composer snapshot differs from the original payload', async () => {
+    let currentTime = 0;
+    let composerText = 'Bridge tool result for `read_file`:\n\nThis result was executed outside the model...';
+    const outcome = await deliverResult({
+      kind: 'single',
+      payload: 'Bridge tool result for `read_file`:\nThis result was executed outside the model...',
+      autoSend: true,
+      insert: () => true,
+      restore: () => true,
+      send: async () => true,
+      isSubmitting: () => currentTime >= 100,
+      readCurrentInput: () => composerText,
+      wait: async (ms) => {
+        currentTime += ms;
+        if (currentTime >= 100) {
+          composerText = '';
+        }
+      },
+      now: () => currentTime,
+      submissionTimeoutMs: 300,
+      pollIntervalMs: 50
+    });
+
+    expect(outcome.phase).toBe('sent');
+  });
+
+  it('does not treat an already-submitting page state as successful send confirmation by itself', async () => {
+    let currentTime = 0;
+    const outcome = await deliverResult({
+      kind: 'single',
+      payload: 'tool-result',
+      autoSend: true,
+      insert: () => true,
+      restore: () => true,
+      send: async () => true,
+      isSubmitting: () => true,
+      readCurrentInput: () => 'tool-result',
+      wait: async (ms) => {
+        currentTime += ms;
+      },
+      now: () => currentTime,
+      submissionTimeoutMs: 150,
+      pollIntervalMs: 50
+    });
+
+    expect(outcome.phase).toBe('inserted');
+    expect(outcome.recovery?.kind).toBe('submission_not_confirmed');
+  });
+
   it('treats bridge-owned refresh residue as recovered delivery state instead of a user draft', () => {
     const payload = [
       'Bridge tool result for `read_file`:',
