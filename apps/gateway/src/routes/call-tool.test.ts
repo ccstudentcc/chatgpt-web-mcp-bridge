@@ -7,7 +7,7 @@ import { registerCallToolRoute } from './call-tool.js';
 describe('/call-tool route', () => {
   it('preserves the legacy success payload while adding execute-response metadata', async () => {
     const server = Fastify();
-    await registerCallToolRoute(server, createConfig(), undefined, createLogger());
+    await registerCallToolRoute(server, createConfig({ workspaceRoot: process.cwd() }), undefined, createLogger());
 
     const response = await server.inject({
       method: 'POST',
@@ -51,7 +51,7 @@ describe('/call-tool route', () => {
 
   it('surfaces explicit deny metadata when the current gateway blocks a disabled tool', async () => {
     const server = Fastify();
-    await registerCallToolRoute(server, createConfig(), undefined, createLogger());
+    await registerCallToolRoute(server, createConfig({ workspaceRoot: process.cwd() }), undefined, createLogger());
 
     const response = await server.inject({
       method: 'POST',
@@ -95,13 +95,64 @@ describe('/call-tool route', () => {
 
     await server.close();
   });
+
+  it('marks in-tool workspace policy rejections as deny decisions', async () => {
+    const server = Fastify();
+    await registerCallToolRoute(server, createConfig({
+      workspaceRoot: process.cwd(),
+      allowWrite: true,
+      blockedPaths: ['.env']
+    }), undefined, createLogger());
+
+    const response = await server.inject({
+      method: 'POST',
+      url: '/call-tool',
+      payload: {
+        tool: 'write_file',
+        args: { path: '.env', content: 'secret=1', mode: 'replace' },
+        source: {
+          page: 'chatgpt',
+          conversationId: 'conv-1',
+          callId: 'call-0003'
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      tool: 'write_file',
+      error: {
+        code: 'BLOCKED_PATH'
+      },
+      execute: {
+        requestId: 'legacy-call-0003',
+        decisions: [
+          expect.objectContaining({
+            callId: 'call-0003',
+            action: 'deny',
+            reasonCode: 'BLOCKED_PATH'
+          })
+        ],
+        result: {
+          type: 'execution_error',
+          error: {
+            code: 'BLOCKED_PATH',
+            retryable: false
+          }
+        }
+      }
+    });
+
+    await server.close();
+  });
 });
 
-function createConfig(): GatewayConfig {
+function createConfig(overrides: Partial<GatewayConfig> = {}): GatewayConfig {
   return {
     host: '127.0.0.1',
     port: 8024,
-    workspaceRoot: '/home/chenpeng/coding/repo/chatgpt-web-mcp-bridge',
+    workspaceRoot: process.cwd(),
     shell: 'pwsh',
     trustedLocalMode: true,
     allowPwsh: false,
@@ -114,7 +165,8 @@ function createConfig(): GatewayConfig {
     maxInsertedChars: 60_000,
     maxGatewayResultChars: 200_000,
     logRetentionDays: 14,
-    blockedPaths: []
+    blockedPaths: [],
+    ...overrides
   };
 }
 

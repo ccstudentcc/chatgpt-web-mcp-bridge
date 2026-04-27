@@ -85,7 +85,7 @@ export async function registerCallToolRoute(server: FastifyInstance, config: Gat
           ? [
               createToolDecision({
                 callId,
-                action: executionAllowed ? 'execute' : 'deny',
+                action: inferDecisionAction(response.error.code, executionAllowed),
                 reasonCode: response.error.code,
                 risk: toolRisk,
                 message: response.error.message
@@ -132,4 +132,26 @@ function extractWarnings(result: unknown): string[] {
 
   const maybeWarnings = (result as { warnings?: unknown }).warnings;
   return Array.isArray(maybeWarnings) ? maybeWarnings.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function inferDecisionAction(errorCode: string, executionAllowed: boolean): 'execute' | 'deny' {
+  if (isPolicyDeniedErrorCode(errorCode)) {
+    return 'deny';
+  }
+
+  return executionAllowed ? 'execute' : 'deny';
+}
+
+function isPolicyDeniedErrorCode(errorCode: string): boolean {
+  return [
+    'BINARY_FILE_REJECTED',
+    'BLOCKED_PATH',
+    'FILE_TOO_LARGE',
+    'INVALID_PATH',
+    'PATH_OUTSIDE_WORKSPACE',
+    'PWSH_DISABLED',
+    'SENSITIVE_CONTENT_BLOCKED',
+    'TOOL_DISABLED',
+    'WORKSPACE_NOT_CONFIGURED'
+  ].includes(errorCode);
 }
