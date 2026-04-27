@@ -94,10 +94,13 @@ export async function registerCallToolRoute(server: FastifyInstance, config: Gat
   });
 }
 
-function attachExecuteCompat<T extends ToolCallSuccess | ToolCallFailure>(legacyResponse: T, executeResponse: ReturnType<typeof createExecuteResponse>): T & ReturnType<typeof createExecuteResponse> {
+function attachExecuteCompat<T extends ToolCallSuccess | ToolCallFailure>(
+  legacyResponse: T,
+  executeResponse: ReturnType<typeof createExecuteResponse>
+): T & { execute: ReturnType<typeof createExecuteResponse> } {
   return {
     ...legacyResponse,
-    ...executeResponse
+    execute: executeResponse
   };
 }
 

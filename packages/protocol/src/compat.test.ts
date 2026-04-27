@@ -1,11 +1,32 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createLegacyToolCallRequest,
   createExecuteRequestFromToolCallRequest,
   createExecuteResponse,
   createExecutionErrorEnvelopeFromLegacyResponse,
   createInlineToolResultEnvelopeFromLegacyResponse,
-  createToolDecision
+  createToolDecision,
+  getExecuteResponseCompat
 } from './compat.js';
+
+describe('createLegacyToolCallRequest', () => {
+  it('builds the current single-call bridge request shape from minimal inputs', () => {
+    expect(createLegacyToolCallRequest({
+      tool: 'read_file',
+      args: { path: 'README.md' },
+      callId: 'call-1',
+      conversationId: 'conv-1'
+    })).toEqual({
+      tool: 'read_file',
+      args: { path: 'README.md' },
+      source: {
+        page: 'chatgpt',
+        conversationId: 'conv-1',
+        callId: 'call-1'
+      }
+    });
+  });
+});
 
 describe('createExecuteRequestFromToolCallRequest', () => {
   it('maps the legacy single-call request into a batch-first execute request', () => {
@@ -95,6 +116,64 @@ describe('legacy execute response helpers', () => {
         retryable: false,
         details: undefined
       }
+    });
+  });
+
+  it('extracts execute-response compat metadata from a mixed legacy payload', () => {
+    const mixedPayload = {
+      ok: true,
+      tool: 'read_file',
+      result: { text: 'hello' },
+      warnings: [],
+      durationMs: 2,
+      execute: {
+        requestId: 'legacy-call-1',
+        executionId: 'legacy-call-1.exec',
+        decisions: [
+          {
+            callId: 'call-1',
+            action: 'execute',
+            reasonCode: 'ALLOWED_CURRENT_TOOL',
+            risk: 'low',
+            message: 'Allowed by the current gateway policy.'
+          }
+        ],
+        result: {
+          type: 'inline_tool_result',
+          callId: 'call-1',
+          tool: 'read_file',
+          ok: true,
+          output: { text: 'hello' },
+          summary: 'Tool read_file completed successfully.'
+        }
+      }
+    };
+
+    expect(getExecuteResponseCompat(mixedPayload)).toMatchObject({
+      requestId: 'legacy-call-1',
+      executionId: 'legacy-call-1.exec',
+      decisions: [{ action: 'execute' }],
+      result: { type: 'inline_tool_result' }
+    });
+  });
+
+  it('still accepts the earlier flat compat shape during the transition', () => {
+    expect(getExecuteResponseCompat({
+      requestId: 'legacy-call-2',
+      executionId: 'legacy-call-2.exec',
+      decisions: [],
+      result: {
+        type: 'execution_error',
+        error: {
+          code: 'TOOL_DISABLED',
+          summary: 'Tool disabled: write_file',
+          retryable: false
+        }
+      }
+    })).toMatchObject({
+      requestId: 'legacy-call-2',
+      executionId: 'legacy-call-2.exec',
+      result: { type: 'execution_error' }
     });
   });
 });

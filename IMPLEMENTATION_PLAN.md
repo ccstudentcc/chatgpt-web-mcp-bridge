@@ -25,7 +25,7 @@ Status: completed
 
 ## Stage 3: Define The First Concrete v0.9 Delivery Slice
 
-Status: in progress
+Status: completed
 
 Active slice: Phase 1 shared-contract freeze.
 
@@ -88,11 +88,16 @@ Definition of done for this stage:
 
 ## Stage 4: Execute The First Compat-Preserving Core Slice
 
-Status: pending
+Status: in progress
 
 - Implement the Phase 1 shared-contract freeze defined above.
 - Keep current live behavior stable or explicitly migrated with updated docs and verification.
 - Use the v0.9 architecture ring discipline instead of mixing core extraction, mode rollout, and capability expansion in one pass.
+- Current execution inside this stage:
+  - shared protocol compat helpers for current single-call bridge request/response shapes
+  - nested `/call-tool` `execute` metadata that preserves the legacy top-level `result`
+  - userscript request construction and execute-metadata reading moved onto shared helpers
+  - app-local validation scripts that rebuild required workspace package outputs before `lint`, `test`, or `build`
 
 Initial likely implementation surfaces:
 

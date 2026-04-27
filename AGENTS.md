@@ -34,5 +34,6 @@
 ## Validation
 
 - Use workspace scripts from the repo root: `pnpm dev`, `pnpm build`, `pnpm test`, `pnpm lint`.
+- When app-local work consumes new exports from workspace packages, rebuild those dependency packages first. Current enforced paths are `apps/userscript` -> `@cwmb/protocol`, and `apps/gateway` -> `@cwmb/protocol` plus `@cwmb/shared`.
 - For `apps/userscript` UI, DOM, or automation changes, run `pnpm --filter @cwmb/userscript lint`, `test`, and `build` before the wider root-level verification.
 - Stage explicit file paths when committing from a dirty tree.

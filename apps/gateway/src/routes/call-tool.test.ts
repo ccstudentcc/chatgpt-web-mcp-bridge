@@ -27,17 +27,22 @@ describe('/call-tool route', () => {
     expect(response.json()).toMatchObject({
       ok: true,
       tool: 'list_directory',
-      requestId: 'legacy-call-0001',
-      executionId: expect.stringContaining('legacy-call-0001.'),
-      decisions: [
-        expect.objectContaining({
-          callId: 'call-0001',
-          action: 'execute'
-        })
-      ],
       result: {
-        type: 'inline_tool_result',
-        tool: 'list_directory'
+        entries: expect.any(Array)
+      },
+      execute: {
+        requestId: 'legacy-call-0001',
+        executionId: expect.stringContaining('legacy-call-0001.'),
+        decisions: [
+          expect.objectContaining({
+            callId: 'call-0001',
+            action: 'execute'
+          })
+        ],
+        result: {
+          type: 'inline_tool_result',
+          tool: 'list_directory'
+        }
       }
     });
 
@@ -69,19 +74,21 @@ describe('/call-tool route', () => {
       error: {
         code: 'TOOL_DISABLED'
       },
-      requestId: 'legacy-call-0002',
-      decisions: [
-        expect.objectContaining({
-          callId: 'call-0002',
-          action: 'deny',
-          reasonCode: 'TOOL_DISABLED'
-        })
-      ],
-      result: {
-        type: 'execution_error',
-        error: {
-          code: 'TOOL_DISABLED',
-          retryable: false
+      execute: {
+        requestId: 'legacy-call-0002',
+        decisions: [
+          expect.objectContaining({
+            callId: 'call-0002',
+            action: 'deny',
+            reasonCode: 'TOOL_DISABLED'
+          })
+        ],
+        result: {
+          type: 'execution_error',
+          error: {
+            code: 'TOOL_DISABLED',
+            retryable: false
+          }
         }
       }
     });

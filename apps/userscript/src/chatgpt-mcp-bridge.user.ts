@@ -1,7 +1,7 @@
 import { buildInjectedToolPrompt, buildToolCatalogPrompt } from './catalog.js';
 import { readStoredToolCatalog, writeStoredToolCatalog } from './catalog-cache.js';
 import { assessPendingTools } from './capabilities.js';
-import type { ToolCallFailure, ToolCallRequest } from '@cwmb/protocol';
+import { createLegacyToolCallRequest, getExecuteResponseCompat, type ToolCallFailure } from '@cwmb/protocol';
 import type { BatchFailureItem, BatchResultItem } from './batch.js';
 import { createBatchId, executeBatch } from './batch.js';
 import { callTool, health, listTools } from './gateway-client.js';
@@ -168,17 +168,15 @@ async function runPending(): Promise<void> {
   addLogEntry('info', `Running tool: ${pending.block.tool}`);
   renderPanel();
 
-  const request: ToolCallRequest = {
+  const request = createLegacyToolCallRequest({
     tool: pending.block.tool,
     args: pending.block.args,
-    source: {
-      page: 'chatgpt',
-      callId: pending.callId
-    }
-  };
+    callId: pending.callId
+  });
 
   try {
     const response = await callTool(request);
+    const executeCompat = getExecuteResponseCompat(response);
     state.executedCallIds.add(pending.callId);
     state.pending = state.pending.slice(1);
     state.pendingBatchId = undefined;
@@ -187,13 +185,14 @@ async function runPending(): Promise<void> {
     state.progress = undefined;
     state.retryableBatch = undefined;
     state.lastResult = formatToolResult(pending.block.tool, response);
-    addLogEntry('success', `Tool completed: ${pending.block.tool}`);
+    addLogEntry('success', `Tool completed: ${pending.block.tool}${executeCompat ? ` [${executeCompat.executionId}]` : ''}`);
     state.status = await deliverLastResult('single', 'result_ready', 'inserted', 'sent');
   } catch (err) {
     const errorCode = err && typeof err === 'object' && 'code' in err ? String((err as { code: unknown }).code) : '';
+    const executeCompat = getExecuteResponseCompat(err);
     state.lastError = err instanceof Error ? err.message : 'Tool call failed';
     state.lastResult = formatToolResult(pending.block.tool, failureFromError(pending.block.tool, err));
-    addLogEntry('error', `Tool failed: ${pending.block.tool} (${errorCode || 'INTERNAL_ERROR'})`);
+    addLogEntry('error', `Tool failed: ${pending.block.tool}${executeCompat ? ` [${executeCompat.executionId}]` : ''} (${errorCode || 'INTERNAL_ERROR'})`);
     state.progress = undefined;
     state.retryableBatch = undefined;
     if (errorCode === 'UNAUTHORIZED') {

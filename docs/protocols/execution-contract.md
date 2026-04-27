@@ -72,7 +72,7 @@ The response must not force the browser runtime to infer policy from generic err
 
 Current implementation note:
 
-- `/call-tool` now begins surfacing compatibility `requestId`, `executionId`, `decisions`, and `result` fields alongside the legacy single-call payload, so early Phase 1 consumers can start reading the shared contract without breaking existing userscript behavior.
+- `/call-tool` now surfaces a nested compatibility `execute` object carrying `requestId`, `executionId`, `decisions`, and `result`, so early Phase 1 consumers can read shared execution metadata without overwriting the legacy top-level single-call payload.
 
 ## 5. Invariants
 

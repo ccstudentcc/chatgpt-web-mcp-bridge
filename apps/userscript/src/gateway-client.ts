@@ -1,4 +1,4 @@
-import { TOKEN_HEADER, type ToolCallRequest, type ToolCallResponse, type ToolDescriptor } from '@cwmb/protocol';
+import { TOKEN_HEADER, getExecuteResponseCompat, type ToolCallCompatResponse, type ToolCallRequest, type ToolDescriptor } from '@cwmb/protocol';
 import { state } from './state.js';
 
 export interface GatewayHealthResponse {
@@ -25,11 +25,16 @@ export async function listTools(): Promise<ToolDescriptor[]> {
   return Array.isArray(response.tools) ? response.tools : [];
 }
 
-export async function callTool(req: ToolCallRequest): Promise<ToolCallResponse> {
-  const response = await gmJson('POST', `${state.baseUrl}/call-tool`, req, { [TOKEN_HEADER]: state.token }) as ToolCallResponse;
+export async function callTool(req: ToolCallRequest): Promise<ToolCallCompatResponse> {
+  const response = await gmJson('POST', `${state.baseUrl}/call-tool`, req, { [TOKEN_HEADER]: state.token }) as ToolCallCompatResponse;
   if (isToolFailure(response)) {
     const error = new Error(response.error.message);
-    Object.assign(error, { code: response.error.code, details: response.error.details });
+    const executeCompat = getExecuteResponseCompat(response);
+    Object.assign(error, {
+      code: response.error.code,
+      details: response.error.details,
+      ...(executeCompat ? { execute: executeCompat } : {})
+    });
     throw error;
   }
 
@@ -94,6 +99,6 @@ function getNestedPayloadField(payload: unknown, parentKey: string, childKey: st
   return typeof value === 'string' ? value : undefined;
 }
 
-function isToolFailure(response: ToolCallResponse): response is Extract<ToolCallResponse, { ok: false }> {
+function isToolFailure(response: ToolCallCompatResponse): response is Extract<ToolCallCompatResponse, { ok: false }> {
   return response.ok === false;
 }

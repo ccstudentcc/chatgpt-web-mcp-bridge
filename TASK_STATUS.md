@@ -8,11 +8,15 @@
 - `docs/v0.9-entrypoint.md` is the navigation entrypoint for that mainline; `docs/prd_vnext.md` owns the active product-boundary truth; `docs/architecture/v0.9-target-architecture.md` owns the target module-boundary truth.
 - The current codebase still implements the proven userscript + gateway baseline, so v0.9 work must preserve or explicitly migrate the current live contracts rather than pretending they no longer matter.
 - The current active v0.9 slice is Phase 1 shared-contract freeze, not broad feature rollout and not extension migration.
+- Stage 3 slice-definition work is complete; Stage 4 compat-preserving execution is now in progress on the same Phase 1 boundary.
 - ChatGPT Web DOM/request-shape/selectors evidence now has one intended home: `docs/operations/chatgpt-web-runtime-evidence.md`.
 - ChatGPT Web page-fact code truth now targets one v0.9 owner: `apps/extension/src/chatgpt-adapter/`; current userscript code should only consume or compat-re-export that truth.
 - Phase 1 implementation has started in code, not only in docs: `@cwmb/protocol` now exports the first shared `CatalogContract`, `TurnContext`, `ExecuteRequest`, `ExecuteResponse`, `ToolDecision`, and `ResultEnvelope` surfaces with matching schemas/tests.
 - `/tools` now materializes Phase 1 catalog metadata (`catalogVersion`, `generatedAt`, `workspaceRoot`) while preserving the existing `tools` array that current userscript consumers already expect.
-- `/call-tool` now attaches compatibility `requestId`, `executionId`, explicit `decisions`, and structured `result` metadata while preserving the legacy success/failure payload that the current userscript still reads.
+- `/call-tool` now attaches compatibility execution metadata under a nested `execute` object, so current userscript code keeps the legacy top-level `result` while Phase 1 consumers can still read `requestId`, `executionId`, `decisions`, and structured result-envelope metadata.
+- Userscript-side request construction now goes through shared protocol compat helpers instead of repeating local `ToolCallRequest` assembly in multiple files.
+- Userscript-side gateway handling now reads `execute` compat metadata through shared helpers on both success and failure paths.
+- App-local `lint`, `test`, and `build` scripts for `apps/userscript` and `apps/gateway` now rebuild required workspace package outputs first, so new `@cwmb/protocol` / `@cwmb/shared` exports do not depend on manual build ordering.
 
 ## Verified Reference Baseline
 
@@ -26,6 +30,7 @@
   - trusted-local default gateway flow
 - Root `pnpm -r lint`, `pnpm -r test`, and `pnpm -r build` previously succeeded for the documented baseline implementation.
 - On April 27, 2026, after seeding the Phase 1 contract surfaces, `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again for the repo.
+- After the Stage 4 compat slice above, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again with the updated app-local dependency-build workflow.
 
 ## Active Stop Line
 
@@ -79,6 +84,5 @@
 - Start concrete work from the Phase 1 shared-contract freeze.
 - If a change depends on ChatGPT Web DOM/request-shape/selectors facts, put the raw evidence in `docs/operations/chatgpt-web-runtime-evidence.md` instead of scattering it through task docs.
 - If code needs ChatGPT Web page facts, add or update them in `apps/extension/src/chatgpt-adapter/` first, then adapt current userscript consumers through compat wiring.
-- The next narrow compat target is `/call-tool`: keep the current live request/response behavior, but start aligning it to `ExecuteRequest` / `ExecuteResponse` through shared protocol helpers or explicit adapters rather than ad hoc local shapes.
-- After `/call-tool` compat metadata, the next useful narrowing step is to move current userscript request construction and result reading onto the shared protocol helpers instead of repeating legacy request/response shape assembly locally.
+- The next useful narrowing step is to converge current userscript batch/result-delivery shapes with shared `ResultEnvelope` helpers, especially the remaining local `tool_result_batch` assembly and inserted result formatting.
 - If a change tries to expand into extraction or capability rollout, stop and either narrow it back to this slice or first update the task-control docs with a new active slice.

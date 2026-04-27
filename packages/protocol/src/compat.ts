@@ -12,6 +12,13 @@ import type {
   ToolDecision
 } from './types.js';
 
+interface CreateLegacyToolCallRequestOptions {
+  tool: string;
+  args: Record<string, unknown>;
+  callId: string;
+  conversationId?: string;
+}
+
 interface CreateExecuteRequestFromToolCallOptions {
   assistantTurnId?: string;
   detectionSource?: ExecuteRequest['turnContext']['detectionSource'];
@@ -34,6 +41,23 @@ interface CreateToolDecisionOptions {
   reasonCode: string;
   risk: RiskLevel;
   message: string;
+}
+
+export type ToolCallCompatResponse<TResult = unknown> =
+  ToolCallResponse<TResult>
+  & { execute?: ExecuteResponse }
+  & Partial<ExecuteResponse>;
+
+export function createLegacyToolCallRequest(options: CreateLegacyToolCallRequestOptions): ToolCallRequest {
+  return {
+    tool: options.tool,
+    args: options.args,
+    source: {
+      page: 'chatgpt',
+      conversationId: options.conversationId,
+      callId: options.callId
+    }
+  };
 }
 
 export function createExecuteRequestFromToolCallRequest(
@@ -112,6 +136,47 @@ export function createExecuteResponse(options: CreateExecuteResponseOptions): Ex
   };
 }
 
+export function getExecuteResponseCompat(value: unknown): ExecuteResponse | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const nestedExecute = getObjectField(value, 'execute');
+  if (nestedExecute) {
+    const requestId = getStringField(nestedExecute, 'requestId');
+    const executionId = getStringField(nestedExecute, 'executionId');
+    const decisions = getArrayField(nestedExecute, 'decisions');
+    const result = getObjectField(nestedExecute, 'result');
+    const resultType = result ? getStringField(result, 'type') : undefined;
+
+    if (requestId && executionId && decisions && result && resultType) {
+      return {
+        requestId,
+        executionId,
+        decisions: decisions as ToolDecision[],
+        result: result as unknown as ExecuteResponse['result']
+      };
+    }
+  }
+
+  const requestId = getStringField(value, 'requestId');
+  const executionId = getStringField(value, 'executionId');
+  const decisions = getArrayField(value, 'decisions');
+  const result = getObjectField(value, 'result');
+  const resultType = result ? getStringField(result, 'type') : undefined;
+
+  if (!requestId || !executionId || !decisions || !result || !resultType) {
+    return null;
+  }
+
+  return {
+    requestId,
+    executionId,
+    decisions: decisions as ToolDecision[],
+    result: result as unknown as ExecuteResponse['result']
+  };
+}
+
 const NON_RETRYABLE_ERROR_CODES = new Set([
   'INVALID_ARGS',
   'TOOL_NOT_FOUND',
@@ -121,3 +186,30 @@ const NON_RETRYABLE_ERROR_CODES = new Set([
   'PATH_OUTSIDE_WORKSPACE',
   'UNAUTHORIZED'
 ]);
+
+function getStringField(value: unknown, key: string): string | undefined {
+  if (!value || typeof value !== 'object' || !(key in value)) {
+    return undefined;
+  }
+
+  const field = (value as Record<string, unknown>)[key];
+  return typeof field === 'string' ? field : undefined;
+}
+
+function getArrayField(value: unknown, key: string): unknown[] | undefined {
+  if (!value || typeof value !== 'object' || !(key in value)) {
+    return undefined;
+  }
+
+  const field = (value as Record<string, unknown>)[key];
+  return Array.isArray(field) ? field : undefined;
+}
+
+function getObjectField(value: unknown, key: string): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object' || !(key in value)) {
+    return undefined;
+  }
+
+  const field = (value as Record<string, unknown>)[key];
+  return field && typeof field === 'object' ? field as Record<string, unknown> : undefined;
+}

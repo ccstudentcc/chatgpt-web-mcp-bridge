@@ -5,10 +5,11 @@
   "main": "dist/chatgpt-mcp-bridge.user.js",
   "types": "dist/index.d.ts",
   "scripts": {
+    "build:deps": "pnpm --filter @cwmb/protocol build",
     "dev": "tsx scripts/build.ts --watch",
-    "build": "tsx scripts/build.ts",
-    "test": "vitest run",
-    "lint": "tsc -p tsconfig.json --noEmit"
+    "build": "pnpm run build:deps && tsx scripts/build.ts",
+    "test": "pnpm run build:deps && vitest run",
+    "lint": "pnpm run build:deps && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@cwmb/protocol": "workspace:*",

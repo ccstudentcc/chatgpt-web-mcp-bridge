@@ -1,4 +1,4 @@
-import type { ToolCallError, ToolCallFailure, ToolCallRequest, ToolCallResponse } from '@cwmb/protocol';
+import { createLegacyToolCallRequest, type ToolCallError, type ToolCallFailure, type ToolCallRequest, type ToolCallResponse } from '@cwmb/protocol';
 import type { ParsedMcpBlock } from './parser.js';
 import { sha256Normalized } from './hash.js';
 
@@ -123,14 +123,11 @@ async function executeSafely(
   pending: ParsedMcpBlock,
   executeTool: (request: ToolCallRequest) => Promise<ToolCallResponse>
 ): Promise<ToolCallResponse> {
-  const request: ToolCallRequest = {
+  const request = createLegacyToolCallRequest({
     tool: pending.block.tool,
     args: pending.block.args,
-    source: {
-      page: 'chatgpt',
-      callId: pending.callId
-    }
-  };
+    callId: pending.callId
+  });
 
   try {
     return await executeTool(request);
