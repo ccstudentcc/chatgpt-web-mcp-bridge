@@ -1,4 +1,4 @@
-import { chatgptSelectors, looksLikeChatGptSendButton } from './chatgpt-runtime-facts.js';
+import { chatgptSelectors, looksLikeChatGptSendButton, looksLikeChatGptStopButton } from './chatgpt-runtime-facts.js';
 export { formatBatchToolResult, formatToolResult } from './result-delivery.js';
 
 export function insertIntoChatInput(value: string): boolean {
@@ -51,6 +51,10 @@ export async function sendCurrentChatInput({
   return false;
 }
 
+export function isChatInputSubmitting(): boolean {
+  return findSubmittingButton() !== null;
+}
+
 export function readCurrentChatInputText(): string {
   const editable = findVisibleEditable();
   if (editable) {
@@ -66,6 +70,14 @@ export function readCurrentChatInputText(): string {
 }
 
 function findSendButton(): HTMLButtonElement | null {
+  return findComposerButton(looksLikeChatGptSendButton);
+}
+
+function findSubmittingButton(): HTMLButtonElement | null {
+  return findComposerButton(looksLikeChatGptStopButton);
+}
+
+function findComposerButton(predicate: (button: HTMLButtonElement) => boolean): HTMLButtonElement | null {
   for (const selector of chatgptSelectors.sendButtons) {
     const button = document.querySelector(selector) as HTMLButtonElement | null;
     if (!button || button.disabled || button.getAttribute('aria-disabled') === 'true') {
@@ -74,7 +86,7 @@ function findSendButton(): HTMLButtonElement | null {
     if (!isVisible(button)) {
       continue;
     }
-    if (!looksLikeChatGptSendButton(button)) {
+    if (!predicate(button)) {
       continue;
     }
 

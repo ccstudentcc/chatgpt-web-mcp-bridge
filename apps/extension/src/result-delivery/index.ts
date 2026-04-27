@@ -19,7 +19,9 @@ export {
   type DeliveryLogEvent,
   type DeliveryPhase,
   type DeliverResultOptions,
-  type DeliverResultOutcome
+  type DeliverResultOutcome,
+  matchesRecoveredComposerState,
+  resolveRecoveredComposerDraft
 } from './composer-delivery.js';
 export {
   deriveDeliveryPanelState,

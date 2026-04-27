@@ -243,6 +243,8 @@ v0.1 定义三个独立开关：
 
 无论工具成功还是失败，只要已经生成结构化 `tool_result` / `tool_result_batch`，都必须继续遵守 `autoInsertResult` 与 `autoSendResult` 的当前值。
 
+当 `autoSendResult` 需要继续处理一份已插入但未发送的 bridge 结果时，发送源必须始终是桥接层保存的权威 `tool_result` / `tool_result_batch` 文本，而不是刷新后当前 composer 里残留、被用户裁剪、或被 ChatGPT 轻微重排过的可见文本。
+
 ### 7.4 Batch 规则
 
 同一条 assistant 回复中出现多个合法 `mcp` block 时：
@@ -361,6 +363,7 @@ userscript 必须优先写入当前可见的真实输入控件，而不是隐藏
 - 其次可见 textarea
 - 失败时退回剪贴板
 - 若结果已经插入但尚未发送，刷新同一会话后应优先恢复这份未发送结果的 bridge 状态，而不是把同一条尚未闭合的 assistant `mcp` turn 再执行一遍
+- 对这类“未发送但可继续发送”的恢复路径，bridge 应先暂时用权威结果完整替换 composer，再尝试发送；发送确认后才恢复用户原本草稿，发送失败则保留权威结果继续停留在 composer 中
 
 ### 9.2 发送按钮
 
@@ -370,6 +373,7 @@ ChatGPT 页面在输入框为空时可能显示语音按钮。userscript 必须�
 - 再尝试点击发送
 - 不能因为仍处于语音按钮态就立即判定 “send button not found”
 - 不能仅凭 `#composer-submit-button` 这个 id 就判定“已经可以发送”；当它仍是 `data-testid="stop-button"`、`aria-label="停止流式传输"` 之类的 stop 态时，必须继续等待，而不是点错按钮或误记发送成功
+- 对自动发送成功的判定，不能只看“按钮点过了”或“composer 文本后来变了”；至少要确认 ChatGPT 已进入真实提交/流式状态，或 composer 已明显脱离这次插入的权威结果后，才允许把先前草稿恢复回输入框
 
 ### 9.3 选择器治理
 

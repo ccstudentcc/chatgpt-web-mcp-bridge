@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { formatBatchToolResult, formatToolResult, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
+import {
+  formatBatchToolResult,
+  formatToolResult,
+  isChatInputSubmitting,
+  readCurrentChatInputText,
+  sendCurrentChatInput
+} from './inserter.js';
 
 describe('formatToolResult', () => {
   it('makes the bridge-delivered execution boundary explicit', () => {
@@ -167,5 +173,29 @@ describe('sendCurrentChatInput', () => {
     expect(sent).toBe(true);
     expect(stopButton.click).not.toHaveBeenCalled();
     expect(sendButton.click).toHaveBeenCalledTimes(1);
+  });
+
+  it('detects the visible stop-streaming button as an active submission state', () => {
+    const stopButton = {
+      id: 'composer-submit-button',
+      dataset: { testid: 'stop-button' },
+      disabled: false,
+      getAttribute: (name: string) => name === 'aria-label' ? '停止流式传输' : null
+    };
+
+    Object.defineProperty(globalThis, 'document', {
+      value: {
+        querySelector: () => stopButton
+      },
+      configurable: true
+    });
+    Object.defineProperty(globalThis, 'window', {
+      value: {
+        getComputedStyle: () => ({ display: 'block', visibility: 'visible' })
+      },
+      configurable: true
+    });
+
+    expect(isChatInputSubmitting()).toBe(true);
   });
 });

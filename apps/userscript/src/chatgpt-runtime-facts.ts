@@ -17,6 +17,7 @@ export {
   isSubstantiveChatGptAssistantText,
   listChatGptCodeBlockNodes,
   looksLikeChatGptSendButton,
+  looksLikeChatGptStopButton,
   normalizeChatGptAssistantTurnCandidate,
   normalizeChatGptConversationPath,
   normalizeChatGptRuntimeText,

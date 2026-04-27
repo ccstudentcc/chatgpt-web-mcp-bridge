@@ -20,8 +20,11 @@ export interface DeliverResultOptions {
   payload: string;
   autoSend: boolean;
   existingError?: string;
+  preservedDraft?: string;
   insert: (value: string) => boolean;
+  restore: (value: string) => boolean;
   send: () => Promise<boolean>;
+  isSubmitting?: () => boolean;
   readCurrentInput: () => string;
   wait: (ms: number) => Promise<void>;
   now?: () => number;
@@ -32,6 +35,7 @@ export interface DeliverResultOptions {
 export interface DeliverResultOutcome {
   phase: DeliveryPhase;
   nextError?: string;
+  nextPreservedDraft?: string;
   events: DeliveryLogEvent[];
   recovery?: DeliveryRecoveryNotice;
 }
@@ -42,8 +46,11 @@ export async function deliverResult(options: DeliverResultOptions): Promise<Deli
     payload,
     autoSend,
     existingError,
+    preservedDraft,
     insert,
+    restore,
     send,
+    isSubmitting,
     readCurrentInput,
     wait,
     now = Date.now,
@@ -51,11 +58,16 @@ export async function deliverResult(options: DeliverResultOptions): Promise<Deli
     pollIntervalMs = 100
   } = options;
   const messages = getDeliveryMessages(kind);
+  const nextPreservedDraft = resolvePreservedDraft({
+    draft: preservedDraft ?? readCurrentInput(),
+    payload
+  });
 
   if (!insert(payload)) {
     return {
       phase: 'ready',
       nextError: existingError ?? messages.clipboardFallbackError,
+      nextPreservedDraft,
       events: [{ level: 'warn', message: messages.clipboardFallbackLog }],
       recovery: {
         kind: 'clipboard_fallback',
@@ -69,6 +81,7 @@ export async function deliverResult(options: DeliverResultOptions): Promise<Deli
     return {
       phase: 'inserted',
       nextError: existingError,
+      nextPreservedDraft,
       events
     };
   }
@@ -77,6 +90,7 @@ export async function deliverResult(options: DeliverResultOptions): Promise<Deli
   const confirmed = sent
     ? await waitForSubmittedComposer({
       expectedText: payload,
+      isSubmitting,
       readCurrentInput,
       wait,
       now,
@@ -86,10 +100,14 @@ export async function deliverResult(options: DeliverResultOptions): Promise<Deli
     : false;
 
   if (sent && confirmed) {
+    if (nextPreservedDraft) {
+      restore(nextPreservedDraft);
+    }
     events.push({ level: 'success', message: messages.sentLog });
     return {
       phase: 'sent',
       nextError: existingError,
+      nextPreservedDraft: undefined,
       events
     };
   }
@@ -99,6 +117,7 @@ export async function deliverResult(options: DeliverResultOptions): Promise<Deli
   return {
     phase: 'inserted',
     nextError: existingError ?? deliveryError,
+    nextPreservedDraft,
     events,
     recovery: {
       kind: sent ? 'submission_not_confirmed' : 'send_button_missing',
@@ -147,6 +166,7 @@ function getDeliveryMessages(kind: DeliveryKind): {
 
 async function waitForSubmittedComposer({
   expectedText,
+  isSubmitting,
   readCurrentInput,
   wait,
   now,
@@ -154,6 +174,7 @@ async function waitForSubmittedComposer({
   pollIntervalMs
 }: {
   expectedText: string;
+  isSubmitting?: () => boolean;
   readCurrentInput: () => string;
   wait: (ms: number) => Promise<void>;
   now: () => number;
@@ -164,6 +185,10 @@ async function waitForSubmittedComposer({
   const expected = normalizeComposerText(expectedText);
 
   while (now() < deadline) {
+    if (isSubmitting?.()) {
+      return true;
+    }
+
     const current = normalizeComposerText(readCurrentInput());
     if (!current || current !== expected) {
       return true;
@@ -177,4 +202,140 @@ async function waitForSubmittedComposer({
 
 function normalizeComposerText(value: string): string {
   return value.replace(/\u00a0/g, ' ').trim();
+}
+
+export function matchesRecoveredComposerState({
+  currentText,
+  payload,
+  composerSnapshot
+}: {
+  currentText: string;
+  payload: string;
+  composerSnapshot?: string;
+}): boolean {
+  const current = normalizeComposerText(currentText);
+  if (!current) {
+    return false;
+  }
+
+  const candidates = [
+    composerSnapshot,
+    payload,
+    stripBridgeResultHeading(payload),
+    composerSnapshot ? stripBridgeResultHeading(composerSnapshot) : undefined
+  ]
+    .filter((value): value is string => typeof value === 'string')
+    .map(normalizeComposerText)
+    .filter((value, index, values) => value.length > 0 && values.indexOf(value) === index);
+
+  if (candidates.some((candidate) => candidate === current)) {
+    return true;
+  }
+
+  const currentPayloads = extractResultBlockPayloads(current);
+  if (currentPayloads.length > 0) {
+    const hasMatchingPayload = candidates.some((candidate) => {
+      const candidatePayloads = extractResultBlockPayloads(candidate);
+      return candidatePayloads.some((payloadBlock) => currentPayloads.includes(payloadBlock));
+    });
+    if (hasMatchingPayload) {
+      return true;
+    }
+  }
+
+  return isBridgeManagedComposerText(current) && candidates.some((candidate) => isBridgeManagedComposerText(candidate));
+}
+
+export function resolveRecoveredComposerDraft({
+  currentText,
+  payload,
+  composerSnapshot,
+  preservedDraft
+}: {
+  currentText: string;
+  payload: string;
+  composerSnapshot?: string;
+  preservedDraft?: string;
+}): string | undefined {
+  const preserved = resolvePreservedDraft({
+    draft: preservedDraft,
+    payload
+  });
+  const current = normalizeComposerText(currentText);
+  if (!current) {
+    return preserved;
+  }
+
+  if (matchesRecoveredComposerState({ currentText, payload, composerSnapshot })) {
+    return preserved;
+  }
+
+  if (isBridgeManagedComposerText(currentText)) {
+    return preserved;
+  }
+
+  return currentText;
+}
+
+function resolvePreservedDraft({
+  draft,
+  payload
+}: {
+  draft?: string;
+  payload: string;
+}): string | undefined {
+  if (typeof draft !== 'string') {
+    return undefined;
+  }
+
+  const normalizedDraft = normalizeComposerText(draft);
+  if (!normalizedDraft) {
+    return undefined;
+  }
+
+  const normalizedPayload = normalizeComposerText(payload);
+  if (normalizedDraft === normalizedPayload) {
+    return undefined;
+  }
+
+  return draft;
+}
+
+function stripBridgeResultHeading(value: string): string {
+  const lines = value.split('\n');
+  if (lines.length < 2) {
+    return value.trim();
+  }
+
+  if (
+    lines[0]?.startsWith('Bridge tool result for ')
+    || lines[0] === 'Bridge batch tool results for one assistant reply:'
+  ) {
+    return lines.slice(1).join('\n').trim();
+  }
+
+  return value.trim();
+}
+
+function extractResultBlockPayloads(value: string): string[] {
+  const payloads = Array.from(
+    value.matchAll(/(`{3,})(tool_result|tool_result_batch)\n([\s\S]*?)\n\1/g),
+    (match) => normalizeComposerText(match[3] ?? '')
+  ).filter((payload) => payload.length > 0);
+
+  return payloads.filter((payload, index) => payloads.indexOf(payload) === index);
+}
+
+function isBridgeManagedComposerText(value: string): boolean {
+  const normalized = normalizeComposerText(value);
+  if (!normalized) {
+    return false;
+  }
+
+  return normalized.startsWith('Bridge tool result for ')
+    || normalized.startsWith('Bridge batch tool results for one assistant reply:')
+    || /This result was executed outside the model after your previous .*mcp.* reply\./iu.test(normalized)
+    || /These results were executed outside the model after your previous .*mcp.* reply\./iu.test(normalized)
+    || normalized.includes('Continue only after reading this bridge-provided tool result.')
+    || normalized.includes('Continue only after reading these bridge-provided batch results.');
 }

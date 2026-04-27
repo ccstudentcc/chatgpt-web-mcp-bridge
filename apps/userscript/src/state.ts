@@ -2,6 +2,7 @@ import type { CatalogSource, GatewayHealthContract, GatewayRuntimeSnapshot } fro
 import type { ParsedMcpBlock } from './parser.js';
 import type { DeliveryRecoveryNotice } from './result-delivery.js';
 import { normalizeChatGptConversationPath } from './chatgpt-runtime-facts.js';
+import { matchesRecoveredComposerState } from './result-delivery.js';
 import {
   getGatewayCatalogTools,
   hasLiveGatewayCatalog,
@@ -84,6 +85,8 @@ export interface BridgeState {
   autoRoundCount: number;
   progress?: ExecutionProgress;
   lastResult?: string;
+  preservedDraft?: string;
+  recoveredComposerSnapshot?: string;
   lastError?: string;
   lastDeliveryRecovery?: DeliveryRecoveryNotice;
   logs: ActivityLogEntry[];
@@ -100,6 +103,7 @@ interface PersistedUndeliveredResultSession {
   status: PersistedUndeliveredResultStatus;
   lastResult: string;
   composerSnapshot?: string;
+  preservedDraft?: string;
   lastError?: string;
   lastDeliveryRecovery?: DeliveryRecoveryNotice;
   executedCallIds: string[];
@@ -149,7 +153,8 @@ export const state: BridgeState = {
   executedCallIds: new Set<string>(),
   executedBatchIds: new Set<string>(),
   logs: [],
-  requestInjectionMode: normalizeRequestInjectionMode(GM_getValue('cwmb_request_injection_mode', 'synthetic_system'))
+  requestInjectionMode: normalizeRequestInjectionMode(GM_getValue('cwmb_request_injection_mode', 'synthetic_system')),
+  recoveredComposerSnapshot: undefined
 };
 
 export function saveToken(token: string): void {
@@ -296,6 +301,7 @@ export function syncPersistedUndeliveredResultSession({
     composerSnapshot: shouldPersistComposerSnapshot(state.status, currentComposerText)
       ? currentComposerText
       : undefined,
+    preservedDraft: state.preservedDraft,
     lastError: state.lastError,
     lastDeliveryRecovery: state.lastDeliveryRecovery,
     executedCallIds: [...state.executedCallIds],
@@ -328,6 +334,8 @@ export function restorePersistedUndeliveredResultSession({
 
   state.status = restored.status;
   state.lastResult = restored.lastResult;
+  state.preservedDraft = restored.preservedDraft;
+  state.recoveredComposerSnapshot = restored.composerSnapshot;
   state.lastError = restored.lastError;
   state.lastDeliveryRecovery = restored.lastDeliveryRecovery;
   state.retryableBatch = restored.retryableBatch;
@@ -378,6 +386,7 @@ function readPersistedUndeliveredResultSession(conversationPath: string): Persis
       status,
       lastResult: parsed.lastResult,
       composerSnapshot: typeof parsed.composerSnapshot === 'string' ? parsed.composerSnapshot : undefined,
+      preservedDraft: typeof parsed.preservedDraft === 'string' ? parsed.preservedDraft : undefined,
       lastError: typeof parsed.lastError === 'string' ? parsed.lastError : undefined,
       lastDeliveryRecovery: isDeliveryRecoveryNotice(parsed.lastDeliveryRecovery) ? parsed.lastDeliveryRecovery : undefined,
       executedCallIds: parsed.executedCallIds.filter((item): item is string => typeof item === 'string'),
@@ -426,57 +435,9 @@ function matchesPersistedComposerState(
   session: PersistedUndeliveredResultSession,
   currentComposerText: string
 ): boolean {
-  const current = normalizePersistedText(currentComposerText);
-  if (!current) {
-    return false;
-  }
-
-  const candidates = [
-    session.composerSnapshot,
-    session.lastResult,
-    stripResultHeading(session.lastResult),
-    session.composerSnapshot ? stripResultHeading(session.composerSnapshot) : undefined
-  ]
-    .filter((value): value is string => typeof value === 'string')
-    .map(normalizePersistedText)
-    .filter((value, index, values) => value.length > 0 && values.indexOf(value) === index);
-
-  if (candidates.some((candidate) => candidate === current)) {
-    return true;
-  }
-
-  const currentPayloads = extractResultBlockPayloads(current);
-  if (currentPayloads.length === 0) {
-    return false;
-  }
-
-  return candidates.some((candidate) => {
-    const candidatePayloads = extractResultBlockPayloads(candidate);
-    return candidatePayloads.some((payload) => currentPayloads.includes(payload));
+  return matchesRecoveredComposerState({
+    currentText: currentComposerText,
+    payload: session.lastResult,
+    composerSnapshot: session.composerSnapshot
   });
-}
-
-function stripResultHeading(value: string): string {
-  const lines = value.split('\n');
-  if (lines.length < 2) {
-    return value;
-  }
-
-  if (
-    lines[0]?.startsWith('Bridge tool result for ')
-    || lines[0] === 'Bridge batch tool results for one assistant reply:'
-  ) {
-    return lines.slice(1).join('\n').trim();
-  }
-
-  return value.trim();
-}
-
-function extractResultBlockPayloads(value: string): string[] {
-  const payloads = Array.from(
-    value.matchAll(/(`{3,})(tool_result|tool_result_batch)\n([\s\S]*?)\n\1/g),
-    (match) => normalizePersistedText(match[3] ?? '')
-  ).filter((payload) => payload.length > 0);
-
-  return payloads.filter((payload, index) => payloads.indexOf(payload) === index);
 }

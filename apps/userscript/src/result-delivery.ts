@@ -14,6 +14,8 @@ export {
   getDeliveryStatusTone,
   isBatchReadyDeliveryStatus,
   isReadyDeliveryStatus,
+  matchesRecoveredComposerState,
+  resolveRecoveredComposerDraft,
   resolveDeliveredBridgeStatus,
   type RetryableDeliveryBatch,
   summarizeArgs,

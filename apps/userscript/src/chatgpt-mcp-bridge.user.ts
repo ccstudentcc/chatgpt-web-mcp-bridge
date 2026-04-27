@@ -13,7 +13,7 @@ import { createBatchId, executeBatch } from './batch.js';
 import { callTool, health, listCatalog } from './gateway-client.js';
 import { extractVisibleText, findLatestOpenAssistantMessage, findLatestUserMessage, onChatMutation } from './dom.js';
 import { sha256Normalized } from './hash.js';
-import { insertIntoChatInput, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
+import { insertIntoChatInput, isChatInputSubmitting, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
 import { describeRequestHookStatus } from './request-injection-state.js';
 import {
   deriveBatchDeliveryOutcome,
@@ -22,6 +22,8 @@ import {
   formatBatchToolResult,
   formatToolResult,
   isBatchReadyDeliveryStatus,
+  matchesRecoveredComposerState,
+  resolveRecoveredComposerDraft,
   resolveDeliveredBridgeStatus,
   type ReadyDeliveryStatus
 } from './result-delivery.js';
@@ -194,6 +196,8 @@ async function runPending(): Promise<void> {
   state.status = 'executing';
   state.lastError = undefined;
   state.lastDeliveryRecovery = undefined;
+  state.preservedDraft = undefined;
+  state.recoveredComposerSnapshot = undefined;
   addLogEntry('info', `Running tool: ${pending.block.tool}`);
   renderPanel();
 
@@ -279,6 +283,8 @@ async function runStoredBatch(batch: StoredBatch): Promise<void> {
   state.progress = { current: 1, total: blocks.length, tool: blocks[0]?.block.tool ?? 'unknown' };
   state.lastError = undefined;
   state.lastDeliveryRecovery = undefined;
+  state.preservedDraft = undefined;
+  state.recoveredComposerSnapshot = undefined;
   addLogEntry('info', `Running batch with ${blocks.length} tool calls.`);
   renderPanel();
 
@@ -329,6 +335,8 @@ function ignorePending(): void {
   applyPendingSelectionUpdate(ignoredPending);
   state.progress = undefined;
   state.retryableBatch = undefined;
+  state.preservedDraft = undefined;
+  state.recoveredComposerSnapshot = undefined;
 
   if (ignoredPending.ignoredKind === 'batch') {
     state.status = ignoredPending.status;
@@ -531,12 +539,17 @@ async function performLastResultDelivery(readyStatus: ReadyDeliveryStatus): Prom
     payload: lastResult,
     autoSend: state.autoSendResult,
     existingError: state.lastError,
+    preservedDraft: state.preservedDraft,
     insert: insertIntoChatInput,
+    restore: insertIntoChatInput,
     send: sendCurrentChatInput,
+    isSubmitting: isChatInputSubmitting,
     readCurrentInput: readCurrentChatInputText,
     wait
   });
 
+  state.preservedDraft = outcome.nextPreservedDraft;
+  state.recoveredComposerSnapshot = outcome.phase === 'sent' ? undefined : state.recoveredComposerSnapshot;
   state.lastError = outcome.nextError;
   state.lastDeliveryRecovery = outcome.recovery;
   for (const event of outcome.events) {
@@ -595,6 +608,7 @@ async function startBridge(): Promise<void> {
     addLogEntry('info', 'Restored the undelivered bridge result from the current composer after refresh.');
   }
   renderPanel();
+  void maybeResumeRecoveredResultDelivery();
   void refreshGatewayStatus();
   void scanLatestAssistantMessage();
   onChatMutation(() => void scanLatestAssistantMessage());
@@ -660,6 +674,28 @@ function shouldDeferPendingDetectionForComposerDraft(): boolean {
 
 function normalizeStartupComposerText(value: string): string {
   return value.replace(/\u00a0/g, ' ').trim();
+}
+
+async function maybeResumeRecoveredResultDelivery(): Promise<void> {
+  if (!state.autoSendResult || !state.lastResult) {
+    return;
+  }
+
+  if (state.status !== 'inserted' && state.status !== 'batch_inserted') {
+    return;
+  }
+
+  const currentComposerText = readCurrentChatInputText();
+  state.preservedDraft = resolveRecoveredComposerDraft({
+    currentText: currentComposerText,
+    payload: state.lastResult,
+    composerSnapshot: state.recoveredComposerSnapshot,
+    preservedDraft: state.preservedDraft
+  });
+
+  state.status = await performLastResultDelivery(getCurrentReadyDeliveryStatus());
+  syncUndeliveredResultSession();
+  renderPanel();
 }
 
 function failureFromError(tool: string, error: unknown): ToolCallFailure {

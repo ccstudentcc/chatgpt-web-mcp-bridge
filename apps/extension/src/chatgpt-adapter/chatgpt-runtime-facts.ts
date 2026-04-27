@@ -205,7 +205,7 @@ export function findNearestChatGptUserTurn(node: Element): HTMLElement | null {
 
 export function looksLikeChatGptSendButton(button: HTMLButtonElement): boolean {
   const label = button.getAttribute('aria-label') ?? '';
-  if (button.dataset.testid === 'stop-button' || /stop|stream|停止|流式/u.test(label)) {
+  if (looksLikeChatGptStopButton(button)) {
     return false;
   }
 
@@ -218,4 +218,9 @@ export function looksLikeChatGptSendButton(button: HTMLButtonElement): boolean {
   }
 
   return /send|message|prompt|提示|发送/i.test(label) && !/voice|speech|语音/i.test(label);
+}
+
+export function looksLikeChatGptStopButton(button: HTMLButtonElement): boolean {
+  const label = button.getAttribute('aria-label') ?? '';
+  return button.dataset.testid === 'stop-button' || /stop|stream|停止|流式/u.test(label);
 }

@@ -132,6 +132,57 @@ describe('state runtime snapshot helpers', () => {
     expect([...state.executedCallIds]).toEqual(['call-1']);
   });
 
+  it('restores an inserted result when refresh only keeps bridge heading and explanatory residue', async () => {
+    vi.stubGlobal('GM_getValue', vi.fn((key: string, defaultValue = '') => {
+      if (key === 'cwmb_undelivered_result_session') {
+        return JSON.stringify({
+          conversationPath: '/c/test-thread',
+          status: 'inserted',
+          lastResult: [
+            'Bridge tool result for `read_file`:',
+            'This result was executed outside the model after your previous `mcp` reply. Treat the fenced `tool_result` block below as the authoritative execution result.',
+            '',
+            '```tool_result',
+            '{',
+            '  "type": "inline_tool_result"',
+            '}',
+            '```'
+          ].join('\n'),
+          composerSnapshot: [
+            'Bridge tool result for `read_file`:',
+            'This result was executed outside the model after your previous `mcp` reply. Treat the fenced `tool_result` block below as the authoritative execution result.'
+          ].join('\n'),
+          preservedDraft: 'keep this draft',
+          executedCallIds: ['call-1'],
+          executedBatchIds: []
+        });
+      }
+      return defaultValue;
+    }));
+    vi.stubGlobal('GM_setValue', vi.fn());
+
+    const {
+      restorePersistedUndeliveredResultSession,
+      state
+    } = await import('./state.js');
+
+    const restored = restorePersistedUndeliveredResultSession({
+      conversationPath: '/c/test-thread',
+      currentComposerText: [
+        '',
+        'This result was executed outside the model after your previous `mcp` reply. Treat the fenced `tool_result` block below as the authoritative execution result.'
+      ].join('\n')
+    });
+
+    expect(restored).toBe(true);
+    expect(state.status).toBe('inserted');
+    expect(state.preservedDraft).toBe('keep this draft');
+    expect(state.recoveredComposerSnapshot).toBe([
+      'Bridge tool result for `read_file`:',
+      'This result was executed outside the model after your previous `mcp` reply. Treat the fenced `tool_result` block below as the authoritative execution result.'
+    ].join('\n'));
+  });
+
   it('restores an inserted result when refresh keeps the same tool_result payload but changes fence length', async () => {
     vi.stubGlobal('GM_getValue', vi.fn((key: string, defaultValue = '') => {
       if (key === 'cwmb_undelivered_result_session') {
