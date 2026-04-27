@@ -4,9 +4,13 @@ export {
   deriveReadyDeliveryStatus,
   formatBatchToolResult,
   formatToolResult,
+  getDeliveryStatusLabel,
+  getDeliveryStatusTone,
   isBatchReadyDeliveryStatus,
   isReadyDeliveryStatus,
   resolveDeliveredBridgeStatus,
+  summarizeArgs,
+  summarizePendingBlock,
   type DeliveryBridgeStatus,
   type DeliveryKind,
   type DeliveryLogEvent,
@@ -14,5 +18,6 @@ export {
   type DeliveryPhase,
   type DeliverResultOptions,
   type DeliverResultOutcome,
+  type DeliveryStatusTone,
   type ReadyDeliveryStatus
 } from '../../extension/src/result-delivery/index.js';

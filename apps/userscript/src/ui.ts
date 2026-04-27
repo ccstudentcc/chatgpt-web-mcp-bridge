@@ -1,8 +1,12 @@
 import type { GatewayShellInfo } from '@cwmb/protocol';
 import { buildToolCatalogPrompt, summarizeToolCatalog } from './catalog.js';
 import { assessPendingTools, formatCapabilityLabel } from './capabilities.js';
-import { summarizePendingBlock } from './preview.js';
-import { deriveDeliveryPanelState } from './result-delivery.js';
+import {
+  deriveDeliveryPanelState,
+  getDeliveryStatusLabel,
+  getDeliveryStatusTone,
+  summarizePendingBlock
+} from './result-delivery.js';
 import { getCatalogTools, hasLiveCatalog, saveBaseUrl, savePanelPosition, saveToken, state } from './state.js';
 
 const LOG_STREAM_SELECTOR = '.cwmb-log-stream';
@@ -91,8 +95,8 @@ export function renderPanel(): void {
       ? 'Cached bootstrap'
       : 'Unavailable';
   const shellLabel = formatShellLabel(runtimeSnapshot?.health?.shell);
-  const statusTone = getStatusTone(state.status);
-  const statusLabel = getStatusLabel(state.status);
+  const statusTone = getDeliveryStatusTone(state.status);
+  const statusLabel = getDeliveryStatusLabel(state.status);
   const tokenLabel = state.trustedLocalMode ? 'Trusted local' : state.token ? 'Token set' : 'Token missing';
   const injectionModeLabel = state.requestInjectionMode === 'synthetic_system' ? 'Synthetic system' : 'Prepend user';
   const headerButtonLabel = state.panelCollapsed ? 'Expand' : 'Collapse';
@@ -1045,34 +1049,4 @@ function renderToggle(action: string, label: string, enabled: boolean): string {
 
 function renderMiniState(label: string, enabled: boolean): string {
   return `<div class="cwmb-mini-state ${enabled ? 'is-on' : 'is-off'}"><span class="cwmb-mini-dot"></span><span>${escapeHtml(label)}</span></div>`;
-}
-
-function getStatusTone(status: string): string {
-  if (status === 'sent' || status === 'batch_sent' || status === 'idle') return 'cwmb-badge-ok';
-  if (status === 'failed' || status === 'unauthorized' || status === 'disconnected' || status === 'invalid_mcp_turn') return 'cwmb-badge-danger';
-  if (status === 'detected' || status === 'detected_batch' || status === 'batch_stopped_on_failure') return 'cwmb-badge-warn';
-  return 'cwmb-badge-info';
-}
-
-function getStatusLabel(status: string): string {
-  switch (status) {
-    case 'invalid_mcp_turn':
-      return 'Invalid MCP turn';
-    case 'detected_batch':
-      return 'Batch queued';
-    case 'batch_executing':
-      return 'Batch running';
-    case 'batch_result_ready':
-      return 'Batch ready';
-    case 'batch_inserted':
-      return 'Batch inserted';
-    case 'batch_sent':
-      return 'Batch sent';
-    case 'batch_stopped_on_failure':
-      return 'Batch stopped';
-    case 'result_ready':
-      return 'Result ready';
-    default:
-      return status.replace(/_/g, ' ');
-  }
 }
