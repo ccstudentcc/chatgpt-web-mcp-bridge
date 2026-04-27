@@ -8,7 +8,7 @@ import { callTool, health, listTools } from './gateway-client.js';
 import { extractVisibleText, findAssistantMessages, findLatestUserMessage, onChatMutation } from './dom.js';
 import { sha256Normalized } from './hash.js';
 import { formatBatchToolResult, formatToolResult, insertIntoChatInput, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
-import { parseMcpBlocks, parseRenderedMcpBlocks } from './parser.js';
+import { analyzeMcpTurn } from './parser.js';
 import { canAutoRunForRequest, recordAutoRunForRequest, syncAutoRoundRequest } from './round-guard.js';
 import { installPageRequestHook, syncRequestPrompt, type RequestHookStatus } from './request-hook.js';
 import { renderPanel, setUiHandlers } from './ui.js';
@@ -31,6 +31,10 @@ bootstrapRequestPrompt();
 void warmRequestPromptFromGateway();
 
 let lastRequestHookStatusKey = '';
+let nextEphemeralMessageId = 1;
+let pendingInvalidTurn: { messageId: string; reason: string; firstSeenAt: number } | null = null;
+const ephemeralMessageIds = new WeakMap<HTMLElement, string>();
+const INVALID_TURN_GRACE_MS = 2_000;
 
 async function refreshGatewayStatus(): Promise<void> {
   try {
@@ -68,17 +72,28 @@ async function scanLatestAssistantMessage(): Promise<void> {
   if (state.status === 'executing' || state.status === 'batch_executing') return;
   const requestId = getCurrentRequestIdentity();
   const messages = findAssistantMessages().slice(-8).reverse();
+  let firstInvalid: { messageId: string; invalidReason: string } | null = null;
   for (const message of messages) {
     const detection = await detectPendingBlocksFromMessage(message);
     if (!detection) {
       continue;
     }
 
+    if ('invalidReason' in detection) {
+      firstInvalid ??= detection;
+      continue;
+    }
+
     const { next, messageId, batchId } = detection;
+    pendingInvalidTurn = null;
+    if ('warningReason' in detection) {
+      addLogEntry('warn', detection.warningReason);
+    }
     state.pending = next;
     state.pendingMessageId = messageId;
     state.pendingBatchId = batchId;
     state.pendingRequestId = requestId;
+    state.lastInvalidMcpMessageId = undefined;
     syncRoundGuard(requestId);
     state.progress = undefined;
     state.retryableBatch = undefined;
@@ -89,6 +104,39 @@ async function scanLatestAssistantMessage(): Promise<void> {
     void maybeAutoRunPending();
     return;
   }
+
+  if (!firstInvalid) {
+    pendingInvalidTurn = null;
+    return;
+  }
+
+  if (state.pending.length > 0 || state.retryableBatch) {
+    pendingInvalidTurn = null;
+    return;
+  }
+
+  const now = Date.now();
+  if (!pendingInvalidTurn || pendingInvalidTurn.messageId !== firstInvalid.messageId || pendingInvalidTurn.reason !== firstInvalid.invalidReason) {
+    pendingInvalidTurn = {
+      messageId: firstInvalid.messageId,
+      reason: firstInvalid.invalidReason,
+      firstSeenAt: now
+    };
+    return;
+  }
+
+  if (now - pendingInvalidTurn.firstSeenAt < INVALID_TURN_GRACE_MS) {
+    return;
+  }
+
+  const isNewInvalidTurn = state.lastInvalidMcpMessageId !== firstInvalid.messageId || state.lastError !== firstInvalid.invalidReason;
+  state.lastInvalidMcpMessageId = firstInvalid.messageId;
+  state.lastError = firstInvalid.invalidReason;
+  state.status = 'invalid_mcp_turn';
+  if (isNewInvalidTurn) {
+    addLogEntry('warn', `Blocked invalid MCP reply: ${firstInvalid.invalidReason}`);
+  }
+  renderPanel();
 }
 
 async function runPending(): Promise<void> {
@@ -273,7 +321,18 @@ function hasPendingBatch(): boolean {
 }
 
 function getMessageIdentity(message: HTMLElement, messageText: string): string {
-  return message.dataset.messageId || message.id || messageText.trim();
+  const explicitId = message.dataset.messageId || message.id;
+  if (explicitId) {
+    return explicitId;
+  }
+
+  let ephemeralId = ephemeralMessageIds.get(message);
+  if (!ephemeralId) {
+    const textHint = messageText.trim().slice(0, 32);
+    ephemeralId = `ephemeral-message-${nextEphemeralMessageId++}${textHint ? `:${textHint}` : ''}`;
+    ephemeralMessageIds.set(message, ephemeralId);
+  }
+  return ephemeralId;
 }
 
 function isSamePending(next: typeof state.pending, batchId?: string): boolean {
@@ -519,12 +578,26 @@ async function detectPendingBlocksFromMessage(message: HTMLElement): Promise<{
   next: typeof state.pending;
   messageId: string;
   batchId?: string;
+} | {
+  messageId: string;
+  invalidReason: string;
+} | {
+  next: typeof state.pending;
+  messageId: string;
+  batchId?: string;
+  warningReason: string;
 } | null> {
   const messageText = extractVisibleText(message);
   const messageId = getMessageIdentity(message, messageText);
-  const renderedParsed = await parseRenderedMcpBlocks(message);
-  const parsed = renderedParsed.blocks.length > 0 ? renderedParsed : await parseMcpBlocks(messageText);
-  const normalizedBlocks = await Promise.all(parsed.blocks.map(async (item) => ({
+  const analysis = await analyzeMcpTurn(message, messageText);
+  if (analysis.status === 'invalid') {
+    return {
+      messageId,
+      invalidReason: analysis.violationReason ?? 'Assistant reply contained an invalid MCP tool-call turn.'
+    };
+  }
+
+  const normalizedBlocks = await Promise.all(analysis.blocks.map(async (item) => ({
     ...item,
     callId: await sha256Normalized(`${messageId}\n\n${item.raw}`)
   })));
@@ -541,7 +614,9 @@ async function detectPendingBlocksFromMessage(message: HTMLElement): Promise<{
     return null;
   }
 
-  return { next, messageId, batchId };
+  return analysis.status === 'recoverable'
+    ? { next, messageId, batchId, warningReason: analysis.warningReason ?? 'Recovered a valid MCP block from a mixed reply.' }
+    : { next, messageId, batchId };
 }
 
 async function waitForSubmittedComposer(expectedText: string): Promise<boolean> {

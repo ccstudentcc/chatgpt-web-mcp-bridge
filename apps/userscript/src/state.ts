@@ -17,6 +17,7 @@ export type BridgeStatus =
   | 'batch_inserted'
   | 'sent'
   | 'batch_sent'
+  | 'invalid_mcp_turn'
   | 'failed';
 
 export interface ExecutionProgress {
@@ -63,6 +64,7 @@ export interface BridgeState {
   pendingBatchId?: string;
   pendingMessageId?: string;
   pendingRequestId?: string;
+  lastInvalidMcpMessageId?: string;
   executedCallIds: Set<string>;
   executedBatchIds: Set<string>;
   retryableBatch?: StoredBatch;

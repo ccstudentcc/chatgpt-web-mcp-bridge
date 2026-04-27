@@ -40,6 +40,11 @@ Close the remaining v0.1 browser usability gaps around the userscript panel: kee
 - Gateway `/tools` and `mcp_list` expose the same current tool metadata with runnable state and example arguments, including `mcp_list` itself.
 - `write_file` is present as a high-risk tool, stays disabled by default, becomes enabled only with `allowWrite=true`, and remains outside the automatic execution path.
 - Userscript injects the live MCP catalog prompt into outgoing ChatGPT conversation requests by default, while `Insert MCP list` / `Copy MCP list` remain fallback diagnostics.
+- Whenever an assistant reply is issuing MCP tool calls, that reply contains only fenced `mcp` blocks with no prose, raw JSON outside fences, or intermediate reasoning text.
+- The injected prompt makes it explicit that this bridge is not native MCP: an `mcp` block only requests execution, and the model must wait for a later bridge-inserted `tool_result` or `tool_result_batch` message before continuing.
+- The injected prompt makes the storage boundary explicit: bridge tools operate on the host repository configured as `workspaceRoot`, not ChatGPT sandbox paths such as `/mnt/data`.
+- If ChatGPT emits a mixed reply instead, the userscript blocks execution, does not queue pending tools from that turn, and surfaces an explicit invalid-turn error in the panel.
+- When a reply contains a valid fenced/rendered MCP block plus separate unfenced MCP-like JSON noise but no prose, the userscript recovers by using only the valid MCP block and logging a warning.
 - After at least one successful gateway sync, a later page load can still inject the catalog into the first outgoing chat request before the fresh `/tools` refresh finishes.
 - The panel activity log distinguishes between successful request injection, prompt-not-ready races, and matched-but-unpatched request bodies so manual troubleshooting can identify why ChatGPT missed the catalog.
 - Automatic request injection now uses a short bootstrap prompt; the full tool catalog remains a manual diagnostics fallback.

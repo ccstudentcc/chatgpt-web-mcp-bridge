@@ -77,19 +77,23 @@ function findSendButton(): HTMLButtonElement | null {
 }
 
 export function formatToolResult(tool: string, response: unknown): string {
-  const lines = [`Tool result for \`${tool}\`:`];
+  const lines = [
+    `Bridge tool result for \`${tool}\`:`,
+    'This result was executed outside the model after your previous `mcp` reply. Treat the fenced `tool_result` block below as the authoritative execution result.'
+  ];
   const summary = buildTruncationSummary(tool, response);
   if (summary) {
     lines.push('', summary);
   }
 
-  lines.push('', '```tool_result', JSON.stringify(response, null, 2), '```', '', 'Please continue based on this tool result.');
+  lines.push('', '```tool_result', JSON.stringify(response, null, 2), '```', '', 'Continue only after reading this bridge-provided tool result. Do not claim you already had the tool output before this message.');
   return lines.join('\n');
 }
 
 export function formatBatchToolResult(response: ToolResultBatch): string {
   const lines = [
-    'Batch tool results for one assistant reply:',
+    'Bridge batch tool results for one assistant reply:',
+    'These results were executed outside the model after your previous `mcp` reply. Treat the fenced `tool_result_batch` block below as the authoritative execution result set.',
     `- total: ${response.summary.total}`,
     `- completed: ${response.summary.completed}`,
     `- failed: ${response.summary.failed}`,
@@ -104,7 +108,7 @@ export function formatBatchToolResult(response: ToolResultBatch): string {
     }
   }
 
-  lines.push('', '```tool_result_batch', JSON.stringify(response, null, 2), '```', '', 'Please continue based on the batch tool results above.');
+  lines.push('', '```tool_result_batch', JSON.stringify(response, null, 2), '```', '', 'Continue only after reading these bridge-provided batch results. Do not claim you already had the tool output before this message.');
   return lines.join('\n');
 }
 

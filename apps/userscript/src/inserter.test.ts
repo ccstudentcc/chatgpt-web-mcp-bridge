@@ -1,5 +1,22 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { formatBatchToolResult, readCurrentChatInputText } from './inserter.js';
+import { formatBatchToolResult, formatToolResult, readCurrentChatInputText } from './inserter.js';
+
+describe('formatToolResult', () => {
+  it('makes the bridge-delivered execution boundary explicit', () => {
+    const output = formatToolResult('read_file', {
+      ok: true,
+      result: {
+        path: 'README.md',
+        content: '# Hello'
+      }
+    });
+
+    expect(output).toContain('Bridge tool result for `read_file`:');
+    expect(output).toContain('This result was executed outside the model after your previous `mcp` reply.');
+    expect(output).toContain('```tool_result');
+    expect(output).toContain('Continue only after reading this bridge-provided tool result.');
+  });
+});
 
 describe('formatBatchToolResult', () => {
   it('renders a batch summary and fenced tool_result_batch block', () => {
@@ -21,11 +38,12 @@ describe('formatBatchToolResult', () => {
       warnings: ['Result truncated from 1000 chars.']
     });
 
-    expect(output).toContain('Batch tool results for one assistant reply:');
+    expect(output).toContain('Bridge batch tool results for one assistant reply:');
     expect(output).toContain('- total: 3');
     expect(output).toContain('```tool_result_batch');
     expect(output).toContain('"batchId": "batch-1"');
-    expect(output).toContain('Please continue based on the batch tool results above.');
+    expect(output).toContain('These results were executed outside the model after your previous `mcp` reply.');
+    expect(output).toContain('Continue only after reading these bridge-provided batch results.');
   });
 });
 

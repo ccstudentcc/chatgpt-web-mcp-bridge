@@ -33,6 +33,14 @@ function fallbackFindCodeContainers(): HTMLElement[] {
   const codeBlocks = Array.from(document.querySelectorAll(chatgptSelectors.codeBlock)) as HTMLElement[];
   return codeBlocks
     .slice(-8)
-    .map((node) => node.closest('pre') as HTMLElement | null)
-    .filter((node): node is HTMLElement => Boolean(node) && (node!.innerText || '').includes('"tool"'));
+    .map((node) => {
+      const pre = node.closest('pre') as HTMLElement | null;
+      const assistantTurn = node.closest('[data-turn="assistant"], [data-message-author-role="assistant"]') as HTMLElement | null;
+      return pre ?? assistantTurn;
+    })
+    .filter((node): node is HTMLElement => Boolean(node))
+    .filter((node) => {
+      const text = node.innerText || node.textContent || '';
+      return /(^|\n)\s*mcp\s*\n[\s\S]*"tool"[\s\S]*"args"/i.test(text);
+    });
 }

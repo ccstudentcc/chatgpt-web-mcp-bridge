@@ -161,6 +161,17 @@ userscript 基于 `/tools` 动态生成一份 live catalog prompt，并在 ChatG
 - 每次用户发送消息时都可重新注入 live catalog，避免工具目录、开关状态或 enabled 状态变化后模型拿到旧信息。
 - 如果请求体结构无法识别，允许退回面板复制/插入 catalog 的手动路径。
 - 注入 prompt 要明确声明：对 `workspaceRoot` 下的本地文件任务，应优先使用 Local MCP Bridge，而不是无关的 ChatGPT 内建连接器；如果本地工具被禁用，也应说明具体缺失项，而不是笼统声称“没有本地工具”。
+- 注入 prompt 还应明确区分两套存储空间：Local MCP Bridge 面向用户宿主机上由 `workspaceRoot` 配置的仓库，不等于 ChatGPT 自身沙箱里的 `/mnt/data` 等路径；模型不应把两者混为一谈。
+- 注入 prompt 还应明确声明：这不是原生 MCP tool channel。assistant 输出 `mcp` block 只是向 userscript 发起待执行请求，真实执行结果会在后续一条单独的 `tool_result` / `tool_result_batch` 消息里回填给模型。
+- 注入 prompt 还应把复杂任务拆成“先取本地上下文、后输出自然语言总结或写入”两阶段：只要当前步骤仍依赖本地 workspace 上下文，下一条 assistant 回复就应只包含完成该步骤所需的 `mcp` block，不应提前输出计划、摘要、限制说明或“无法使用本地工具”之类的自然语言。
+- 对路径和目标工具都已明确的简单本地文件请求，注入 prompt 还应鼓励模型直接发出对应的 `mcp` block，而不是先声明自己是否能访问工作区、是否执行了 MCP，或反问用户是否继续。
+- 对这类简单请求，注入 prompt 还应给出一条精确的 fenced `mcp` 回复形状，并明确禁止模型在收到真实 `tool_result` 之前擅自宣称“调用失败”“未执行”“已看到结果”或“不可用”。
+- assistant 发出 `mcp` block 后必须立刻停止，等待 userscript 回填真实 `tool_result` / `tool_result_batch`；不得自行伪造、复述或脑补这些结果内容。
+- 只要 assistant 当前这条回复是在发起 `mcp` 工具调用，整条回复就必须只包含 fenced `mcp` block；不得夹带自然语言、分析、阶段性结论，或任何“边想边说”的中途思考文本。
+- userscript 对 rendered code block 的自动检测只应接受明确标记为 `mcp` 的代码块；普通 JSON / TypeScript / 示例代码块即使碰巧含有 `tool` / `args` 结构，也不得被当成 MCP 调用。
+- 如果 assistant 仍然产出混合回复，userscript 执行层必须把该回合判为非法 `mcp` turn：不自动执行、不进入 pending 队列，并在面板中明确显示格式违规原因。
+- 为兼顾鲁棒性，如果回复里已经包含合法的 fenced / rendered `mcp` block，而额外残留只有另一段 unfenced MCP 风格 JSON 噪声、没有自然语言，则 userscript 可忽略那段噪声、继续执行合法 block，并在日志中记 warning。
+- 为减少格式漂移和元话术自说自话，隐藏注入 prompt 应优先压缩成高信噪比的短分节结构，例如 `Context`、`Use`、`Before any tool_result arrives`、`Output format requirement`；最关键的格式要求应放在 prompt 末尾。
 - 面板活动日志应能区分三类信号：会话请求已注入、会话请求早于 prompt 就到达、以及会话请求命中但 body shape 未被改写，方便排查“为什么模型没看到 catalog”。
 - 默认自动注入应使用最短可工作的 bootstrap prompt；完整 catalog 仅保留给 `Insert MCP list` / `Copy MCP list` 诊断路径。
 - 为避免注入文本出现在可分享对话内容里，请求层应优先尝试 synthetic `system` message 注入；只有当该路径不可用时，才退回 prepend user 文本的实验或兼容路径。

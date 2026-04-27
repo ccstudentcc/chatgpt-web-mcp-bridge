@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseMcpBlocks, parseMcpCandidateStrings, parseRenderedMcpBlocks } from './parser.js';
+import { analyzeMcpTurn, parseMcpBlocks, parseMcpCandidateStrings, parseRenderedMcpBlocks } from './parser.js';
 
 describe('parseMcpBlocks', () => {
   it('parses a valid mcp block', async () => {
@@ -44,5 +44,97 @@ describe('parseMcpBlocks', () => {
     const result = await parseRenderedMcpBlocks(fakeContainer);
     expect(result.blocks).toHaveLength(1);
     expect(result.blocks[0]?.block.tool).toBe('list_directory');
+  });
+});
+
+describe('analyzeMcpTurn', () => {
+  it('accepts a pure rendered MCP tool-call turn', async () => {
+    const visibleText = 'mcp\n{\n  "tool": "read_file",\n  "args": {\n    "path": "SPEC.md"\n  }\n}';
+    const fakeContainer = {
+      querySelectorAll: () => [{ textContent: visibleText }]
+    } as unknown as ParentNode;
+
+    const result = await analyzeMcpTurn(fakeContainer, visibleText);
+    expect(result.status).toBe('valid');
+    expect(result.blocks).toHaveLength(1);
+  });
+
+  it('ignores rendered json blocks that are not explicitly labeled as mcp', async () => {
+    const visibleText = '{\n  "tool": "read_file",\n  "args": {\n    "path": "SPEC.md"\n  }\n}';
+    const fakeContainer = {
+      querySelectorAll: () => [{ textContent: visibleText }]
+    } as unknown as ParentNode;
+
+    const result = await analyzeMcpTurn(fakeContainer, visibleText);
+    expect(result.status).toBe('none');
+    expect(result.blocks).toHaveLength(0);
+  });
+
+  it('rejects a rendered MCP turn mixed with natural language', async () => {
+    const codeText = 'mcp\n{\n  "tool": "read_file",\n  "args": {\n    "path": "SPEC.md"\n  }\n}';
+    const visibleText = `读取 SPEC.md，总结一下\n\n${codeText}`;
+    const fakeContainer = {
+      querySelectorAll: () => [{ textContent: codeText }]
+    } as unknown as ParentNode;
+
+    const result = await analyzeMcpTurn(fakeContainer, visibleText);
+    expect(result.status).toBe('invalid');
+    expect(result.violationReason).toContain('natural language');
+  });
+
+  it('recovers when a valid MCP block is mixed only with unfenced MCP-like json noise', async () => {
+    const codeText = 'mcp\n{\n  "tool": "read_file",\n  "args": {\n    "path": "SPEC.md"\n  }\n}';
+    const visibleText = [
+      '{',
+      '  "tool": "list_directory",',
+      '  "args": {',
+      '    "path": ".",',
+      '    "maxDepth": 2',
+      '  }',
+      '}',
+      '',
+      codeText
+    ].join('\n');
+    const fakeContainer = {
+      querySelectorAll: () => [{ textContent: codeText }]
+    } as unknown as ParentNode;
+
+    const result = await analyzeMcpTurn(fakeContainer, visibleText);
+    expect(result.status).toBe('recoverable');
+    expect(result.warningReason).toContain('Ignoring the unfenced fragment');
+    expect(result.blocks).toHaveLength(1);
+    expect(result.blocks[0]?.block.tool).toBe('read_file');
+  });
+
+  it('rejects a fenced MCP turn mixed with extra text', async () => {
+    const visibleText = [
+      '请先确认文件是否存在。',
+      '```mcp',
+      '{"tool":"read_file","args":{"path":"SPEC.md"}}',
+      '```'
+    ].join('\n');
+    const fakeContainer = {
+      querySelectorAll: () => []
+    } as unknown as ParentNode;
+
+    const result = await analyzeMcpTurn(fakeContainer, visibleText);
+    expect(result.status).toBe('invalid');
+    expect(result.violationReason).toContain('natural language');
+  });
+
+  it('prefers a valid fenced MCP block over malformed rendered candidates', async () => {
+    const visibleText = [
+      '```mcp',
+      '{"tool":"read_file","args":{"path":"SPEC.md"}}',
+      '```'
+    ].join('\n');
+    const fakeContainer = {
+      querySelectorAll: () => [{ textContent: 'mcp\n{"tool": "read_file",' }]
+    } as unknown as ParentNode;
+
+    const result = await analyzeMcpTurn(fakeContainer, visibleText);
+    expect(result.status).toBe('valid');
+    expect(result.blocks).toHaveLength(1);
+    expect(result.blocks[0]?.block.tool).toBe('read_file');
   });
 });

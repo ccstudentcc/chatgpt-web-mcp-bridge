@@ -3,6 +3,8 @@ import { assessPendingTools, formatCapabilityLabel } from './capabilities.js';
 import { summarizePendingBlock } from './preview.js';
 import { saveBaseUrl, savePanelPosition, saveToken, state } from './state.js';
 
+const LOG_STREAM_SELECTOR = '.cwmb-log-stream';
+
 let root: HTMLDivElement | null = null;
 let dragState: { pointerId: number; offsetX: number; offsetY: number } | null = null;
 let onRunHandler: (() => void) | null = null;
@@ -45,6 +47,7 @@ export function setUiHandlers(handlers: {
 
 export function renderPanel(): void {
   ensureRoot();
+  const scrollSnapshot = captureScrollSnapshot();
   root!.style.width = state.panelCollapsed ? 'min(320px, calc(100vw - 24px))' : 'min(420px, calc(100vw - 24px))';
   root!.style.maxHeight = state.panelCollapsed ? 'none' : 'min(82vh, 820px)';
   root!.style.overflow = state.panelCollapsed ? 'hidden' : 'auto';
@@ -90,7 +93,7 @@ export function renderPanel(): void {
     : '<div class="cwmb-empty-state">No result payload yet.</div>';
   const logsHtml = state.logs.length > 0
     ? [...state.logs].reverse().map((entry) => (
-      `<div class="cwmb-log-row cwmb-log-${entry.level}"><span class="cwmb-log-time">${escapeHtml(entry.timestamp)}</span><span class="cwmb-log-level">${escapeHtml(entry.level)}</span><span class="cwmb-log-message">${escapeHtml(entry.message)}</span></div>`
+      `<div class="cwmb-log-row cwmb-log-${entry.level}"><div class="cwmb-log-meta"><span class="cwmb-log-time">${escapeHtml(entry.timestamp)}</span><span class="cwmb-log-level">${escapeHtml(entry.level)}</span></div><div class="cwmb-log-message">${escapeHtml(entry.message)}</div></div>`
     )).join('')
     : '<div class="cwmb-empty-state">No events yet.</div>';
   const collapsedActionHtml = [
@@ -195,6 +198,7 @@ export function renderPanel(): void {
     `;
 
   bindHandlers(toolCatalogPrompt, pending);
+  restoreScrollSnapshot(scrollSnapshot);
 }
 
 function ensureRoot(): void {
@@ -252,6 +256,70 @@ function bindHandlers(toolCatalogPrompt: string, pending: typeof state.pending[0
   root?.querySelector('[data-cwmb="drag-handle"]')?.addEventListener('pointerdown', (event) => {
     startDrag(event as PointerEvent);
   });
+}
+
+interface ScrollSnapshot {
+  panelScrollTop: number;
+  log?: {
+    scrollTop: number;
+    scrollHeight: number;
+    wasNearTop: boolean;
+  };
+}
+
+function captureScrollSnapshot(): ScrollSnapshot {
+  const panelScrollTop = root?.scrollTop ?? 0;
+  const logStream = root?.querySelector(LOG_STREAM_SELECTOR);
+  if (!(logStream instanceof HTMLDivElement)) {
+    return { panelScrollTop };
+  }
+
+  return {
+    panelScrollTop,
+    log: {
+      scrollTop: logStream.scrollTop,
+      scrollHeight: logStream.scrollHeight,
+      wasNearTop: logStream.scrollTop <= 8
+    }
+  };
+}
+
+function restoreScrollSnapshot(snapshot: ScrollSnapshot): void {
+  if (!root) {
+    return;
+  }
+
+  root.scrollTop = snapshot.panelScrollTop;
+
+  if (!snapshot.log) {
+    return;
+  }
+
+  const logStream = root.querySelector(LOG_STREAM_SELECTOR);
+  if (!(logStream instanceof HTMLDivElement)) {
+    return;
+  }
+
+  if (snapshot.log.wasNearTop) {
+    logStream.scrollTop = computeRestoredLogScrollTop(snapshot.log.scrollTop, snapshot.log.scrollHeight, logStream.scrollHeight, true);
+    return;
+  }
+
+  logStream.scrollTop = computeRestoredLogScrollTop(snapshot.log.scrollTop, snapshot.log.scrollHeight, logStream.scrollHeight, false);
+}
+
+export function computeRestoredLogScrollTop(
+  previousScrollTop: number,
+  previousScrollHeight: number,
+  nextScrollHeight: number,
+  wasNearTop: boolean
+): number {
+  if (wasNearTop) {
+    return 0;
+  }
+
+  const heightDelta = Math.max(0, nextScrollHeight - previousScrollHeight);
+  return previousScrollTop + heightDelta;
 }
 
 function applyPanelPosition(): void {
@@ -591,20 +659,28 @@ function panelStyles(): string {
     #cwmb-panel .cwmb-log-stream {
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      max-height: 220px;
+      gap: 6px;
+      max-height: 240px;
       overflow: auto;
+      overscroll-behavior: contain;
+      padding-right: 2px;
     }
     #cwmb-panel .cwmb-log-row {
-      display: grid;
-      grid-template-columns: 56px 48px minmax(0, 1fr);
-      gap: 8px;
-      align-items: center;
-      min-height: 44px;
-      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: stretch;
+      min-width: 0;
+      padding: 8px 9px;
       border-radius: 10px;
       background: rgba(15,23,42,0.82);
       border: 1px solid rgba(51,65,85,0.7);
+    }
+    #cwmb-panel .cwmb-log-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
     }
     #cwmb-panel .cwmb-log-time,
     #cwmb-panel .cwmb-log-level {
@@ -614,20 +690,19 @@ function panelStyles(): string {
     }
     #cwmb-panel .cwmb-log-time {
       color: #64748b;
-      text-align: right;
       font-size: 9px;
     }
     #cwmb-panel .cwmb-log-level {
       display: inline-flex;
       align-items: center;
-      justify-content: flex-start;
+      justify-content: center;
       gap: 5px;
-      min-height: 18px;
-      padding: 0;
-      border: 0;
-      background: transparent;
+      min-height: 20px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(71,85,105,0.7);
+      background: rgba(30,41,59,0.72);
       color: #94a3b8;
-      text-align: left;
       font-size: 9px;
     }
     #cwmb-panel .cwmb-log-message {
@@ -635,6 +710,7 @@ function panelStyles(): string {
       color: #cbd5e1;
       font-size: 12px;
       line-height: 1.35;
+      overflow-wrap: anywhere;
     }
     #cwmb-panel .cwmb-log-level::before {
       content: "";
@@ -881,13 +957,15 @@ function renderMiniState(label: string, enabled: boolean): string {
 
 function getStatusTone(status: string): string {
   if (status === 'sent' || status === 'batch_sent' || status === 'idle') return 'cwmb-badge-ok';
-  if (status === 'failed' || status === 'unauthorized' || status === 'disconnected') return 'cwmb-badge-danger';
+  if (status === 'failed' || status === 'unauthorized' || status === 'disconnected' || status === 'invalid_mcp_turn') return 'cwmb-badge-danger';
   if (status === 'detected' || status === 'detected_batch' || status === 'batch_stopped_on_failure') return 'cwmb-badge-warn';
   return 'cwmb-badge-info';
 }
 
 function getStatusLabel(status: string): string {
   switch (status) {
+    case 'invalid_mcp_turn':
+      return 'Invalid MCP turn';
     case 'detected_batch':
       return 'Batch queued';
     case 'batch_executing':

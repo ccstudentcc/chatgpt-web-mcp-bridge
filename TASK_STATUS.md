@@ -6,7 +6,8 @@
 - The repository now appears code-complete for the documented v0.1 browser-to-gateway flow.
 - Gateway tool descriptors now include example arguments, and a new low-risk `mcp_list` tool can return the current gateway catalog to ChatGPT itself.
 - The userscript now builds a live MCP catalog prompt from `/tools` and injects it into outgoing ChatGPT conversation requests, so tool discovery no longer depends on visibly seeding the composer first.
-- The userscript panel still exposes catalog copy/insert actions, but they are now fallback diagnostics instead of the primary capability-discovery path.
+- The userscript panel still exposes catalog copy/insert actions, but they are now fallback diagnostics instead of the primary capability-discovery path, and the manual MCP list now carries the same non-native MCP contract quality as the hidden injected prompt.
+- The injected prompt now also distinguishes the host repo configured as `workspaceRoot` from ChatGPT sandbox storage such as `/mnt/data`, so local bridge paths are less likely to be mistaken for sandbox paths.
 - The userscript now consumes gateway automation flags, auto-executes enabled tools, auto-inserts results, and auto-sends them by default while still gating execution on live `/tools` capabilities.
 - Gateway now defaults to trusted local mode, so localhost `userscript -> gateway` calls no longer require a pairing token unless the user explicitly turns token auth back on.
 - README and PRD now align on request-layer catalog injection as the default path, formalize the current `tool_result_batch` shape, and spell out threat-model / error-path acceptance examples more explicitly.
@@ -20,11 +21,23 @@
 - The userscript now installs its request hook at `document-start`, then delays UI/DOM observers until `DOMContentLoaded`, so the first ChatGPT message request can still be patched without breaking panel startup.
 - The userscript now bootstraps the request-hook prompt from the last successful `/tools` snapshot before `DOMContentLoaded`, then warms it from a fresh gateway call in parallel so new-chat first turns do not depend solely on the current page's async panel sync.
 - The injected tool-catalog prompt now explicitly tells ChatGPT to prefer Local MCP Bridge tools for `workspaceRoot` file tasks over unrelated built-in connectors such as GitHub or Gmail, and to report specific disabled bridge tools instead of claiming local tools are unavailable.
+- The injected prompt now also states the storage boundary directly: bridge tool paths are relative to the host repo configured as `workspaceRoot`, not ChatGPT sandbox storage such as `/mnt/data`.
 - Automatic request injection now uses a short bootstrap MCP prompt, while `Insert MCP list` / `Copy MCP list` still expose the full catalog for manual diagnostics.
-- Hidden request injection now reuses the full live catalog prompt plus stricter format rules, because the shorter bootstrap prompt was not reliably enough to keep ChatGPT on pure `mcp`-only replies after the first turn.
+- Hidden request injection now reuses the full live catalog prompt, but leads with direct operating rules that push ChatGPT to call obvious local tools immediately instead of talking about workspace access, MCP availability, or whether it should continue.
+- The hidden system contract now also enforces stage ordering for complex tasks: if local workspace context is still needed, the next assistant reply must contain only the required `mcp` blocks and must not jump ahead into plans, summaries, caveats, or write-step discussion.
+- The same hidden operating rules now also tell ChatGPT not to emit "I cannot access the workspace" or "do you want me to continue" filler for simple local-file reads when the path and tool are already clear.
+- The hidden operating rules now pin simple local-file reads to an exact fenced `mcp` reply shape and explicitly forbid ChatGPT from declaring tool-call failure before any real `tool_result` has arrived.
+- The hidden operating rules now also state the non-native execution boundary explicitly: an `mcp` block only asks the userscript to execute a tool, and ChatGPT must wait for a later bridge-inserted `tool_result` / `tool_result_batch` message instead of pretending it already saw the output.
+- The hidden operating rules now also forbid any natural-language filler, analysis text, or chain-of-thought leakage while issuing `mcp` calls: a tool-call turn must be fenced `mcp` block(s) only.
+- The userscript execution path now treats any mixed MCP reply containing valid MCP plus natural language as an explicit invalid turn: it is blocked before pending/autorun, and the panel surfaces an `invalid_mcp_turn` error instead of silently accepting partial JSON.
+- The execution path now also has one narrow recovery case: if ChatGPT emits unfenced MCP-like JSON noise but also includes a valid fenced/rendered MCP block with no prose, the userscript ignores the unfenced fragment, logs a warning, and still executes the valid block.
+- The hidden injected prompt is now organized as a higher-signal role/situation/instructions/constraints/template contract so ChatGPT sees the non-native MCP boundary, stop-and-wait rule, and output shape more clearly without losing critical guidance.
+- Rendered-block detection now requires an explicit `mcp` language label instead of treating arbitrary JSON code blocks with `tool` / `args` keys as MCP calls.
+- Code-block fallback detection no longer treats user-authored `tool_result` replies as assistant MCP turns when the normal assistant-message selector is unavailable.
 - The main panel now treats `Synthetic system` as the normal operator-facing mode; prepend-user remains in code only as a hidden fallback path instead of a visible mode switch.
 - Gateway startup now auto-creates `config.json` and backfills `workspaceRoot` from the current startup directory when the config is missing or incomplete.
 - The userscript panel is now a collapsible inspector-style surface with runtime badges, expandable batch/result payloads, and an in-panel activity log stream.
+- The inspector log is now more compact and preserves both panel scroll and log-stream scroll across rerenders, so reviewing older log entries no longer jumps back to the newest row on each refresh.
 - The panel activity log now records request-hook diagnostics for real ChatGPT conversation requests: injected, prompt-not-ready race, or matched-but-unpatched body. The userscript listens for page-hook `postMessage` events and rerenders immediately when those diagnostics arrive, so the hook status is visible in-panel during the same turn.
 - Request-hook matching now targets the exact ChatGPT conversation endpoints instead of any pathname containing `/conversation`, so `POST /backend-api/f/conversation/prepare` no longer shows up as a false "body shape was not patched" warning.
 - HAR evidence from `tmp/chatgpt.com.har` showed a real `POST /backend-api/f/conversation` request without the injected prompt marker, which confirmed the hook path was correct but the Tampermonkey sandbox-to-page prompt bridge was not. Prompt sync and diagnostics now use `postMessage` plus a shared DOM attribute instead of cross-world custom window events.
@@ -83,7 +96,8 @@
 - `pnpm --filter @cwmb/userscript test` now also covers the stronger catalog prompt wording for native-connector override guidance.
 - `pnpm --filter @cwmb/userscript test` now also covers the short injected bootstrap prompt and synthetic-system request injection mode.
 - `tmp/chatgpt.com4.har` review showed the noisy "body shape was not patched" warnings were coming from `POST /backend-api/f/conversation/prepare`, not the real `POST /backend-api/f/conversation` submit path.
-- User live validation showed the short hidden prompt still allowed mixed natural-language plus `mcp` replies unless the full catalog prompt had first been injected visibly into the chat, so the hidden path now uses the stricter full catalog prompt too.
+- User live validation showed the short hidden prompt still allowed mixed natural-language plus `mcp` replies unless the full catalog prompt had first been injected visibly into the chat, so the hidden path now uses the full catalog with stronger system-contract framing too.
+- User live validation also showed that complex multi-step asks still drifted into natural-language planning before tool calls, so the hidden contract now spells out the required phase order: gather local context first, then summarize or write.
 - `pnpm --filter @cwmb/protocol build` succeeded again after tightening request-hook endpoint matching and extending auto-send wait time.
 - `pnpm --filter @cwmb/userscript lint` succeeded again after tightening request-hook endpoint matching and extending auto-send wait time.
 - `pnpm --filter @cwmb/userscript test` succeeded again with 9 passing files and 38 passing tests after excluding `/conversation/prepare` from request-hook matching.
@@ -91,6 +105,27 @@
 - `pnpm --filter @cwmb/userscript lint` succeeded again after switching hidden request injection to the full strict catalog prompt, broadening assistant-message scanning, and requiring composer-clear confirmation before `sent`.
 - `pnpm --filter @cwmb/userscript test` now succeeds with 9 passing files and 39 passing tests after covering the stricter injected prompt and composer text reads used by send confirmation.
 - `pnpm --filter @cwmb/userscript build` succeeded again after the prompt-strengthening and auto-send confirmation follow-up.
+- `pnpm --filter @cwmb/protocol build` succeeded again after tightening the hidden MCP contract against prose and chain-of-thought leakage during tool-call turns.
+- `pnpm --filter @cwmb/userscript lint` succeeded again after adding the stricter injected-tool-call wording.
+- `pnpm --filter @cwmb/userscript test` succeeded again with 9 passing files and 39 passing tests after extending the injected-prompt assertions to ban reasoning / analysis text around `mcp` blocks.
+- `pnpm --filter @cwmb/userscript build` succeeded again after the latest hidden-contract wording update.
+- `pnpm --filter @cwmb/protocol build` succeeded again before validating the userscript runtime enforcement follow-up.
+- `pnpm --filter @cwmb/userscript test` now succeeds with 9 passing files and 42 passing tests after adding strict MCP-turn validation coverage for pure turns versus mixed prose-plus-JSON replies.
+- `pnpm --filter @cwmb/userscript lint` succeeded again after adding the invalid-turn state and workspace boundary prompt wording.
+- `pnpm --filter @cwmb/userscript build` succeeded again after the invalid-turn runtime enforcement and `/mnt/data` boundary prompt update.
+- `pnpm --filter @cwmb/userscript test` now succeeds with 10 passing files and 45 passing tests after adding log-scroll preservation coverage.
+- `pnpm --filter @cwmb/userscript lint` succeeded again after compacting the inspector log layout and preserving rerender scroll state.
+- `pnpm --filter @cwmb/userscript build` succeeded again after the inspector log UX follow-up.
+- `pnpm --filter @cwmb/userscript test` now succeeds with 10 passing files and 46 passing tests after covering recovery from unfenced MCP-like JSON noise around a valid MCP block.
+- `pnpm --filter @cwmb/userscript lint` succeeded again after adding the recoverable mixed-reply branch.
+- `pnpm --filter @cwmb/userscript build` succeeded again after the recoverable mixed-reply follow-up.
+- `pnpm --filter @cwmb/protocol build` succeeded again after clarifying the non-native MCP wait-for-`tool_result` contract in prompt and result wording.
+- `pnpm --filter @cwmb/userscript test` now succeeds with 10 passing files and 48 passing tests after tightening mixed prose-plus-MCP turns to hard invalidation and covering the bridge-delivered `tool_result` wording.
+- `pnpm --filter @cwmb/userscript lint` succeeded again after the stricter non-native MCP prompt and result-insertion wording update.
+- `pnpm --filter @cwmb/userscript build` succeeded again after the latest prompt/result-boundary follow-up.
+- `pnpm --filter @cwmb/userscript test` now succeeds with 11 passing files and 50 passing tests after optimizing the hidden contract wording, rejecting unlabeled rendered JSON blocks, and covering fallback exclusion of user `tool_result` replies.
+- `pnpm --filter @cwmb/userscript lint` succeeded again after the explicit-rendered-`mcp` detection and hidden-contract restructuring follow-up.
+- `pnpm --filter @cwmb/userscript build` succeeded again after the latest prompt-quality and MCP-detection-boundary update.
 - `pnpm -r lint` succeeded.
 - `pnpm -r test` succeeded across protocol, shared, gateway, and userscript.
 - `pnpm -r build` succeeded across protocol, shared, gateway, and userscript.
