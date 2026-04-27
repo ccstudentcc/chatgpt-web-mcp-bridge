@@ -1,4 +1,10 @@
 export {
+  createAssistantTurnScanState,
+  scanAssistantTurn,
+  type AssistantTurnScanResult,
+  type AssistantTurnScanState
+} from './assistant-turn-scan.js';
+export {
   canAutoRunForRequest,
   recordAutoRunForRequest,
   syncAutoRoundRequest,

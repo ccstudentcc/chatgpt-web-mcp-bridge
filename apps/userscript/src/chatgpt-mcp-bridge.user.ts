@@ -13,7 +13,6 @@ import {
 import { createBatchId, executeBatch } from './batch.js';
 import { callTool, health, listCatalog } from './gateway-client.js';
 import { extractVisibleText, findLatestOpenAssistantMessage, findLatestUserMessage, onChatMutation } from './dom.js';
-import { updatePendingInvalidTurn, type PendingInvalidTurnState } from './detection-state.js';
 import { sha256Normalized } from './hash.js';
 import { formatBatchToolResult, formatToolResult, insertIntoChatInput, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
 import { analyzeMcpTurn } from './parser.js';
@@ -21,9 +20,10 @@ import { describeRequestHookStatus } from './request-injection-state.js';
 import { canAutoRunForRequest, recordAutoRunForRequest, syncAutoRoundRequest } from './round-guard.js';
 import { installPageRequestHook, syncRequestPrompt, type RequestHookStatus } from './request-hook.js';
 import {
-  detectPendingTurn,
-  getMessageIdentity as getTurnMessageIdentity
-} from '../../extension/src/turn-runtime/pending-turn-detection.js';
+  createAssistantTurnScanState,
+  scanAssistantTurn
+} from '../../extension/src/turn-runtime/assistant-turn-scan.js';
+import { getMessageIdentity as getTurnMessageIdentity } from '../../extension/src/turn-runtime/pending-turn-detection.js';
 import { renderPanel, setUiHandlers } from './ui.js';
 import {
   addLogEntry,
@@ -49,9 +49,7 @@ bootstrapRequestPrompt();
 void warmRequestPromptFromGateway();
 
 let lastRequestHookStatusKey = '';
-let nextEphemeralMessageId = 1;
-let pendingInvalidTurn: PendingInvalidTurnState | null = null;
-const ephemeralMessageIds = new WeakMap<HTMLElement, string>();
+let turnScanState = createAssistantTurnScanState();
 const INVALID_TURN_GRACE_MS = 2_000;
 
 async function refreshGatewayStatus(): Promise<void> {
@@ -89,26 +87,28 @@ async function scanLatestAssistantMessage(): Promise<void> {
   const requestId = getCurrentRequestIdentity();
   const latestMessage = findLatestOpenAssistantMessage();
   if (!latestMessage) {
-    pendingInvalidTurn = null;
+    turnScanState = {
+      ...turnScanState,
+      pendingInvalidTurn: null
+    };
     clearPendingDetection();
     return;
   }
 
   const detection = await detectPendingBlocksFromMessage(latestMessage);
-  if (!detection) {
-    pendingInvalidTurn = null;
+  turnScanState = detection.nextState;
+
+  if (detection.status === 'clear') {
     clearPendingDetection();
     return;
   }
 
   if (detection.status === 'unchanged') {
-    pendingInvalidTurn = null;
     return;
   }
 
   if (detection.status === 'pending') {
     const { next, messageId, batchId } = detection;
-    pendingInvalidTurn = null;
     if ('warningReason' in detection) {
       addLogEntry('warn', detection.warningReason);
     }
@@ -128,14 +128,7 @@ async function scanLatestAssistantMessage(): Promise<void> {
     return;
   }
 
-  const now = Date.now();
-  const invalidTurnState = updatePendingInvalidTurn(pendingInvalidTurn, {
-    messageId: detection.messageId,
-    reason: detection.invalidReason,
-    fingerprint: detection.fingerprint
-  }, now, INVALID_TURN_GRACE_MS);
-  pendingInvalidTurn = invalidTurnState.next;
-  if (!invalidTurnState.shouldBlock) {
+  if (detection.status === 'invalid_waiting') {
     return;
   }
 
@@ -351,16 +344,12 @@ function hasPendingBatch(): boolean {
   return state.pending.length > 1 && Boolean(state.pendingBatchId);
 }
 
-function getMessageIdentity(message: HTMLElement, messageText: string): string {
-  const identity = getTurnMessageIdentity(
-    message,
-    messageText,
-    {
-      ephemeralMessageIds,
-      nextEphemeralMessageId
-    }
-  );
-  nextEphemeralMessageId = identity.nextEphemeralMessageId;
+function getTrackedMessageIdentity(message: HTMLElement, messageText: string): string {
+  const identity = getTurnMessageIdentity(message, messageText, turnScanState);
+  turnScanState = {
+    ...turnScanState,
+    nextEphemeralMessageId: identity.nextEphemeralMessageId
+  };
   return identity.messageId;
 }
 
@@ -591,38 +580,24 @@ function installRequestHookDiagnostics(): void {
   });
 }
 
-async function detectPendingBlocksFromMessage(message: HTMLElement): Promise<{
-  status: 'pending';
-  next: typeof state.pending;
-  messageId: string;
-  batchId?: string;
-} | {
-  status: 'invalid';
-  messageId: string;
-  invalidReason: string;
-  fingerprint: string;
-} | {
-  status: 'pending';
-  next: typeof state.pending;
-  messageId: string;
-  batchId?: string;
-  warningReason: string;
-} | {
-  status: 'unchanged';
-} | null> {
+async function detectPendingBlocksFromMessage(
+  message: HTMLElement
+): Promise<Awaited<ReturnType<typeof scanAssistantTurn>>> {
   const messageText = extractVisibleText(message);
-  const messageId = getMessageIdentity(message, messageText);
   const analysis = await analyzeMcpTurn(message, messageText);
-  return detectPendingTurn({
-    analysis,
-    messageId,
+  return scanAssistantTurn({
+    message,
     messageText,
+    analysis,
+    state: turnScanState,
     executedCallIds: state.executedCallIds,
     executedBatchIds: state.executedBatchIds,
     currentPendingCallIds: state.pending.map((item) => item.callId),
     currentPendingBatchId: state.pendingBatchId,
-    createCallId: (raw) => sha256Normalized(`${messageId}\n\n${raw}`),
-    createBatchId
+    createCallId: (messageId, raw) => sha256Normalized(`${messageId}\n\n${raw}`),
+    createBatchId,
+    now: Date.now(),
+    invalidGraceMs: INVALID_TURN_GRACE_MS
   });
 }
 
@@ -702,7 +677,7 @@ function getCurrentRequestIdentity(): string {
   }
 
   const text = extractVisibleText(message);
-  return getMessageIdentity(message, text);
+  return getTrackedMessageIdentity(message, text);
 }
 
 function syncRoundGuard(requestId: string): void {

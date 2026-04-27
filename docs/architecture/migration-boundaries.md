@@ -98,19 +98,27 @@ Current live contracts such as `/tools` must remain canonical until product trut
 
 ### 4.1 Userscript Runtime Mapping
 
-Current source of truth:
+Current live entrypoints and remaining logic surfaces:
 
 - `apps/userscript/src/catalog*.ts`
 - `apps/userscript/src/request-hook.ts`
-- `apps/userscript/src/parser.ts`
-- `apps/userscript/src/detection-state.ts`
-- `apps/userscript/src/round-guard.ts`
+- `apps/userscript/src/parser.ts` as a partial compat wrapper around seeded extension turn-runtime owners
+- `apps/userscript/src/detection-state.ts` as a compat consumer of seeded extension turn-runtime state helpers
+- `apps/userscript/src/round-guard.ts` as a compat consumer of seeded extension turn-runtime guard helpers
+- `apps/userscript/src/turn-runtime.ts` as a compat re-export entrypoint for seeded extension turn-runtime helpers
 - `apps/userscript/src/inserter.ts`
 - `apps/userscript/src/dom.ts`
 - `apps/userscript/src/chatgpt-runtime-facts.ts` as a compat re-export of the seeded v0.9 adapter owner
 - `apps/userscript/src/selectors.ts` as a legacy compat entrypoint only
 - `apps/userscript/src/ui.ts`
 - `apps/userscript/src/state.ts`
+
+Already-seeded target owners that should win when the same semantics are touched:
+
+- page facts and selectors -> `apps/extension/src/chatgpt-adapter/`
+- request-injection mode and status helpers -> `apps/extension/src/injection-runtime/`
+- runtime snapshot helpers -> `apps/extension/src/operator-panel/`
+- MCP turn analysis, pending-turn detection, invalid-turn state, and round-guard helpers -> `apps/extension/src/turn-runtime/`
 
 Target ownership mapping:
 
@@ -207,64 +215,61 @@ Exit criteria:
 - extension and gateway consume the same core contract types
 - duplicated local shape definitions for core execution concepts are reduced or marked for removal
 
-### Phase 2: Extract Extension Runtime Boundaries
+### Phase 2: Execute Final Core As One-Module Stages
 
 Primary battleground ring: Final Core
 
+Canonical sequencing rule:
+
+- Phase 2 is not one large extension phase followed by one large gateway phase.
+- Phase 2 is the one-module-at-a-time program defined in the root task-control docs.
+- Exact module order, active stage, validation gates, and definition of done live in `SPEC.md`, `IMPLEMENTATION_PLAN.md`, and `TASK_STATUS.md`.
+
+Current Phase 2 module order:
+
+1. `turn-runtime`
+2. `result-delivery`
+3. `injection-runtime`
+4. `operator-panel`
+5. `execution-kernel`
+6. `tool-registry`
+7. `tool-policy`
+8. `builtin-tools`
+9. `shell-runtime`
+10. `audit-log`
+11. `diagnostics`
+
 Goals:
 
-- create target extension runtime ownership boundaries
-- stop the browser-side code from behaving like a single giant script
+- create target extension and gateway ownership boundaries one module at a time
+- stop both browser and gateway runtime code from behaving like flat mixed-control surfaces
+- preserve the current live runtime floor while improving timing clarity, failure isolation, and direct testability inside the active module stage
 
 Allowed work:
 
-- extract adapter, injection, turn, and delivery responsibilities
-- rewrite or reorganize those responsibilities directly in `apps/extension` and `apps/gateway` when that shortens the path or clarifies ownership
+- execute only the currently active module stage plus narrow supporting seams
+- rewrite or reorganize behavior directly in `apps/extension` and `apps/gateway` when that shortens the path or clarifies ownership
 - preserve current behavior while moving logic
+- improve timing clarity, failure isolation, and direct testability inside the active module stage
+- use narrow supporting seams only when they are required to finish the active module cleanly
 
 Forbidden work:
 
-- major gateway redesign
-- new capability families
+- opening multiple primary module stages at once
+- treating all browser-runtime modules as one batch
+- treating gateway execution-kernel work as a later non-Phase-2 program
+- major product-scope expansion or new capability families
 - panel feature expansion unrelated to extraction
-- preserving userscript structure just for migration symmetry when a cleaner extension + gateway rewrite is available
+- preserving userscript structure just for migration symmetry when a cleaner extension plus gateway path is available
 
-Exit criteria:
+Exit criteria for each active Phase 2 stage:
 
-- hidden injection still works
-- invalid-turn behavior does not regress
-- startup rescan and duplicate guard do not regress
-- result insertion and auto-send do not regress
-- the proven real-page validated runtime baseline is not weakened by the extraction
+- the active stage's owner semantics are directly tested instead of only through the monolith or route shell
+- the stage does not reopen neighboring module stages implicitly
+- the proven live runtime baseline is not weakened by the ownership shift
+- matching consumer-side validation is rerun when the stage touches a still-live compatibility-floor route or browser-runtime path
 
-### Phase 3: Extract Gateway Execution Kernel
-
-Primary battleground ring: Final Core
-
-Goals:
-
-- create a single execution entrypoint
-- separate registry, policy, and executors
-
-Allowed work:
-
-- move execution semantics behind `execution-kernel`
-- isolate tool registry and policy
-- keep current route behavior through composition roots if needed
-
-Forbidden work:
-
-- new page runtime behavior
-- broad proposal or external MCP feature rollout
-
-Exit criteria:
-
-- all execution flows pass through the kernel
-- route handlers stop invoking tool logic directly
-- materialized catalog has a clear owner
-- current `/tools` behavior remains intact unless an approved migration path says otherwise
-
-### Phase 4: Introduce Mode-Aware Execution
+### Phase 3: Introduce Mode-Aware Execution
 
 Primary battleground ring: Final Core
 
@@ -292,7 +297,7 @@ Exit criteria:
 - mode semantics live in policy, not spread across tool implementations
 - both modes have clear tests and operator-facing semantics
 
-### Phase 5: Expand Core Builtin Capabilities
+### Phase 4: Expand Core Builtin Capabilities
 
 Primary battleground ring: Final Core
 
@@ -317,7 +322,7 @@ Exit criteria:
 - the core builtin set is materially stronger than the current read-only bridge
 - shell execution has guardrails, audit context, and large-output handling
 
-### Phase 6: Mature Extension Ring
+### Phase 5: Mature Extension Ring
 
 Primary battleground ring: Extension Ring
 
