@@ -73,7 +73,7 @@ The response must not force the browser runtime to infer policy from generic err
 Current implementation note:
 
 - `/call-tool` now surfaces a nested compatibility `execute` object carrying `requestId`, `executionId`, `decisions`, and `result`, so early Phase 1 consumers can read shared execution metadata without overwriting the legacy top-level single-call payload.
-- Flat top-level execute metadata is not part of the current compatibility contract. If the nested `execute` object is absent, consumers should treat the shared execution metadata as unavailable rather than reconstructing it from draft-only fields.
+- Flat top-level execute metadata is not part of the current compatibility contract. On the current live `/call-tool` path, if the nested `execute` object is absent or malformed, consumers should treat the payload as an invalid gateway response rather than reconstructing execution metadata from draft-only fields.
 
 ## 5. Invariants
 

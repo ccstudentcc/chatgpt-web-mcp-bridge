@@ -183,8 +183,8 @@ async function runPending(): Promise<void> {
 
   try {
     const response = await callTool(request);
-    const executeCompat = getExecuteResponseCompat(response);
-    const resultEnvelope = executeCompat?.result.type === 'inline_tool_result'
+    const executeCompat = response.execute;
+    const resultEnvelope = executeCompat.result.type === 'inline_tool_result'
       ? executeCompat.result
       : createInlineToolResultEnvelopeFromLegacyResponse(response, pending.callId);
     state.executedCallIds.add(pending.callId);

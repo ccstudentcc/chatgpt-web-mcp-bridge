@@ -18,6 +18,7 @@
 - Shared compat parsing no longer accepts the earlier flat top-level `requestId` / `executionId` / `decisions` / `result` execute shape; that transition-only form was not part of the live runtime floor and is now intentionally inert.
 - Userscript-side request construction now goes through shared protocol compat helpers instead of repeating local `ToolCallRequest` assembly in multiple files.
 - Userscript-side gateway handling now reads `execute` compat metadata through shared helpers on both success and failure paths.
+- Userscript `callTool()` now treats nested `execute` metadata as required on the live `/call-tool` path and raises `INVALID_GATEWAY_RESPONSE` if the gateway payload omits or corrupts it.
 - Shared protocol now owns the current `tool_result_batch` item union and batch envelope helper, including the compat `source.messageId` field used by userscript result insertion.
 - Userscript single-result insertion now formats shared `inline_tool_result` / `execution_error` envelopes instead of serializing raw legacy single-call payloads directly.
 - Userscript batch execution now returns the shared batch envelope shape instead of a local duplicate interface, and batch result formatting consumes the shared envelope directly.
@@ -38,6 +39,7 @@
 - After the Stage 4 compat slice above, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again with the updated app-local dependency-build workflow.
 - After converging the shared batch envelope and userscript result-delivery shape, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After dropping flat execute-metadata fallback from the shared compat helper and keeping only nested `execute`, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After requiring valid nested `execute` metadata on the live userscript `/call-tool` path, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 
 ## Active Stop Line
 
@@ -93,5 +95,5 @@
 - If code needs ChatGPT Web page facts, add or update them in `apps/extension/src/chatgpt-adapter/` first, then adapt current userscript consumers through compat wiring.
 - Do not add or keep adapters only to preserve draft-only field names, draft wording, or other reference-only shapes. Keep compatibility only where current live runtime behavior still depends on it.
 - Treat nested `execute` as the only active `/call-tool` execution-metadata compat surface unless a future task doc explicitly reopens that decision with live runtime evidence.
-- The next useful narrowing step is to decide whether the `callTool()` response type should now require nested `execute` on the live success/failure path, or stay optional only as a defensive boundary for mixed-version local setups.
+- The next useful narrowing step is to decide whether the gateway route and shared protocol package should expose a first-class live `/call-tool` response type instead of overloading one compat alias for both raw boundary parsing and validated runtime payloads.
 - If a change tries to expand into extraction or capability rollout, stop and either narrow it back to this slice or first update the task-control docs with a new active slice.

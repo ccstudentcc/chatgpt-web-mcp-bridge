@@ -1,4 +1,4 @@
-import { TOKEN_HEADER, getExecuteResponseCompat, type ToolCallCompatResponse, type ToolCallRequest, type ToolDescriptor } from '@cwmb/protocol';
+import { TOKEN_HEADER, getExecuteResponseCompat, type ExecuteResponse, type ToolCallCompatResponse, type ToolCallRequest, type ToolDescriptor } from '@cwmb/protocol';
 import { state } from './state.js';
 
 export interface GatewayHealthResponse {
@@ -27,18 +27,21 @@ export async function listTools(): Promise<ToolDescriptor[]> {
 
 export async function callTool(req: ToolCallRequest): Promise<Extract<ToolCallCompatResponse, { ok: true }>> {
   const response = await gmJson('POST', `${state.baseUrl}/call-tool`, req, { [TOKEN_HEADER]: state.token }) as ToolCallCompatResponse;
+  const executeCompat = requireExecuteCompat(response);
   if (isToolFailure(response)) {
     const error = new Error(response.error.message);
-    const executeCompat = getExecuteResponseCompat(response);
     Object.assign(error, {
       code: response.error.code,
       details: response.error.details,
-      ...(executeCompat ? { execute: executeCompat } : {})
+      execute: executeCompat
     });
     throw error;
   }
 
-  return response;
+  return {
+    ...response,
+    execute: executeCompat
+  };
 }
 
 function gmJson(method: string, url: string, body?: unknown, headers: Record<string, string> = {}): Promise<unknown> {
@@ -74,6 +77,17 @@ function toGatewayError(status: number, payload: unknown): Error {
   const error = new Error(message);
   Object.assign(error, { code, details, status });
   return error;
+}
+
+function requireExecuteCompat(payload: unknown): ExecuteResponse {
+  const executeCompat = getExecuteResponseCompat(payload);
+  if (executeCompat) {
+    return executeCompat;
+  }
+
+  const error = new Error('Gateway /call-tool response is missing valid execute metadata');
+  Object.assign(error, { code: 'INVALID_GATEWAY_RESPONSE' });
+  throw error;
 }
 
 function getPayloadField(payload: unknown, key: string): string | undefined {

@@ -55,7 +55,7 @@ interface CreateToolDecisionOptions {
 
 export type ToolCallCompatResponse<TResult = unknown> =
   ToolCallResponse<TResult>
-  & { execute?: ExecuteResponse };
+  & { execute: ExecuteResponse };
 
 export function createLegacyToolCallRequest(options: CreateLegacyToolCallRequestOptions): ToolCallRequest {
   return {
