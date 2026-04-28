@@ -4,7 +4,7 @@ Current boundary: as of April 27, 2026, v0.1 close-out is complete. This plan no
 
 ## Stage 22: Execute Follow-On Slice - Phase 2.5 Extension Convergence
 
-Status: active
+Status: completed
 
 Goal:
 
@@ -70,7 +70,8 @@ Current code-side progress:
 - `WXT` shell migration is now landed in code: `apps/extension/wxt.config.ts` plus `entrypoints/*` are the only active extension build and entrypoint truth.
 - popup and options now exist as real extension surfaces rendered through `React` + `Tailwind CSS` under `apps/extension/src/ui-surfaces/*`.
 - background-owned settings truth now exists in code under `apps/extension/src/settings/*`, and the ChatGPT page runtime consumes that snapshot over extension messaging instead of directly persisting extension-global settings through page-local `GM_*` helpers.
-- active-tab bridge summary reporting now exists as a read-model contract for popup/options, but real ChatGPT Web validation is still outstanding before this slice can be closed.
+- active-tab bridge summary reporting now exists as a read-model contract for popup/options.
+- On April 29, 2026, the user confirmed full real ChatGPT Web validation for the Phase 2.5 acceptance set, including the in-page panel primary workflow, main-world request injection, `/health`, `/tools`, `/call-tool`, popup bridge summary, and options full-console behavior.
 
 Definition of done:
 
@@ -81,6 +82,7 @@ Definition of done:
 - page-owned conversation runtime truth remains page-owned
 - extension capability-domain owner boundaries are explicit in code and docs
 - operator-facing extension UI renders through `React` + `Tailwind CSS`
+- The full Phase 2.5 acceptance set has been re-verified on the real ChatGPT Web path
 
 ## Stage 1: Close And Archive The v0.1 Baseline
 
