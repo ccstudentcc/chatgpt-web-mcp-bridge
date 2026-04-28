@@ -2,12 +2,13 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { DEFAULT_GATEWAY_HOST, DEFAULT_GATEWAY_PORT } from '@cwmb/protocol';
+import { DEFAULT_SHELL, normalizeConfiguredShell, type SupportedShell } from './shell-runtime/index.js';
 
 export interface GatewayConfig {
   host: string;
   port: number;
   workspaceRoot: string;
-  shell: 'pwsh' | 'powershell.exe';
+  shell: SupportedShell;
   trustedLocalMode: boolean;
   allowPwsh: boolean;
   allowWrite: boolean;
@@ -34,7 +35,7 @@ const defaultConfig: GatewayConfig = {
   host: DEFAULT_GATEWAY_HOST,
   port: DEFAULT_GATEWAY_PORT,
   workspaceRoot: '',
-  shell: 'pwsh',
+  shell: DEFAULT_SHELL,
   trustedLocalMode: true,
   allowPwsh: false,
   allowWrite: false,
@@ -95,7 +96,8 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Gatew
     port: process.env.CWMB_PORT ? Number(process.env.CWMB_PORT) : undefined
   };
 
-  const merged = { ...defaultConfig, ...fileConfig, ...removeUndefined(envConfig) };
+  const merged = { ...defaultConfig, ...fileConfig, ...removeUndefined(envConfig) } as GatewayConfig & { shell?: string };
+  merged.shell = normalizeConfiguredShell(merged.shell);
   if (!merged.workspaceRoot && inferredWorkspaceRoot) {
     merged.workspaceRoot = inferredWorkspaceRoot;
     shouldPersistConfig = true;

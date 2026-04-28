@@ -16,6 +16,7 @@ The gateway owns:
 - the live route surface: `/health`, `/tools`, and `/call-tool`
 - materialized catalog truth for the current builtin tool set
 - builtin tool execution for the current shipped v0.1 tools
+- shell detection plus guarded `run_pwsh` runtime semantics under `apps/gateway/src/shell-runtime/*`
 - localhost/origin/token/trusted-local access control
 - workspace and sensitive-path enforcement
 - execution logging and basic diagnostics for current tool calls
@@ -27,7 +28,9 @@ The gateway does not own:
 - result insertion into the composer
 - conversation-local runtime UI state
 
-Target-state docs may assign proposal handling, richer shell flows, external MCP lifecycle, or result-cache subsystems to the gateway in the future, but those are not current shipped gateway subsystems yet.
+`run_pwsh` remains a default-disabled power tool unless `allowPwsh=true`, so current shipped v0.1 behavior is still conservative even though shell-runtime now has a direct gateway owner.
+
+Target-state docs may assign proposal handling, external MCP lifecycle, or result-cache subsystems to the gateway in the future, but those are not current shipped gateway subsystems yet.
 
 ## 3. Current Live Routes And What They Mean
 

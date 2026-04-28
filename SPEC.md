@@ -8,7 +8,7 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage, the Stage 8 `result-delivery` module stage, the Stage 9 `injection-runtime` module stage, the Stage 10 `operator-panel` module stage, the Stage 11 `execution-kernel` module stage, the Stage 12 `tool-registry` module stage, the Stage 13 `tool-policy` module stage, and the Stage 14 `builtin-tools` module stage are now complete. Phase 2 remains a module-by-module Final Core refactor program, and the next active module stage is `shell-runtime`.
+Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage, the Stage 8 `result-delivery` module stage, the Stage 9 `injection-runtime` module stage, the Stage 10 `operator-panel` module stage, the Stage 11 `execution-kernel` module stage, the Stage 12 `tool-registry` module stage, the Stage 13 `tool-policy` module stage, the Stage 14 `builtin-tools` module stage, and the Stage 15 `shell-runtime` module stage are now complete. Phase 2 remains a module-by-module Final Core refactor program, and the next active module stage is `audit-log`.
 
 Phase 2 exists so the repo can finish `apps/extension` and `apps/gateway` one module at a time, keeping each stage narrow enough to improve ownership, timing, logic, stability, and test coverage without reopening multiple modules at once.
 
@@ -82,22 +82,23 @@ Exit gate for any Phase 2 stage:
 
 ## Current Active Stage
 
-Active module stage: `shell-runtime`
+Active module stage: `audit-log`
 
 Current module-stage file surfaces:
 
-- `apps/gateway/src/shell-runtime/*`
-- `apps/gateway/src/shell/detect-shell.ts`
-- `apps/gateway/src/tools/run-pwsh.ts`
-- `apps/gateway/src/config.ts`
-- `apps/gateway/src/config.test.ts`
+- `apps/gateway/src/audit-log/*`
+- `apps/gateway/src/logger.ts`
+- `apps/gateway/src/routes/call-tool.ts`
+- `apps/gateway/src/routes/call-tool.test.ts`
+- `apps/gateway/src/execution-kernel/*`
+- `docs/operations/security.md`
 - the root task-control docs
 
 Current stage intent:
 
-- make `apps/gateway/src/shell-runtime/*` the single owner for shell detection, command guarding, `cwd` and environment shaping, timeout control, and captured shell outputs
-- isolate shell-specific timing and process rules from tool policy and builtin orchestration
-- keep shell behavior explicit enough to test before broader shell capability expansion
+- move execution, policy, and lifecycle audit ownership into `apps/gateway/src/audit-log/*`
+- make audit events describe stable execution, policy, and lifecycle concepts instead of route-local strings
+- keep redaction and truthfulness explicit before diagnostics starts aggregating audit data
 
 ## In Scope
 

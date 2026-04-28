@@ -693,7 +693,7 @@ Completed on April 28, 2026:
 
 ## Stage 15: Execute Module Stage - Shell Runtime
 
-Status: in progress
+Status: completed
 
 Goal:
 
@@ -736,6 +736,16 @@ Definition of done:
 - shell process semantics have one gateway owner
 - shell behavior is testable directly instead of only through higher-level tool paths
 - shell remains a guarded power-tool plane rather than a policy or registry substitute
+
+Completed on April 28, 2026:
+
+- `apps/gateway/src/shell-runtime/*` now owns shell detection, configured-shell normalization, `run_pwsh` command guarding, workspace-relative `cwd` shaping, environment shaping, timeout handling, and captured output contracts.
+- `apps/gateway/src/shell/detect-shell.ts` and `apps/gateway/src/tools/run-pwsh.ts` now act only as compat re-export seams, while direct gateway consumers route to the new shell-runtime owner.
+- `apps/gateway/src/config.ts` and `apps/gateway/src/config.test.ts` now normalize and verify supported shell selection through the shell-runtime owner boundary instead of leaving shell choice as an unverified config string.
+- direct shell-runtime tests now cover shell detection fallback, guard behavior, timeout shaping, and captured stdout/stderr/combined-output contracts.
+- `run_pwsh` remains a guarded power-tool plane: registry exposure still depends on `allowPwsh`, and shell-runtime still does not own higher-level allow or deny policy decisions.
+- `pnpm --filter @cwmb/gateway lint`, `pnpm --filter @cwmb/gateway test`, `pnpm --filter @cwmb/gateway build`, and root `pnpm lint`, `pnpm test`, `pnpm build` succeeded again after the owner shift.
+- no new live browser validation was required to close this stage because the change stayed inside gateway-local shell ownership and did not alter browser runtime timing or DOM behavior.
 
 ## Stage 16: Execute Module Stage - Audit Log
 

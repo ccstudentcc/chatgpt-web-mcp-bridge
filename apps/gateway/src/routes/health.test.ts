@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GatewayConfig } from '../config.js';
 import { registerHealthRoute } from './health.js';
 
-vi.mock('../shell/detect-shell.js', () => ({
+vi.mock('../shell-runtime/index.js', () => ({
   detectShell: vi.fn(async () => ({
     preferred: 'pwsh',
     resolved: 'pwsh',

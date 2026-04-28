@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { GatewayHealthContract } from '@cwmb/protocol';
-import { detectShell } from '../shell/detect-shell.js';
+import { detectShell } from '../shell-runtime/index.js';
 import type { GatewayConfig } from '../config.js';
 
 export async function registerHealthRoute(server: FastifyInstance, config: GatewayConfig): Promise<void> {

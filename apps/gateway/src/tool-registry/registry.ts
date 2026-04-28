@@ -1,8 +1,8 @@
 import type { CatalogContract, CatalogToolDescriptor, ToolSource } from '@cwmb/protocol';
 import type { GatewayConfig } from '../config.js';
 import { createBuiltinTools } from '../builtin-tools/index.js';
+import { runPwshTool } from '../shell-runtime/index.js';
 import type { LocalTool } from '../tools/index.js';
-import { runPwshTool } from '../tools/run-pwsh.js';
 import { materializeCatalog, materializeCatalogTools, type MaterializeCatalogOptions, type ToolRegistryEntry } from './catalog.js';
 
 export interface GatewayToolRegistry {
