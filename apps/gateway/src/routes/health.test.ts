@@ -4,14 +4,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GatewayConfig } from '../config.js';
 import { registerHealthRoute } from './health.js';
 
-vi.mock('../shell-runtime/index.js', () => ({
-  detectShell: vi.fn(async () => ({
-    preferred: 'pwsh',
-    resolved: 'pwsh',
-    available: true,
-    version: '7.5.0'
-  }))
-}));
+vi.mock('../shell-runtime/index.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../shell-runtime/index.js')>();
+  return {
+    ...actual,
+    detectShell: vi.fn(async () => ({
+      preferred: 'pwsh',
+      resolved: 'pwsh',
+      available: true,
+      version: '7.5.0'
+    }))
+  };
+});
 
 describe('/health route', () => {
   afterEach(() => {
@@ -41,6 +45,21 @@ describe('/health route', () => {
         version: '7.5.0'
       }
     });
+
+    await server.close();
+  });
+
+  it('keeps the live /health contract stable while using diagnostics as the owner seam', async () => {
+    const server = Fastify();
+    await registerHealthRoute(server, createConfig());
+
+    const response = await server.inject({
+      method: 'GET',
+      url: '/health'
+    });
+
+    expect(response.json()).not.toHaveProperty('audit');
+    expect(response.json()).not.toHaveProperty('runtime');
 
     await server.close();
   });

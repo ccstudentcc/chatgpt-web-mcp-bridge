@@ -805,7 +805,7 @@ Completed on April 28, 2026:
 
 ## Stage 17: Execute Module Stage - Diagnostics
 
-Status: pending
+Status: completed
 
 Goal:
 
@@ -853,10 +853,19 @@ Definition of done:
 - health and diagnostics outputs are grounded in stable upstream owners rather than route-local assembly
 - redacted operator-facing troubleshooting truth is clearer without affecting execution behavior
 
+Completed on April 28, 2026:
+
+- `apps/gateway/src/diagnostics/*` now owns gateway health snapshot creation, config-derived runtime facts, and redacted diagnostics-bundle assembly instead of leaving `/health` shaping and troubleshooting truth spread across route-local code.
+- `apps/gateway/src/routes/health.ts` now acts only as a thin compat adapter over the diagnostics owner seam, and the live `/health` response contract remains unchanged.
+- `apps/gateway/src/audit-log/*` now exposes diagnostics-friendly read-only summary primitives for entry aggregation, while `apps/gateway/src/logger.ts` remains a compat re-export seam rather than a second diagnostics owner.
+- direct diagnostics tests now cover health shaping plus aggregated bundle correctness, and audit summary tests now cover diagnostics-facing redaction and aggregate counts.
+- `pnpm --filter @cwmb/gateway lint`, targeted diagnostics tests, `pnpm --filter @cwmb/gateway test`, `pnpm --filter @cwmb/gateway build`, and root `pnpm lint`, `pnpm test`, `pnpm build` succeeded again after the owner shift.
+- no userscript-side regression rerun or browser-to-gateway validation was required to close this stage because the change did not alter the live `/health` floor or any browser-runtime timing/DOM behavior.
+
 ## Risks
 
 - The codebase still implements the proven userscript-first runtime, so the target docs remain ahead of the structure.
 - Hidden request-layer injection, invalid-turn enforcement, result delivery, and operator recovery are still real-page behaviors; browser-only regressions cannot be dismissed by passing unit tests alone.
-- Several Phase 2 target modules do not yet exist as concrete directories, so later stages must create direct owner tests instead of relying only on route or monolith regressions.
-- Phase 2 can still sprawl if multiple module stages are opened at once or if supporting seams are allowed to become hidden long-term owners.
+- Several target-state modules still do not yet exist as concrete directories, so future slices must create direct owner tests instead of relying only on route or monolith regressions.
+- Follow-on work can still sprawl if a new slice is opened without first declaring its owner boundary and supporting seams in the task-control docs.
 - The repo still lacks browser-driven end-to-end automation, so major browser-runtime transitions will continue to depend on real ChatGPT Web manual verification.

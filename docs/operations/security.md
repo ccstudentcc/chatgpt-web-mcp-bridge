@@ -19,6 +19,7 @@ At the current repo stage, important live facts include:
 - current write capability is still highly constrained relative to target-state plans
 - workspace hard-path enforcement now routes through `apps/gateway/src/tool-policy/path-policy.ts`
 - durable gateway audit truth now routes through `apps/gateway/src/audit-log/*` with redacted summaries rather than raw payload persistence
+- read-only diagnostics assembly now routes through `apps/gateway/src/diagnostics/*` and must consume redacted owner output rather than execution-local fragments
 
 Trusted local mode is not equivalent to trusting arbitrary webpages. It reduces local token friction for the intended ChatGPT Web flow, but it does not remove host binding, origin checks, or conservative policy boundaries.
 
@@ -70,6 +71,7 @@ Important current-state reminders:
 - `run_pwsh` remains outside the current shipped v0.1 capability surface
 - current refactors must preserve the localhost/origin/trusted-local/workspace baseline before they pursue target-state modularity
 - diagnostics should consume redacted audit owner output instead of widening durable audit storage to include raw secrets or unstable internal fragments
+- current diagnostics ownership does not introduce a new public control route; `/health` stays the live floor and richer bundles stay redacted by default
 
 ## 6. Execution Profiles
 

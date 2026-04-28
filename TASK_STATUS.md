@@ -12,10 +12,10 @@
 - Phase 2 is now open as a module-by-module Final Core refactor program for completing `apps/extension` and `apps/gateway`.
 - Phase 2 execution rule is now explicit: one stage equals one module, and only one module stage may be active at a time.
 - Phase 2 may still use larger rewrites when they improve efficiency, timing, logic clarity, stability, or test coverage, but only inside the currently active module stage.
-- Phase 2 has now advanced through the first gateway-side catalog, policy, builtin implementation, shell runtime, and audit-log stages; the next open gateway extraction gate is `diagnostics`.
+- Phase 2 has now advanced through the full declared Stage 7-17 extraction sequence, including the gateway-side diagnostics owner shift.
 - Stage 3 slice-definition work is complete; Stage 4 compat-preserving execution is complete on the same Phase 1 boundary.
 - Stage 5 execution-model definition is now complete, and the Phase 2 stage-definition pack is now explicit enough for execution: every declared module stage now has owner surfaces, supporting surfaces, optimization targets, validation expectations, and a definition of done in `IMPLEMENTATION_PLAN.md`.
-- Stage 6 module ordering and rationale are now also explicit; Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, 10 `operator-panel`, 11 `execution-kernel`, 12 `tool-registry`, 13 `tool-policy`, 14 `builtin-tools`, 15 `shell-runtime`, and 16 `audit-log` are complete, and the next open gate is now the active `diagnostics` module stage.
+- Stage 6 module ordering and rationale are now also explicit; Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, 10 `operator-panel`, 11 `execution-kernel`, 12 `tool-registry`, 13 `tool-policy`, 14 `builtin-tools`, 15 `shell-runtime`, 16 `audit-log`, and 17 `diagnostics` are complete, and no new code-side extraction gate has been declared yet beyond that sequence.
 - The current dialogue-level acceptance summary for April 27, 2026 reports the bridge chain, batch behavior, workspace read/search/grep tools, security boundaries, protocol alignment, core gateway/protocol/userscript tracing, and real write/UI end-to-end usage as currently usable with no remaining blocker called out for the just-closed Stage 7 boundary.
 - Draft v0.9 docs and draft contract shapes are reference truth only. They are not separate compatibility targets; compatibility work in the current slice applies to the proven live runtime floor and the still-live routes/behaviors it depends on.
 - ChatGPT Web DOM/request-shape/selectors evidence now has one intended home: `docs/operations/chatgpt-web-runtime-evidence.md`.
@@ -57,6 +57,7 @@
 - The Stage 14 `builtin-tools` module stage is now closed. On April 28, 2026, gateway and root validation passed again with no new browser-runtime validation required because the live gateway surfaces remained compat-stable.
 - The Stage 15 `shell-runtime` module stage is now closed. On April 28, 2026, shell detection, command guarding, `cwd` and environment shaping, timeout control, and captured shell-output contracts moved behind `apps/gateway/src/shell-runtime/*`, direct owner-level tests were added, and gateway/root validation passed again without reopening browser-runtime work.
 - The Stage 16 `audit-log` module stage is now closed. On April 28, 2026, structured execution, policy, and lifecycle audit ownership moved behind `apps/gateway/src/audit-log/*`, direct owner-level tests were added for event shaping and redaction, and gateway/root validation passed again without reopening browser-runtime work.
+- The Stage 17 `diagnostics` module stage is now closed. On April 28, 2026, gateway health shaping, config-derived runtime facts, and redacted diagnostics bundle assembly moved behind `apps/gateway/src/diagnostics/*`, `/health` became a thin compat adapter over that owner seam, and gateway/root validation passed again without changing the live `/health` floor.
 - Pure invalid-turn state, pending-selection identity, and auto-round guard semantics now live under `apps/extension/src/turn-runtime/*`, while userscript `detection-state.ts`, `round-guard.ts`, and `turn-runtime.ts` only provide compat wiring or local type adaptation.
 - Parser-level turn normalization is now a compat concern only in `apps/userscript/src/parser.ts`, while the latest-open-turn and startup/history rescan decision pipeline now lives under extension-owned turn-runtime helpers.
 - The first Phase 2 extraction step is now in code: parser-level MCP turn analysis and normalization logic lives under `apps/extension/src/turn-runtime/mcp-turn-analysis.ts`, while `apps/userscript/src/parser.ts` is reduced to a thin compat wrapper that restores legacy `callId` semantics.
@@ -175,7 +176,7 @@
 ## Active Stop Line
 
 - The v0.1 stop line is closed as of April 27, 2026.
-- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, 10 `operator-panel`, 11 `execution-kernel`, 12 `tool-registry`, 13 `tool-policy`, 14 `builtin-tools`, 15 `shell-runtime`, and 16 `audit-log` are complete; the next active code-side extraction gate is now `diagnostics`, without reopening closed browser-runtime modules or broad capability rollout.
+- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, 10 `operator-panel`, 11 `execution-kernel`, 12 `tool-registry`, 13 `tool-policy`, 14 `builtin-tools`, 15 `shell-runtime`, 16 `audit-log`, and 17 `diagnostics` are complete. No next code-side extraction gate is active until the task-control docs deliberately declare one.
 - Any Phase 2 stage completion claim now requires direct owner-level tests, adjacent compat-path regression checks, root `pnpm lint` / `test` / `build`, and real ChatGPT Web validation whenever browser runtime timing or DOM behavior changed.
 - Until explicitly migrated, the active compatibility floor includes:
   - `/health`
@@ -190,8 +191,8 @@
 
 - Active program: Phase 2 module-by-module Final Core refactor
 - Battleground: Final Core
-- Primary axis: gateway diagnostics ownership after the completed registry, policy, builtin implementation, shell runtime, and audit-log slices
-- Active module stage: `diagnostics`
+- Primary axis: no active extraction gate; the declared Final Core Stage 7-17 sequence is closed and waiting for explicit resequencing before further module work opens
+- Active module stage: none. Most recently completed stage: `diagnostics`
 - Phase 1 completed implementation surfaces:
   - `packages/protocol/*`
   - narrow gateway route adapters
@@ -220,7 +221,7 @@
   - timing and logic simplification inside the active boundary
   - stronger direct test coverage than before the stage
   - root verification, plus real-page validation for browser-runtime stages
-- Active module-stage implementation surfaces:
+- Most recently completed module-stage implementation surfaces:
   - `apps/gateway/src/diagnostics/*`
   - `apps/gateway/src/routes/health.ts`
   - `apps/gateway/src/routes/health.test.ts`
@@ -254,6 +255,7 @@
   - `apps/extension/src/result-delivery/startup-recovery.ts` is now the long-term owner for startup undelivered-result restore probing plus delivery-specific startup composer normalization
   - `apps/gateway/src/shell-runtime/*` is now the long-term owner for shell detection, configured-shell normalization, guarded `run_pwsh` preparation/execution, timeout handling, and captured stdout/stderr/combined-output shaping, while `apps/gateway/src/shell/detect-shell.ts` and `apps/gateway/src/tools/run-pwsh.ts` remain translation-only compat seams
   - `apps/gateway/src/audit-log/*` is now the long-term owner for structured execution, policy, and lifecycle audit truth, while `apps/gateway/src/logger.ts` remains a compat re-export seam and `apps/gateway/src/execution-kernel/*` now only emits owner-defined audit events
+  - `apps/gateway/src/diagnostics/*` is now the long-term owner for health snapshot creation, config-derived runtime facts, and redacted diagnostics bundle assembly, while `apps/gateway/src/routes/health.ts` remains a thin compat adapter and the live `/health` contract stays unchanged
   - `apps/userscript/src/parser.ts` remains only as a compat wrapper for hashed `callId` output
   - `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now also delegates injection prompt construction, bootstrap/live sync copy, and request-hook diagnostics wording while continuing to own runtime orchestration, gateway fetch timing, and panel updates
   - `apps/userscript/src/state.ts` now acts as the compat holder for structured request-prompt/request-hook observer facts consumed by extension-owned operator-panel helpers
@@ -271,7 +273,8 @@
 - The Stage 13 `tool-policy` module stage is now closed. Workspace hard-path policy, pre-execution tool assessment, and failure-decision mapping now route through `apps/gateway/src/tool-policy/*`, while the current route and tool shells stay compat-stable.
 - The Stage 14 `builtin-tools` module stage is now closed. Structured builtin implementations now route through `apps/gateway/src/builtin-tools/*`, while the current `apps/gateway/src/tools/*` and `apps/gateway/src/utils/find-rg.ts` files remain translation-only compat seams.
 - The Stage 16 `audit-log` module stage is now closed. Durable gateway audit truth now routes through explicit execution, policy, and lifecycle event owners plus redacted summaries under `apps/gateway/src/audit-log/*`, while the current kernel path consumes that owner directly without reopening diagnostics or panel formatting concerns.
-- Still explicitly not opened while `diagnostics` is the active module stage:
+- The Stage 17 `diagnostics` module stage is now closed. Gateway health shaping, config-derived runtime facts, and redacted diagnostics bundle assembly now route through `apps/gateway/src/diagnostics/*`, while the current `/health` route remains a thin compat adapter and the public health floor stays stable.
+- Still explicitly not opened after closing the declared Stage 7-17 extraction sequence:
   - extension-first shell migration
   - `reviewed` / `yolo` rollout
   - proposal workflow rollout
@@ -297,12 +300,12 @@
 
 - Use `docs/v0.9-entrypoint.md` first when deciding where new v0.9 truth belongs.
 - Use `docs/prd.md` only as the closed reference baseline for the current proven runtime.
-- Do not reopen Phase 1 implicitly. Phase 2 is already chosen; start from the declared active module stage and then advance through the module order instead of re-deciding the whole program.
+- Do not reopen Phase 1 implicitly. The declared Stage 7-17 Phase 2 extraction sequence is already complete; if follow-on work needs a new primary module or battleground, update the task-control docs first instead of assuming `diagnostics` is still open.
 - If a change depends on ChatGPT Web DOM/request-shape/selectors facts, put the raw evidence in `docs/operations/chatgpt-web-runtime-evidence.md` instead of scattering it through task docs.
 - If code needs ChatGPT Web page facts, add or update them in `apps/extension/src/chatgpt-adapter/` first, then adapt current userscript consumers through compat wiring.
 - When a cleaner direct implementation exists in `apps/extension` or `apps/gateway`, prefer landing there over recreating new long-term logic in userscript-shaped files.
 - Do not add or keep adapters only to preserve draft-only field names, draft wording, or other reference-only shapes. Keep compatibility only where current live runtime behavior still depends on it.
 - Treat nested `execute` as the only active `/call-tool` execution-metadata compat surface unless a future task doc explicitly reopens that decision with live runtime evidence.
-- `audit-log` is no longer the open gate; the next code-side gap is moving diagnostics ownership behind `apps/gateway/src/diagnostics/*` while keeping it read-only relative to execution control and grounded in upstream health, policy, registry, and audit owners.
+- `diagnostics` is no longer an open gate. Do not assume a next extraction stage until the task-control docs deliberately declare one.
 - Use the expanded `IMPLEMENTATION_PLAN.md` stage contract as the execution source of truth for module boundaries, allowed supporting surfaces, validation, and stage exit conditions; do not re-invent those rules ad hoc in code review.
-- If a change tries to activate a second Phase 2 module at the same time, stop and either narrow it back to the active module stage or first update the task-control docs to resequence the program.
+- If a change would activate a new Phase 2 or follow-on module stage, first update the task-control docs to declare that slice explicitly rather than assuming the old diagnostics gate still applies.

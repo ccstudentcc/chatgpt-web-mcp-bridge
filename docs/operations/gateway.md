@@ -18,9 +18,10 @@ The gateway owns:
 - builtin tool execution for the current shipped v0.1 tools
 - shell detection plus guarded `run_pwsh` runtime semantics under `apps/gateway/src/shell-runtime/*`
 - structured execution, policy, and lifecycle audit truth under `apps/gateway/src/audit-log/*`
+- health snapshot creation, config-derived runtime facts, and redacted diagnostics bundle assembly under `apps/gateway/src/diagnostics/*`
 - localhost/origin/token/trusted-local access control
 - workspace and sensitive-path enforcement
-- current health shaping and pre-diagnostics operator checks
+- the live `/health` route as the public health contract, with diagnostics staying read-only and internal by default
 
 The gateway does not own:
 
@@ -36,6 +37,7 @@ Current audit rule:
 - durable audit entries should describe stable execution, policy, and lifecycle concepts
 - audit summaries must stay redacted and must not persist raw result content, secrets, or panel-facing formatting copy
 - later diagnostics should aggregate these owner events instead of reverse-engineering route-local strings
+- diagnostics should read config, shell facts, and redacted audit summaries through their owners rather than assembling a second execution or policy control plane
 
 Target-state docs may assign proposal handling, external MCP lifecycle, or result-cache subsystems to the gateway in the future, but those are not current shipped gateway subsystems yet.
 
@@ -43,7 +45,7 @@ Target-state docs may assign proposal handling, external MCP lifecycle, or resul
 
 Current shipped v0.1 runtime truth still depends on these routes:
 
-- `/health`: gateway reachability, config-derived runtime status, and operator-visible health summary
+- `/health`: gateway reachability, config-derived runtime status, and operator-visible health summary; the route is now a thin adapter over diagnostics-owned health shaping
 - `/tools`: canonical live catalog truth used by hidden injection, panel capability display, and `mcp_list` alignment
 - `/call-tool`: canonical live execution route for the current userscript flow
 
@@ -61,6 +63,7 @@ At the current repo stage:
 - `/tools` remains the canonical live catalog contract
 - `/call-tool` remains the canonical live execution route
 - `/health` remains the canonical live health and gateway-status route
+- richer diagnostics may be assembled internally, but they must not silently widen the public route surface or become a second execution control plane
 - browser runtimes may aggregate validated `/health` and `/tools` into one local runtime snapshot, but that snapshot is not a new route contract
 - route renaming must not silently demote live runtime dependencies
 - any future logical rename must use an approved migration plan

@@ -8,7 +8,7 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage, the Stage 8 `result-delivery` module stage, the Stage 9 `injection-runtime` module stage, the Stage 10 `operator-panel` module stage, the Stage 11 `execution-kernel` module stage, the Stage 12 `tool-registry` module stage, the Stage 13 `tool-policy` module stage, the Stage 14 `builtin-tools` module stage, the Stage 15 `shell-runtime` module stage, and the Stage 16 `audit-log` module stage are now complete. Phase 2 remains a module-by-module Final Core refactor program, and the next active module stage is `diagnostics`.
+Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage, the Stage 8 `result-delivery` module stage, the Stage 9 `injection-runtime` module stage, the Stage 10 `operator-panel` module stage, the Stage 11 `execution-kernel` module stage, the Stage 12 `tool-registry` module stage, the Stage 13 `tool-policy` module stage, the Stage 14 `builtin-tools` module stage, the Stage 15 `shell-runtime` module stage, the Stage 16 `audit-log` module stage, and the Stage 17 `diagnostics` module stage are now complete. The declared Phase 2 Final Core extraction sequence is therefore complete, and no new active module stage is selected in this file yet.
 
 Phase 2 exists so the repo can finish `apps/extension` and `apps/gateway` one module at a time, keeping each stage narrow enough to improve ownership, timing, logic, stability, and test coverage without reopening multiple modules at once.
 
@@ -80,11 +80,11 @@ Exit gate for any Phase 2 stage:
 - Root `pnpm lint`, `pnpm test`, and `pnpm build` pass after the slice.
 - Real ChatGPT Web validation is run before claiming completion for any stage that changes browser runtime timing, DOM interaction, injection, turn detection, insertion, or operator-visible recovery behavior.
 
-## Current Active Stage
+## Current Stage State
 
-Active module stage: `diagnostics`
+Active module stage: none. The most recently closed stage is `diagnostics` on April 28, 2026.
 
-Current module-stage file surfaces:
+Most recently completed module-stage file surfaces:
 
 - `apps/gateway/src/diagnostics/*`
 - `apps/gateway/src/routes/health.ts`
@@ -96,7 +96,7 @@ Current module-stage file surfaces:
 - `docs/operations/security.md`
 - the root task-control docs
 
-Current stage intent:
+Most recently completed stage intent:
 
 - move diagnostics ownership into `apps/gateway/src/diagnostics/*` and keep it read-only relative to execution control
 - aggregate gateway health, config-derived runtime facts, audit summaries, and redacted diagnostics bundles without creating a second control plane
@@ -174,7 +174,7 @@ Current stage intent:
 - Root task-control docs consistently state that v0.1 closed on April 27, 2026 and now serves as a reference baseline only.
 - `docs/v0.9-entrypoint.md`, `docs/prd_vnext.md`, and the root task docs all agree that v0.9 is the active mainline.
 - The full Phase 2 module order is explicit enough that execution can continue without reopening the overall sequencing question.
-- The current active module stage is explicit enough that implementation can proceed without reopening which module is active now.
+- The current active or most recently closed module-stage state is explicit enough that implementation can proceed without reopening which extraction boundary is in play.
 - `IMPLEMENTATION_PLAN.md` contains, for every Phase 2 stage:
   - owner surfaces
   - allowed supporting surfaces

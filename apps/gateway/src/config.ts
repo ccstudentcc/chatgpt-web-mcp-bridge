@@ -24,7 +24,7 @@ export interface GatewayConfig {
 }
 
 export const appHome = path.join(os.homedir(), '.chatgpt-web-mcp-bridge');
-export const configPath = path.join(appHome, 'config.json');
+export const configPath = resolveConfigPath(appHome);
 
 interface LoadConfigOptions {
   appHomeOverride?: string;
@@ -74,7 +74,7 @@ const defaultConfig: GatewayConfig = {
 
 export async function loadConfig(options: LoadConfigOptions = {}): Promise<GatewayConfig> {
   const resolvedAppHome = options.appHomeOverride ?? appHome;
-  const resolvedConfigPath = path.join(resolvedAppHome, 'config.json');
+  const resolvedConfigPath = resolveConfigPath(resolvedAppHome);
   await fs.mkdir(resolvedAppHome, { recursive: true });
 
   let fileConfig: Partial<GatewayConfig> = {};
@@ -112,6 +112,10 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Gatew
   }
 
   return merged;
+}
+
+export function resolveConfigPath(appHomeRoot: string = appHome): string {
+  return path.join(appHomeRoot, 'config.json');
 }
 
 function removeUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {

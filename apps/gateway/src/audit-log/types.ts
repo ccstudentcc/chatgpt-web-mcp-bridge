@@ -117,6 +117,34 @@ export interface AuditExecutionFinishedEvent extends AuditEventBase {
   }>;
 }
 
+export interface AuditLogSummary {
+  redacted: true;
+  totalEntries: number;
+  warningEventCount: number;
+  categories: {
+    execution: number;
+    policy: number;
+    lifecycle: number;
+  };
+  events: {
+    callCompleted: number;
+    callFailed: number;
+    callDenied: number;
+    executionFinished: number;
+  };
+  latestEventAt?: string;
+  latestLifecycle?: {
+    totalCalls: number;
+    completedCalls: number;
+    failedCalls: number;
+    deniedCalls: number;
+    skippedCalls: number;
+    stoppedOnFailure: boolean;
+    continueOnFailure: boolean;
+    warningCount: number;
+  };
+}
+
 export type AuditLogEntry =
   | AuditPolicyDeniedEvent
   | AuditExecutionCompletedEvent

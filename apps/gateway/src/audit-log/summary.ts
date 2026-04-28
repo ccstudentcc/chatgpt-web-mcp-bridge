@@ -1,5 +1,5 @@
 import { assessSensitiveTextContent } from '@cwmb/shared';
-import type { AuditValueSummary } from './types.js';
+import type { AuditExecutionFinishedEvent, AuditLogEntry, AuditLogSummary, AuditValueSummary } from './types.js';
 
 const MAX_DEPTH = 3;
 const MAX_OBJECT_KEYS = 8;
@@ -12,6 +12,66 @@ export function summarizeAuditArgs(args: Record<string, unknown>): AuditValueSum
 
 export function summarizeAuditResult(result: unknown): AuditValueSummary {
   return summarizeValue(result, { mode: 'result', depth: 0, key: undefined });
+}
+
+export function summarizeAuditLogEntries(entries: AuditLogEntry[]): AuditLogSummary {
+  const summary: AuditLogSummary = {
+    redacted: true,
+    totalEntries: entries.length,
+    warningEventCount: 0,
+    categories: {
+      execution: 0,
+      policy: 0,
+      lifecycle: 0
+    },
+    events: {
+      callCompleted: 0,
+      callFailed: 0,
+      callDenied: 0,
+      executionFinished: 0
+    }
+  };
+
+  let latestLifecycle: AuditExecutionFinishedEvent | undefined;
+
+  for (const entry of entries) {
+    summary.categories[entry.category] += 1;
+    if (entry.event === 'call_completed') {
+      summary.events.callCompleted += 1;
+    } else if (entry.event === 'call_failed') {
+      summary.events.callFailed += 1;
+    } else if (entry.event === 'call_denied') {
+      summary.events.callDenied += 1;
+    } else if (entry.event === 'execution_finished') {
+      summary.events.executionFinished += 1;
+      if (!latestLifecycle || entry.ts > latestLifecycle.ts) {
+        latestLifecycle = entry;
+      }
+    }
+
+    if (entry.ts > (summary.latestEventAt ?? '')) {
+      summary.latestEventAt = entry.ts;
+    }
+
+    if (getWarningCount(entry) > 0) {
+      summary.warningEventCount += 1;
+    }
+  }
+
+  if (latestLifecycle) {
+    summary.latestLifecycle = {
+      totalCalls: latestLifecycle.summary.totalCalls,
+      completedCalls: latestLifecycle.summary.completedCalls,
+      failedCalls: latestLifecycle.summary.failedCalls,
+      deniedCalls: latestLifecycle.summary.deniedCalls,
+      skippedCalls: latestLifecycle.summary.skippedCalls,
+      stoppedOnFailure: latestLifecycle.summary.stoppedOnFailure,
+      continueOnFailure: latestLifecycle.summary.continueOnFailure,
+      warningCount: latestLifecycle.summary.warningCount
+    };
+  }
+
+  return summary;
 }
 
 interface SummarizeOptions {
@@ -137,4 +197,12 @@ function summarizeObject(value: Record<string, unknown>, options: SummarizeOptio
     entries,
     truncatedKeys: Math.max(0, keys.length - selectedKeys.length)
   };
+}
+
+function getWarningCount(entry: AuditLogEntry): number {
+  if (entry.event === 'execution_finished') {
+    return entry.summary.warningCount;
+  }
+
+  return entry.outcome.warningCount;
 }
