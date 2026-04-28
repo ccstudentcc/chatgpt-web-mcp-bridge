@@ -219,3 +219,32 @@ But the underlying DOM/request-shape observations still need to be centralized h
   - `apps/userscript/src/result-delivery.test.ts`
   - `TASK_STATUS.md`
   - `IMPLEMENTATION_PLAN.md`
+
+## Evidence: injection-runtime acceptance passed on the real ChatGPT page after prompt-owner extraction
+
+- Date: 2026-04-28
+- Method: manual repro on a real signed-in page with the updated userscript panel and inspector log, including warm page reload, cache deletion, hidden request injection, and visible fallback checks
+- Page state:
+  - new chat
+  - existing thread follow-up
+  - warm reload with previously populated browser-local catalog cache
+  - cold reload after deleting `cwmb_tool_catalog_cache`
+  - visible `Insert MCP list` fallback check under live gateway state
+- Observation:
+  - Real-page validation passed for first-message hidden injection, fallback visible injection behavior, injection diagnostics timing, and cold-start recovery after deleting the cached catalog key.
+  - During the warm-bootstrap path, the operator never visually caught `Catalog src = Cached bootstrap`; the panel appeared to stay on `Live gateway`, likely because live `/tools` refresh overtook the visible cached label too quickly to observe.
+  - That warm-bootstrap ambiguity did not present as a runtime failure: hidden request injection still worked on the page, and no manual `Insert MCP list` fallback was required to recover normal first-message behavior.
+  - After deleting `cwmb_tool_catalog_cache`, the bridge quickly rebuilt the cache and continued to use the hidden path successfully, so cold-start recovery no longer depends on a second browser-local catalog truth.
+  - No `matched_without_injection` regression was observed during the validated request paths.
+- Impact:
+  - The `injection-runtime` stage can close: prompt construction, cache IO, request-payload mutation, and injection diagnostics now have one extension owner and passed real-page validation.
+  - Warm-bootstrap observability remains a timing nuance rather than an active correctness gap; if later work wants stronger operator visibility into the cache-to-live handoff, that belongs under operator-panel or diagnostics refinement rather than reopening prompt ownership.
+  - The next live battleground shifts to operator-panel ownership and diagnostics readability rather than further `injection-runtime` extraction.
+- Affected surfaces:
+  - `apps/extension/src/injection-runtime/catalog.ts`
+  - `apps/extension/src/injection-runtime/catalog-cache.ts`
+  - `apps/extension/src/injection-runtime/request-body-injection.ts`
+  - `apps/userscript/src/request-hook.ts`
+  - `apps/userscript/src/chatgpt-mcp-bridge.user.ts`
+  - `TASK_STATUS.md`
+  - `IMPLEMENTATION_PLAN.md`

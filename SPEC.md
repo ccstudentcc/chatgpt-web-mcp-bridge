@@ -8,7 +8,7 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage and the Stage 8 `result-delivery` module stage are now complete. Phase 2 remains a module-by-module Final Core refactor program, and the current active module stage is `injection-runtime`.
+Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage, the Stage 8 `result-delivery` module stage, and the Stage 9 `injection-runtime` module stage are now complete. Phase 2 remains a module-by-module Final Core refactor program, and the current active module stage is `operator-panel`.
 
 Phase 2 exists so the repo can finish `apps/extension` and `apps/gateway` one module at a time, keeping each stage narrow enough to improve ownership, timing, logic, stability, and test coverage without reopening multiple modules at once.
 
@@ -82,29 +82,28 @@ Exit gate for any Phase 2 stage:
 
 ## Current Active Stage
 
-Active module stage: `injection-runtime`
+Active module stage: `operator-panel`
 
 Current module-stage file surfaces:
 
-- `apps/extension/src/injection-runtime/*`
-- `apps/userscript/src/catalog.ts`
-- `apps/userscript/src/catalog-cache.ts`
-- `apps/userscript/src/request-hook.ts`
-- `apps/userscript/src/request-injection-state.ts`
-- `apps/userscript/src/gateway-client.ts`
-- `apps/userscript/src/catalog.test.ts`
-- `apps/userscript/src/catalog-cache.test.ts`
-- `apps/userscript/src/request-hook.test.ts`
-- `apps/userscript/src/request-injection-state.test.ts`
-- `apps/userscript/src/gateway-client.test.ts`
-- `docs/operations/chatgpt-web-runtime-evidence.md`
+- `apps/extension/src/operator-panel/*`
+- `apps/userscript/src/state.ts`
+- `apps/userscript/src/ui.ts`
+- `apps/userscript/src/preview.ts`
+- `apps/userscript/src/capabilities.ts`
+- `apps/userscript/src/runtime-snapshot.ts`
+- `apps/userscript/src/state.test.ts`
+- `apps/userscript/src/ui.test.ts`
+- `apps/userscript/src/preview.test.ts`
+- `apps/userscript/src/runtime-snapshot.test.ts`
+- `apps/userscript/src/capabilities.test.ts`
 - the root task-control docs
 
 Current stage intent:
 
-- make `apps/extension/src/injection-runtime/*` the long-term owner for catalog bootstrap consumption, hidden injection payload construction, fallback visible injection, and injection diagnostics timing
-- keep bootstrap-versus-live catalog timing explicit while preserving the live runtime floor
-- reduce first-message injection ambiguity without reopening delivery or turn-runtime semantics
+- make `apps/extension/src/operator-panel/*` the long-term owner for runtime snapshot display, operator intents, and diagnostics entrypoints without creating a second execution architecture
+- keep panel display and intent wiring downstream of the already-extracted runtime owners
+- improve operator-facing diagnostics readability without reopening injection, delivery, or turn-runtime semantics
 
 ## In Scope
 

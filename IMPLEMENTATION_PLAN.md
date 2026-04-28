@@ -327,7 +327,7 @@ Definition of done reached:
 
 ## Stage 9: Execute Module Stage - Injection Runtime
 
-Status: in progress
+Status: complete
 
 Goal:
 
@@ -363,7 +363,8 @@ Current progress on April 28, 2026:
 - `apps/extension/src/injection-runtime/catalog.ts` now owns hidden and visible prompt construction plus bootstrap/live prompt-sync diagnostics copy
 - `apps/extension/src/injection-runtime/catalog-cache.ts` now owns browser-local bootstrap cache IO
 - `apps/extension/src/injection-runtime/request-body-injection.ts` now owns request-payload mutation helpers, while current userscript request-hook code is reduced to a runtime transport shell
-- remaining gate for this stage is real ChatGPT Web validation of first-send hidden injection, cached-bootstrap warmup, visible fallback behavior, and request-hook diagnostics timing
+- real ChatGPT Web validation passed for first-send hidden injection, visible fallback behavior, injection diagnostics timing, and cold-start recovery after cache deletion
+- on the warm-bootstrap path the operator did not visibly catch `Catalog src = Cached bootstrap` before live sync overtook it, but the hidden path still worked and no fallback-only dependency remained
 
 Stage constraints:
 
@@ -388,7 +389,7 @@ Definition of done:
 
 ## Stage 10: Execute Module Stage - Operator Panel
 
-Status: pending
+Status: in progress
 
 Goal:
 

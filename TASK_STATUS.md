@@ -146,7 +146,7 @@
 ## Active Stop Line
 
 - The v0.1 stop line is closed as of April 27, 2026.
-- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. Stages 7 `turn-runtime` and 8 `result-delivery` are complete; the next active code-side extraction gate is now `injection-runtime`, without reopening closed delivery work or neighboring gateway modules or broad capability rollout.
+- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. Stages 7 `turn-runtime`, 8 `result-delivery`, and 9 `injection-runtime` are complete; the next active code-side extraction gate is now `operator-panel`, without reopening closed injection, delivery, or neighboring gateway modules or broad capability rollout.
 - Any Phase 2 stage completion claim now requires direct owner-level tests, adjacent compat-path regression checks, root `pnpm lint` / `test` / `build`, and real ChatGPT Web validation whenever browser runtime timing or DOM behavior changed.
 - Until explicitly migrated, the active compatibility floor includes:
   - `/health`
@@ -162,7 +162,7 @@
 - Active program: Phase 2 module-by-module Final Core refactor
 - Battleground: Final Core
 - Primary axis: extension runtime boundary extraction
-- Active module stage: `injection-runtime`
+- Active module stage: `operator-panel`
 - Phase 1 completed implementation surfaces:
   - `packages/protocol/*`
   - narrow gateway route adapters
@@ -192,18 +192,17 @@
   - stronger direct test coverage than before the stage
   - root verification, plus real-page validation for browser-runtime stages
 - Active module-stage implementation surfaces:
-  - `apps/extension/src/injection-runtime/*`
-  - `apps/userscript/src/catalog.ts`
-  - `apps/userscript/src/catalog-cache.ts`
-  - `apps/userscript/src/request-hook.ts`
-  - `apps/userscript/src/request-injection-state.ts`
-  - `apps/userscript/src/gateway-client.ts`
-  - `apps/userscript/src/catalog.test.ts`
-  - `apps/userscript/src/catalog-cache.test.ts`
-  - `apps/userscript/src/request-hook.test.ts`
-  - `apps/userscript/src/request-injection-state.test.ts`
-  - `apps/userscript/src/gateway-client.test.ts`
-  - `docs/operations/chatgpt-web-runtime-evidence.md`
+  - `apps/extension/src/operator-panel/*`
+  - `apps/userscript/src/state.ts`
+  - `apps/userscript/src/ui.ts`
+  - `apps/userscript/src/preview.ts`
+  - `apps/userscript/src/capabilities.ts`
+  - `apps/userscript/src/runtime-snapshot.ts`
+  - `apps/userscript/src/state.test.ts`
+  - `apps/userscript/src/ui.test.ts`
+  - `apps/userscript/src/preview.test.ts`
+  - `apps/userscript/src/runtime-snapshot.test.ts`
+  - `apps/userscript/src/capabilities.test.ts`
   - root task-control docs
 - Phase 2 progress landed so far:
   - `apps/extension/src/injection-runtime/catalog.ts` is now the long-term owner for visible fallback catalog prompt construction, hidden request prompt snapshots, and bootstrap-versus-live prompt-sync diagnostics copy
@@ -234,15 +233,15 @@
   - userscript bundling now explicitly resolves `@cwmb/protocol` for extension-owned turn-runtime imports
 - The Stage 7 `turn-runtime` module stage is now closed. Userscript files touched there remain reference or temporary bridge surfaces, not target-state ownership destinations by themselves.
 - The Stage 8 `result-delivery` module stage is now closed. Real-page validation passed for insert-only, insert-plus-send, insertion-failure recovery, `Send=off -> Send=on -> refresh`, truncated residue refresh recovery, and repeated identical conversation-request submissions. Delivery-specific pure logic now routes through `apps/extension/src/result-delivery/*`, while userscript files remain compat/runtime shells only.
-- Still explicitly not opened while `injection-runtime` is the active module stage:
+- The Stage 9 `injection-runtime` module stage is now closed. Real-page validation passed for first-message hidden injection, visible fallback behavior, injection diagnostics timing, and cold-start recovery after cache deletion; in the warm-bootstrap path the operator did not observe `Catalog src = Cached bootstrap` before live sync, but the hidden path still worked and the cache was promptly recreated, so the stage can close without keeping a second local catalog truth.
+- Still explicitly not opened while `operator-panel` is the active module stage:
   - extension-first shell migration
-  - `injection-runtime` as a primary module stage
   - gateway execution-kernel extraction as a primary module stage
   - `reviewed` / `yolo` rollout
   - proposal workflow rollout
   - external/custom MCP rollout
   - broad builtin capability expansion
-  - operator-panel feature expansion unrelated to delivery extraction
+  - operator-panel feature expansion unrelated to panel ownership extraction
   - broad panel redesign as a separate battleground
 
 ## Caveats
@@ -269,7 +268,7 @@
 - When a cleaner direct implementation exists in `apps/extension` or `apps/gateway`, prefer landing there over recreating new long-term logic in userscript-shaped files.
 - Do not add or keep adapters only to preserve draft-only field names, draft wording, or other reference-only shapes. Keep compatibility only where current live runtime behavior still depends on it.
 - Treat nested `execute` as the only active `/call-tool` execution-metadata compat surface unless a future task doc explicitly reopens that decision with live runtime evidence.
-- The next required live verification now moves to `injection-runtime`: exercise bootstrap-versus-live catalog timing, hidden request-hook injection on first send, fallback visible injection behavior, and injection diagnostics timing on the real ChatGPT page before claiming the next stage complete.
-- The remaining code-side gap inside `injection-runtime` is no longer prompt/copy ownership drift; it is live-page evidence that the new extension-owned prompt snapshots and hook diagnostics behave correctly on the first send, on cached-bootstrap warmup, and on visible fallback recovery.
+- The next required live verification now moves to `operator-panel`: exercise operator-visible runtime snapshot status, manual run/retry or insert intents, and diagnostics readability on the real ChatGPT page before claiming the next stage complete.
+- The remaining code-side gap is no longer `injection-runtime`; it is making operator-visible runtime truth read cleanly from the extracted owners without reconstructing a second state machine in userscript UI code.
 - Use the expanded `IMPLEMENTATION_PLAN.md` stage contract as the execution source of truth for module boundaries, allowed supporting surfaces, validation, and stage exit conditions; do not re-invent those rules ad hoc in code review.
 - If a change tries to activate a second Phase 2 module at the same time, stop and either narrow it back to the active module stage or first update the task-control docs to resequence the program.
