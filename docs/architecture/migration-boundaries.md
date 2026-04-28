@@ -39,7 +39,7 @@ The current implementation layout is not the target ownership map.
 In particular:
 
 - `apps/userscript` is now an archived implementation snapshot, not the final product shell
-- `apps/gateway/src/server.ts` and `index.ts` are now compat entrypoints, not proof that the flat gateway shape is desirable; `apps/gateway/src/main/*` is the active composition root and the flat entrypoints remain only until Stage 21 deletes them
+- `apps/gateway/src/main/*` is the active composition root, and `apps/gateway/src/index.ts` is now the thin live entrypoint into that structure; the old flat `server.ts` compat layer was deleted in Stage 21
 - the former `packages/protocol/` catch-all is already gone; use `turn-model`, `tool-contracts`, `policy-model`, and `result-model`
 - the former `packages/shared/` bucket is already gone; use `packages/shared-utils`
 
@@ -127,9 +127,9 @@ Target ownership mapping:
 Current source of truth:
 
 - `apps/gateway/src/index.ts`
-- `apps/gateway/src/server.ts`
 - `apps/gateway/src/config.ts`
 - `apps/gateway/src/logger.ts`
+- `apps/gateway/src/main/*`
 
 Target ownership mapping:
 
@@ -174,7 +174,7 @@ Target ownership mapping:
 | `shell-runtime` | extracted owner (Stage 15) | shell execution owner | ownership clear | complete |
 | `audit-log` | extracted owner (Stage 16) | audit truth owner | ownership clear | complete |
 | `diagnostics` | extracted owner (Stage 17) | read-only diagnostics owner | ownership clear | complete |
-| `extension-shell` | active Stage 19 implementation | Chrome Extension shell (Stage 19) | extension-only live validation still required for formal Stage 21 close | high |
+| `extension-shell` | complete after Stage 21 close | Chrome Extension shell (Stage 19) | extension-only runtime is now the only supported browser path | high |
 | `extension-main` | active Stage 19 implementation | composition root (Stage 19) | extension-only runtime now carries the full live browser path | high |
 | `gateway-api` | complete Stage 20 implementation | HTTP adapter (Stage 20) | live route floor is stable after Stage 21 compat deletion | medium |
 | `proposal-engine` | complete Stage 20 implementation | typed interface + stub (Stage 20) | scope boundary clear (stub only) | low |
@@ -247,7 +247,7 @@ Full Phase 2 module order (Stages 7-21, see root `IMPLEMENTATION_PLAN.md` and `S
 12. `package-domain-extraction` (complete) — split `protocol/` into domain packages, rename `shared/`, create `test-fixtures/`
 13. `extension-structure` (complete) — full Chrome Extension shell + `main/`, extension becomes primary browser runtime
 14. `gateway-structure` (complete) — `api/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, `main/`
-15. `remove-compat-layers` (code-complete, live validation pending) — deleted all compat re-exports and archived `apps/userscript/`
+15. `remove-compat-layers` (complete) — deleted all compat re-exports, archived `apps/userscript/`, and formally closed after real ChatGPT Web extension-only validation
 
 Goals:
 

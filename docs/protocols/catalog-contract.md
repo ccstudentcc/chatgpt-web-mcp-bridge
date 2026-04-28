@@ -28,9 +28,9 @@ Until product truth and task-control docs explicitly approve a dual-route migrat
 Current implementation note:
 
 - Gateway `tool-registry` now owns materialized catalog generation for `/tools` and the descriptor set consumed by `mcp_list`.
-- The userscript live client now validates that full contract before consuming `tools[]`, instead of silently treating malformed payloads as an empty catalog.
-- The userscript cache/bootstrap/runtime state now retain that full catalog contract, so diagnostics can reuse `catalogVersion` and `workspaceRoot` without inventing a second metadata channel beside `tools[]`.
-- The userscript runtime now also tracks whether the visible catalog is live or cache-derived, so operator diagnostics do not confuse bootstrap state with a successful live `/tools` sync.
+- The extension runtime now validates that full contract before consuming `tools[]`, instead of silently treating malformed payloads as an empty catalog.
+- The extension cache/bootstrap/runtime state now retain that full catalog contract, so diagnostics can reuse `catalogVersion` and `workspaceRoot` without inventing a second metadata channel beside `tools[]`.
+- The extension runtime now also tracks whether the visible catalog is live or cache-derived, so operator diagnostics do not confuse bootstrap state with a successful live `/tools` sync.
 
 ## 3. Minimum Contract Surface
 
@@ -61,7 +61,7 @@ The extension must not synthesize a second local catalog truth. It may cache or 
 
 ### 4.2 Current Runtime Must Stay Aligned
 
-At the current v0.1 stage, the following must remain aligned:
+At the current runtime stage, the following must remain aligned:
 
 - `/tools`
 - shared tool-usage guidance owned by the extension injection runtime

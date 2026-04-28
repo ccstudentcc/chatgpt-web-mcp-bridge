@@ -1068,7 +1068,7 @@ Definition of done:
 
 ## Stage 21: Execute Module Stage - Remove All Compatibility Layers
 
-Status: code-complete, live validation pending
+Status: complete
 
 Goal:
 
@@ -1138,7 +1138,7 @@ Code-side completion reached on April 28, 2026:
 - `apps/userscript/` now contains only `README.md` plus `legacy/` archive material and is no longer a workspace package
 - root `package.json` and `pnpm-workspace.yaml` no longer reference the userscript workspace app
 - `pnpm --filter @cwmb/extension lint`, `test`, `build`, `pnpm --filter @cwmb/gateway lint`, `test`, `build`, and root `pnpm lint`, `pnpm test`, `pnpm build` all succeeded after the cleanup
-- real ChatGPT Web validation for the extension-only runtime path is still required before this stage can be marked complete
+- real ChatGPT Web validation for the extension-only runtime path passed on April 28, 2026, and formally closed the stage
 
 ## Risks
 

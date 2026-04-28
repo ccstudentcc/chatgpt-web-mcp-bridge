@@ -4,7 +4,7 @@
 
 - Status: draft v1
 - Owner: gateway route layer plus browser runtime client
-- Used by: userscript state, future extension compat state, operator diagnostics
+- Used by: extension runtime state, operator diagnostics, contract validation
 
 This document defines the shared runtime contract around gateway reachability/config truth and the browser-local snapshot that aggregates it with catalog truth.
 

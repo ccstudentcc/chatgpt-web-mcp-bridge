@@ -28,7 +28,7 @@ Current implementation note:
 
 - `/call-tool` compatibility responses now attach either an inline tool-result envelope or an execution-error envelope under a nested `execute.result`, browser-runtime single-result insertion formats that shared envelope shape instead of raw legacy single-call payloads, and the live browser-runtime path now treats a missing/malformed nested `execute` object as a protocol error.
 - Shared protocol typing now keeps that raw compat boundary distinct from the validated live `/call-tool` response shape that gateway and browser-runtime code consume after execute-metadata checks pass.
-- The current `tool_result_batch` envelope is now shared in `@cwmb/result-model`, including per-item success/failure/skipped variants and the compat `source.messageId` field still used by userscript result insertion.
+- The current `tool_result_batch` envelope is now shared in `@cwmb/result-model`, including per-item success/failure/skipped variants and the compat `source.messageId` field still used by extension result insertion.
 
 ## 3. Minimum Semantics
 

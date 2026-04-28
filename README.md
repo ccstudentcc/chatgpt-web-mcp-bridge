@@ -92,14 +92,14 @@ pnpm dev:extension
 
 Then open `chrome://extensions`, enable Developer mode, choose `Load unpacked`, and select `apps/extension/dist`.
 
-Expected Stage 19 smoke signals:
+Expected extension-runtime smoke signals:
 
 - the extension loads without manifest errors,
 - the background service worker logs a lifecycle message,
 - visiting ChatGPT Web mounts the bridge panel inside the content-script shadow host,
 - request-hook diagnostics continue to report injection timing in the panel log.
 
-The former userscript implementation is archived under [`apps/userscript/README.md`](apps/userscript/README.md) as a Stage 20 legacy reference. It is no longer a workspace app or a supported runtime path.
+The former userscript implementation is archived under [`apps/userscript/README.md`](apps/userscript/README.md) as a Stage 21 legacy reference. It is no longer a workspace app or a supported runtime path.
 
 Open ChatGPT Web. In the bridge panel:
 

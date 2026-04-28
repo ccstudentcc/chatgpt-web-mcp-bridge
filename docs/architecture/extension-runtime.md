@@ -40,7 +40,7 @@ Current Stage 19-21 runtime state:
 - `apps/extension/src/main/extension-runtime.ts` now owns the shared browser-runtime composition root used by the real extension shell and the extension-owned runtime helpers under `src/main/*`.
 - `apps/extension/src/extension-shell/*` now owns the Chrome-extension host layer: manifest-driven entrypoints, background lifecycle ping, gateway messaging bridge, main-world request hook, content-script bootstrap, and panel mount isolation.
 - Stage 21 archives the former userscript bootstrap under `apps/userscript/legacy/`; the active browser runtime path is now extension-only.
-- Local extension and root verification are green for `pnpm --filter @cwmb/extension lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build`; unpacked-Chrome and real ChatGPT Web extension-path validation remain the open Stage 21 close-out gate.
+- Local extension and root verification are green for `pnpm --filter @cwmb/extension lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build`; real ChatGPT Web extension-path validation also passed on April 28, 2026, so Stage 21 is formally closed.
 
 ## 3. Module Boundaries
 
@@ -73,7 +73,7 @@ Minimum public surface:
 Rule:
 
 - if a fact is primarily about how ChatGPT Web renders, labels, structures, or identifies page elements, add it here first and let downstream modules consume it
-- `turn-runtime`, `injection-runtime`, `result-delivery`, and current userscript compat code should not each grow their own copies of page-fact logic
+- `turn-runtime`, `injection-runtime`, and `result-delivery` should not each grow their own copies of page-fact logic, and the archived userscript reference must not become a parallel owner again
 
 ### 3.2 `injection-runtime`
 

@@ -104,7 +104,7 @@ There is not yet a fully populated unified evidence pack here.
 Current repo truth already says:
 
 - real-page behavior matters more than prompt-only confidence
-- the proven userscript runtime baseline exists and must be preserved or explicitly migrated
+- the closed userscript runtime baseline remains a reference in `docs/prd.md`, and the live workspace runtime path is now extension-only after Stage 21
 - the seeded v0.9 page-facts code owner currently covers selectors, conversation endpoints, turn-container fallbacks, send-button recognition, and ignorable status-text patterns
 
 But the underlying DOM/request-shape observations still need to be centralized here before any DOM-heavy slice should expand.
