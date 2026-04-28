@@ -1,4 +1,4 @@
-import type { BatchResultEnvelope, ExecutionErrorEnvelope, InlineToolResultEnvelope } from '@cwmb/protocol';
+import type { BatchResultEnvelope, ExecutionErrorEnvelope, InlineToolResultEnvelope } from '@cwmb/result-model';
 
 export function formatToolResult(tool: string, response: InlineToolResultEnvelope | ExecutionErrorEnvelope): string {
   const responseJson = JSON.stringify(response, null, 2);

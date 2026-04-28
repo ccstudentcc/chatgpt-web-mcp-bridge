@@ -1,4 +1,4 @@
-import { McpBlockSchema, type McpBlock } from '@cwmb/protocol';
+import { McpBlockSchema, type McpBlock } from '@cwmb/turn-model';
 import {
   chatgptSelectors,
   isIgnorableChatGptStatusText

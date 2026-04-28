@@ -23,12 +23,21 @@ importers:
 
   apps/gateway:
     dependencies:
-      '@cwmb/protocol':
+      '@cwmb/policy-model':
         specifier: workspace:*
-        version: link:../../packages/protocol
-      '@cwmb/shared':
+        version: link:../../packages/policy-model
+      '@cwmb/result-model':
         specifier: workspace:*
-        version: link:../../packages/shared
+        version: link:../../packages/result-model
+      '@cwmb/shared-utils':
+        specifier: workspace:*
+        version: link:../../packages/shared-utils
+      '@cwmb/tool-contracts':
+        specifier: workspace:*
+        version: link:../../packages/tool-contracts
+      '@cwmb/turn-model':
+        specifier: workspace:*
+        version: link:../../packages/turn-model
       fastify:
         specifier: ^4.28.1
         version: 4.29.1
@@ -45,9 +54,18 @@ importers:
 
   apps/userscript:
     dependencies:
-      '@cwmb/protocol':
+      '@cwmb/result-model':
         specifier: workspace:*
-        version: link:../../packages/protocol
+        version: link:../../packages/result-model
+      '@cwmb/shared-utils':
+        specifier: workspace:*
+        version: link:../../packages/shared-utils
+      '@cwmb/tool-contracts':
+        specifier: workspace:*
+        version: link:../../packages/tool-contracts
+      '@cwmb/turn-model':
+        specifier: workspace:*
+        version: link:../../packages/turn-model
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -59,13 +77,74 @@ importers:
         specifier: ^0.23.0
         version: 0.23.1
 
-  packages/protocol:
+  packages/policy-model:
+    dependencies:
+      '@cwmb/shared-utils':
+        specifier: workspace:*
+        version: link:../shared-utils
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+
+  packages/result-model:
+    dependencies:
+      '@cwmb/shared-utils':
+        specifier: workspace:*
+        version: link:../shared-utils
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+
+  packages/shared-utils:
     dependencies:
       zod:
         specifier: ^3.23.8
         version: 3.25.76
 
-  packages/shared: {}
+  packages/test-fixtures:
+    dependencies:
+      '@cwmb/policy-model':
+        specifier: workspace:*
+        version: link:../policy-model
+      '@cwmb/result-model':
+        specifier: workspace:*
+        version: link:../result-model
+      '@cwmb/shared-utils':
+        specifier: workspace:*
+        version: link:../shared-utils
+      '@cwmb/tool-contracts':
+        specifier: workspace:*
+        version: link:../tool-contracts
+      '@cwmb/turn-model':
+        specifier: workspace:*
+        version: link:../turn-model
+
+  packages/tool-contracts:
+    dependencies:
+      '@cwmb/policy-model':
+        specifier: workspace:*
+        version: link:../policy-model
+      '@cwmb/result-model':
+        specifier: workspace:*
+        version: link:../result-model
+      '@cwmb/shared-utils':
+        specifier: workspace:*
+        version: link:../shared-utils
+      '@cwmb/turn-model':
+        specifier: workspace:*
+        version: link:../turn-model
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+
+  packages/turn-model:
+    dependencies:
+      '@cwmb/shared-utils':
+        specifier: workspace:*
+        version: link:../shared-utils
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
 
 packages:
 

@@ -1,15 +1,17 @@
 import {
-  createBatchResultEnvelope,
   createLegacyToolCallRequest,
+  type ToolCallFailure,
+  type ToolCallRequest,
+  type ToolCallResponse
+} from '@cwmb/tool-contracts';
+import {
+  createBatchResultEnvelope,
   type BatchResultEnvelope,
   type BatchResultFailureItem,
   type BatchResultItem,
   type BatchResultSkippedItem,
-  type BatchResultSuccessItem,
-  type ToolCallFailure,
-  type ToolCallRequest,
-  type ToolCallResponse
-} from '@cwmb/protocol';
+  type BatchResultSuccessItem
+} from '@cwmb/result-model';
 import type { ParsedMcpBlock } from './parser.js';
 import { sha256Normalized } from './hash.js';
 

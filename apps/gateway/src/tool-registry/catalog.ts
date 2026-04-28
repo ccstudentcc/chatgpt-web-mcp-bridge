@@ -1,4 +1,5 @@
-import type { CatalogContract, CatalogToolDescriptor, ExecutionProfile, PolicyAction, ToolSource } from '@cwmb/protocol';
+import type { CatalogContract, CatalogToolDescriptor } from '@cwmb/tool-contracts';
+import type { ExecutionProfile, PolicyAction, ToolSource } from '@cwmb/shared-utils';
 import type { GatewayConfig } from '../config.js';
 import type { LocalTool } from '../tools/index.js';
 

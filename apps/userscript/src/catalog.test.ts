@@ -1,4 +1,4 @@
-import type { CatalogContract, ToolDescriptor } from '@cwmb/protocol';
+import type { CatalogContract, ToolDescriptor } from '@cwmb/tool-contracts';
 import { describe, expect, it } from 'vitest';
 import {
   buildInjectedToolPrompt,

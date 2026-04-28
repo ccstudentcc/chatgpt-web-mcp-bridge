@@ -7,7 +7,11 @@
     "types": [],
     "baseUrl": ".",
     "paths": {
-      "@cwmb/protocol": ["../../packages/protocol/dist/index.d.ts"]
+      "@cwmb/policy-model": ["../../packages/policy-model/dist/index.d.ts"],
+      "@cwmb/result-model": ["../../packages/result-model/dist/index.d.ts"],
+      "@cwmb/shared-utils": ["../../packages/shared-utils/dist/index.d.ts"],
+      "@cwmb/tool-contracts": ["../../packages/tool-contracts/dist/index.d.ts"],
+      "@cwmb/turn-model": ["../../packages/turn-model/dist/index.d.ts"]
     }
   },
   "include": [

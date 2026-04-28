@@ -1,5 +1,6 @@
 import type { ZodType, ZodTypeDef } from 'zod';
-import type { RiskLevel, ToolDescriptor } from '@cwmb/protocol';
+import type { RiskLevel } from '@cwmb/shared-utils';
+import type { ToolDescriptor } from '@cwmb/tool-contracts';
 import type { GatewayConfig } from '../config.js';
 import type { Logger } from '../logger.js';
 import { createGatewayToolRegistry } from '../tool-registry/index.js';

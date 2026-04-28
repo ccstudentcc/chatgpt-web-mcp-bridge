@@ -1,4 +1,4 @@
-import type { CatalogSource } from '@cwmb/protocol';
+import type { CatalogSource } from '@cwmb/tool-contracts';
 
 export type RequestHookStatus = 'injected' | 'missing_prompt' | 'matched_without_injection';
 export type RequestInjectionMode = 'prepend_user' | 'synthetic_system';

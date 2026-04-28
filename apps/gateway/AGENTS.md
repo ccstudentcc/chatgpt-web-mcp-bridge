@@ -17,6 +17,6 @@
 
 ## Validation
 
-- Prefer `pnpm --filter @cwmb/gateway lint`, `test`, and `build` for local verification; under the current pre-Stage-18 package layout, those scripts already rebuild `@cwmb/protocol` and `@cwmb/shared` first.
-- If you bypass those scripts with direct `vitest`, `tsx`, or `tsc` commands, rebuild `@cwmb/protocol` and `@cwmb/shared` yourself before trusting the result.
+- Prefer `pnpm --filter @cwmb/gateway lint`, `test`, and `build` for local verification; under the current Stage 18+ package layout, those scripts already rebuild `@cwmb/shared-utils`, `@cwmb/turn-model`, `@cwmb/policy-model`, `@cwmb/result-model`, and `@cwmb/tool-contracts` first.
+- If you bypass those scripts with direct `vitest`, `tsx`, or `tsc` commands, rebuild those domain packages yourself before trusting the result.
 - If a change touches the still-live compatibility-floor routes, rerun the matching userscript regression coverage before the wider root `pnpm lint`, `pnpm test`, and `pnpm build`.

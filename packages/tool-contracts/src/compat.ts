@@ -1,17 +1,11 @@
+import type { ToolDecision } from '@cwmb/policy-model';
+import type { ExecutionProfile, OperatorIntent } from '@cwmb/shared-utils';
+import type { RequestInjectionContext } from '@cwmb/turn-model';
 import type {
-  BatchResultEnvelope,
-  BatchResultItem,
   ExecuteRequest,
   ExecuteResponse,
-  ExecutionErrorEnvelope,
-  ExecutionProfile,
-  InlineToolResultEnvelope,
-  OperatorIntent,
-  RequestInjectionContext,
-  RiskLevel,
   ToolCallRequest,
-  ToolCallResponse,
-  ToolDecision
+  ToolCallResponse
 } from './types.js';
 
 interface CreateLegacyToolCallRequestOptions {
@@ -35,22 +29,6 @@ interface CreateExecuteResponseOptions {
   executionId: string;
   decisions: ToolDecision[];
   result: ExecuteResponse['result'];
-}
-
-interface CreateBatchResultEnvelopeOptions {
-  batchId: string;
-  messageId?: string;
-  items: BatchResultItem[];
-  warnings?: string[];
-  stoppedOnFailure: boolean;
-}
-
-interface CreateToolDecisionOptions {
-  callId: string;
-  action: ToolDecision['action'];
-  reasonCode: string;
-  risk: RiskLevel;
-  message: string;
 }
 
 export type ToolCallCompatResponse<TResult = unknown> =
@@ -97,73 +75,12 @@ export function createExecuteRequestFromToolCallRequest(
   };
 }
 
-export function createToolDecision(options: CreateToolDecisionOptions): ToolDecision {
-  return {
-    callId: options.callId,
-    action: options.action,
-    reasonCode: options.reasonCode,
-    risk: options.risk,
-    message: options.message
-  };
-}
-
-export function createInlineToolResultEnvelopeFromLegacyResponse(
-  response: Extract<ToolCallResponse, { ok: true }>,
-  callId: string
-): InlineToolResultEnvelope {
-  return {
-    type: 'inline_tool_result',
-    callId,
-    tool: response.tool,
-    ok: true,
-    output: response.result,
-    summary: `Tool ${response.tool} completed successfully.`,
-    warnings: response.warnings
-  };
-}
-
-export function createExecutionErrorEnvelopeFromLegacyResponse(
-  response: Extract<ToolCallResponse, { ok: false }>
-): ExecutionErrorEnvelope {
-  return {
-    type: 'execution_error',
-    error: {
-      code: response.error.code,
-      summary: response.error.message,
-      retryable: !NON_RETRYABLE_ERROR_CODES.has(response.error.code),
-      details: response.error.details
-    }
-  };
-}
-
 export function createExecuteResponse(options: CreateExecuteResponseOptions): ExecuteResponse {
   return {
     requestId: options.requestId,
     executionId: options.executionId,
     decisions: options.decisions,
     result: options.result
-  };
-}
-
-export function createBatchResultEnvelope(options: CreateBatchResultEnvelopeOptions): BatchResultEnvelope {
-  const completed = options.items.filter((item): item is Extract<BatchResultItem, { ok: true }> => 'ok' in item && item.ok === true).length;
-  const failed = options.items.filter((item): item is Extract<BatchResultItem, { ok: false }> => 'ok' in item && item.ok === false).length;
-  const skipped = options.items.filter((item): item is Extract<BatchResultItem, { status: 'skipped' }> => 'status' in item && item.status === 'skipped').length;
-
-  return {
-    type: 'tool_result_batch',
-    ok: failed === 0,
-    batchId: options.batchId,
-    source: options.messageId ? { messageId: options.messageId } : undefined,
-    summary: {
-      total: options.items.length,
-      completed,
-      failed,
-      skipped,
-      stoppedOnFailure: options.stoppedOnFailure
-    },
-    items: options.items,
-    warnings: options.warnings ?? []
   };
 }
 
@@ -192,16 +109,6 @@ export function getExecuteResponseCompat(value: unknown): ExecuteResponse | null
 
   return null;
 }
-
-const NON_RETRYABLE_ERROR_CODES = new Set([
-  'INVALID_ARGS',
-  'TOOL_NOT_FOUND',
-  'TOOL_DISABLED',
-  'PWSH_DISABLED',
-  'BLOCKED_PATH',
-  'PATH_OUTSIDE_WORKSPACE',
-  'UNAUTHORIZED'
-]);
 
 function getStringField(value: unknown, key: string): string | undefined {
   if (!value || typeof value !== 'object' || !(key in value)) {

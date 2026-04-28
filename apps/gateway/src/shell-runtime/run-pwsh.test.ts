@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events';
 import path from 'node:path';
 import { PassThrough, Writable } from 'node:stream';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AppError } from '@cwmb/shared';
+import { AppError } from '@cwmb/shared-utils';
 import { DEFAULT_SHELL_TIMEOUT_MS, RunPwshArgsSchema, executeRunPwsh, guardRunPwshInput, prepareRunPwshExecution } from './index.js';
 import type { RunPwshArgs } from './run-pwsh.js';
 import type { SpawnImpl } from './types.js';

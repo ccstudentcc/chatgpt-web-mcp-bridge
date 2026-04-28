@@ -1,4 +1,4 @@
-import { CatalogContractSchema, type CatalogContract } from '@cwmb/protocol';
+import { CatalogContractSchema, type CatalogContract } from '@cwmb/tool-contracts';
 
 const TOOL_CATALOG_CACHE_KEY = 'cwmb_tool_catalog_cache';
 

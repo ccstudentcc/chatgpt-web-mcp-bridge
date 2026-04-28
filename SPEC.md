@@ -8,7 +8,7 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is complete. Stages 7—17 (the Final Core extraction sequence: `turn-runtime`, `result-delivery`, `injection-runtime`, `operator-panel`, `execution-kernel`, `tool-registry`, `tool-policy`, `builtin-tools`, `shell-runtime`, `audit-log`, `diagnostics`) are now complete. Stages 18—21 (the target-structure completion sequence: `package-domain-extraction`, `extension-structure`, `gateway-structure`, `remove-compat-layers`) are defined and planned but not yet active. No new active module stage is selected in this file yet — the next gate will be Stage 18.
+Phase 1 shared-contract freeze is complete. Stages 7—18 (the Final Core extraction sequence plus `package-domain-extraction`) are now complete. No target-structure stage is currently active. Stages 19—21 (`extension-structure`, `gateway-structure`, `remove-compat-layers`) remain planned follow-on stages.
 
 Phase 2 exists so the repo can finish `apps/extension` and `apps/gateway` one module at a time, keeping each stage narrow enough to improve ownership, timing, logic, stability, and test coverage without reopening multiple modules at once.
 
@@ -86,27 +86,29 @@ Exit gate for any Phase 2 stage:
 
 ## Current Stage State
 
-Active module stage: none. The most recently closed stage is `diagnostics` (Stage 17) on April 28, 2026. The next planned stage is `package-domain-extraction` (Stage 18).
+Active module stage: none. The most recently closed stage is `package-domain-extraction` (Stage 18) on April 28, 2026. The next planned stage is `extension-structure` (Stage 19).
 
-Stages 18-21 are defined in `IMPLEMENTATION_PLAN.md` with full owner surfaces, constraints, validation, and definitions of done. Their activation gate requires an explicit declaration in this file and `TASK_STATUS.md` before code work begins.
+Stages 19-21 remain defined in `IMPLEMENTATION_PLAN.md` with full owner surfaces, constraints, validation, and definitions of done. Do not activate them until `TASK_STATUS.md` explicitly declares the next stage.
 
 Most recently completed module-stage file surfaces:
 
-- `apps/gateway/src/diagnostics/*`
-- `apps/gateway/src/routes/health.ts`
-- `apps/gateway/src/routes/health.test.ts`
-- `apps/gateway/src/config.ts`
-- `apps/gateway/src/logger.ts`
-- `apps/gateway/src/audit-log/*`
-- `docs/operations/gateway.md`
-- `docs/operations/security.md`
+- `packages/shared-utils/*`
+- `packages/turn-model/*`
+- `packages/policy-model/*`
+- `packages/result-model/*`
+- `packages/tool-contracts/*`
+- `packages/test-fixtures/*`
+- `apps/gateway/package.json`
+- `apps/userscript/package.json`
+- `apps/userscript/tsconfig.json`
+- `apps/userscript/scripts/build.ts`
 - the root task-control docs
 
 Most recently completed stage intent:
 
-- move diagnostics ownership into `apps/gateway/src/diagnostics/*` and keep it read-only relative to execution control
-- aggregate gateway health, config-derived runtime facts, audit summaries, and redacted diagnostics bundles without creating a second control plane
-- keep diagnostics aligned with the actual owners for execution, registry, policy, and audit data
+- replace the catch-all protocol package with explicit domain package boundaries visible in workspace dependencies
+- keep runtime behavior and contract shapes unchanged while rewiring imports, schemas, compat helpers, and constants into their focused owner packages
+- leave no active module stage after the package split completes; Stage 19 must be explicitly activated before extension-shell work begins
 
 ## In Scope
 

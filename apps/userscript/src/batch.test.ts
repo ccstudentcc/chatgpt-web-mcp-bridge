@@ -1,4 +1,4 @@
-import type { ToolCallRequest, ToolCallResponse } from '@cwmb/protocol';
+import type { ToolCallRequest, ToolCallResponse } from '@cwmb/tool-contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { createBatchId, executeBatch } from './batch.js';
 import type { ParsedMcpBlock } from './parser.js';

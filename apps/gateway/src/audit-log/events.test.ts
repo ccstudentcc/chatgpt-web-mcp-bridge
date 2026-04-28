@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createToolDecision, type ExecuteRequest } from '@cwmb/protocol';
+import { createToolDecision } from '@cwmb/policy-model';
+import type { ExecuteRequest } from '@cwmb/tool-contracts';
 import { createAuditRequestContext, createExecutionCompletedAuditEvent, createExecutionFinishedAuditEvent, createPolicyDeniedAuditEvent } from './events.js';
 
 describe('audit-log events', () => {

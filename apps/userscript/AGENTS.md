@@ -11,8 +11,8 @@
 
 ## Validation Order
 
-- Under the current pre-Stage-18 package layout, `apps/userscript` imports `@cwmb/protocol` through workspace `dist/` entrypoints and also consumes source files under `../extension/src/*`.
-- Before running `pnpm --filter @cwmb/userscript lint`, `test`, or `build` from a clean tree, run `pnpm --filter @cwmb/protocol build` first.
+- Under the current Stage 18+ package layout, `apps/userscript` imports workspace `dist/` entrypoints from `@cwmb/shared-utils`, `@cwmb/turn-model`, `@cwmb/result-model`, and `@cwmb/tool-contracts`, and also consumes source files under `../extension/src/*`.
+- Before running `pnpm --filter @cwmb/userscript lint`, `test`, or `build` from a clean tree, rebuild those domain packages first.
 - If the change touches extension-owned modules that userscript consumes, include the same userscript verification because this package is still the live executable browser surface.
 
 ## Local Workflow

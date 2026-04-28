@@ -1,4 +1,4 @@
-import type { ToolDescriptor } from '@cwmb/protocol';
+import type { ToolDescriptor } from '@cwmb/tool-contracts';
 import { describe, expect, it } from 'vitest';
 import { assessPendingTools, formatCapabilityLabel } from './capabilities.js';
 import type { ParsedMcpBlock } from './parser.js';

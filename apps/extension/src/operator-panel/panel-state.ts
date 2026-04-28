@@ -1,4 +1,4 @@
-import type { CatalogSource, GatewayRuntimeSnapshot, ToolDescriptor } from '@cwmb/protocol';
+import type { CatalogSource, GatewayRuntimeSnapshot, ToolDescriptor } from '@cwmb/tool-contracts';
 import type { RequestHookStatus, RequestInjectionMode } from '../injection-runtime/index.js';
 import {
   deriveDeliveryPanelState,

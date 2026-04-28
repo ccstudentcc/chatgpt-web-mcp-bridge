@@ -1,4 +1,4 @@
-import type { BatchResultFailureItem, BatchResultItem } from '@cwmb/protocol';
+import type { BatchResultFailureItem, BatchResultItem } from '@cwmb/result-model';
 
 export interface BatchFailurePresentation {
   lastError: string;

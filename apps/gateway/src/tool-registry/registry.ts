@@ -1,4 +1,5 @@
-import type { CatalogContract, CatalogToolDescriptor, ToolSource } from '@cwmb/protocol';
+import type { CatalogContract, CatalogToolDescriptor } from '@cwmb/tool-contracts';
+import type { ToolSource } from '@cwmb/shared-utils';
 import type { GatewayConfig } from '../config.js';
 import { createBuiltinTools } from '../builtin-tools/index.js';
 import { runPwshTool } from '../shell-runtime/index.js';

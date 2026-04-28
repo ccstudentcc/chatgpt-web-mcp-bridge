@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CatalogContract } from '@cwmb/protocol';
+import type { CatalogContract } from '@cwmb/tool-contracts';
 import { readStoredToolCatalog, writeStoredToolCatalog } from '../../extension/src/injection-runtime/catalog-cache.js';
 
 const sampleCatalog: CatalogContract = {

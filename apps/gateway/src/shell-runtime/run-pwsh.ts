@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { z } from 'zod';
-import { AppError } from '@cwmb/shared';
+import { AppError } from '@cwmb/shared-utils';
 import type { GatewayConfig } from '../config.js';
 import type { LocalTool } from '../tools/index.js';
 import { resolveWorkspacePath } from '../tool-policy/path-policy.js';

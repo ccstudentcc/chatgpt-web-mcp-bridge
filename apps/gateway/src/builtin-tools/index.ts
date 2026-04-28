@@ -1,4 +1,4 @@
-import type { CatalogToolDescriptor } from '@cwmb/protocol';
+import type { CatalogToolDescriptor } from '@cwmb/tool-contracts';
 import type { GatewayConfig } from '../config.js';
 import type { LocalTool } from '../tools/index.js';
 import { grepFilesTool } from './grep-files.js';

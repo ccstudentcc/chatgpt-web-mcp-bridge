@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import {
   ToolCallRequestSchema
-} from '@cwmb/protocol';
-import { AppError } from '@cwmb/shared';
+} from '@cwmb/tool-contracts';
+import { AppError } from '@cwmb/shared-utils';
 import type { GatewayConfig } from '../config.js';
 import { createExecutionKernel } from '../execution-kernel/index.js';
 import type { Logger } from '../logger.js';

@@ -1,4 +1,4 @@
-import type { CatalogToolDescriptor, GatewayRuntimeSnapshot } from '@cwmb/protocol';
+import type { CatalogToolDescriptor, GatewayRuntimeSnapshot } from '@cwmb/tool-contracts';
 import { describe, expect, it } from 'vitest';
 import {
   deriveOperatorPanelViewState,

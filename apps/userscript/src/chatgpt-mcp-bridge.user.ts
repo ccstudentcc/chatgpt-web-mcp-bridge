@@ -2,15 +2,17 @@ import { buildToolCatalogPrompt, createRequestPromptSnapshot, describeRequestPro
 import { readStoredToolCatalog, writeStoredToolCatalog } from './catalog-cache.js';
 import { assessPendingTools } from './capabilities.js';
 import {
-  createExecutionErrorEnvelopeFromLegacyResponse,
-  createInlineToolResultEnvelopeFromLegacyResponse,
   createLegacyToolCallRequest,
   getExecuteResponseCompat,
   type CatalogContract,
   type CatalogSource,
-  type BatchResultItem,
   type ToolCallFailure
-} from '@cwmb/protocol';
+} from '@cwmb/tool-contracts';
+import {
+  createExecutionErrorEnvelopeFromLegacyResponse,
+  createInlineToolResultEnvelopeFromLegacyResponse,
+  type BatchResultItem
+} from '@cwmb/result-model';
 import { createBatchId, executeBatch } from './batch.js';
 import { callTool, health, listCatalog } from './gateway-client.js';
 import { extractVisibleText, findLatestOpenAssistantMessage, findLatestUserMessage, onChatMutation } from './dom.js';

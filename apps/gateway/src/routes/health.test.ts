@@ -1,5 +1,5 @@
 import Fastify from 'fastify';
-import { GatewayHealthContractSchema } from '@cwmb/protocol';
+import { GatewayHealthContractSchema } from '@cwmb/tool-contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GatewayConfig } from '../config.js';
 import { registerHealthRoute } from './health.js';

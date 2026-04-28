@@ -875,7 +875,7 @@ Completed on April 28, 2026:
 
 ## Stage 18: Execute Module Stage - Package Domain Extraction
 
-Status: planned
+Status: completed
 
 Goal:
 
@@ -894,7 +894,7 @@ Expected current source and compat surfaces:
 
 - `packages/protocol/src/*` — all current protocol exports
 - `packages/shared/src/*` — all current shared exports
-- Every import of `@cwmb/protocol` across `apps/extension/`, `apps/gateway/`, `apps/userscript/`, and other workspace packages
+- Every import of the legacy protocol package across `apps/extension/`, `apps/gateway/`, `apps/userscript/`, and other workspace packages
 
 Optimization targets:
 
@@ -917,16 +917,23 @@ Required validation:
 - every new package has a minimal `index.ts` that re-exports its public surface
 - all consumer imports across extension, gateway, and userscript are updated to point to the correct domain package
 - `packages/protocol/` is deleted from the workspace and `pnpm-workspace.yaml`
-- root `pnpm lint`, `pnpm test`, and `pnpm build` pass with zero `@cwmb/protocol` references remaining
+- root `pnpm lint`, `pnpm test`, and `pnpm build` pass with zero legacy protocol-package references remaining
 
 Definition of done:
 
 - domain types live in exactly one obvious package rather than spread across a catch-all `protocol/`
-- no file in the repo imports `@cwmb/protocol`
+- no file in the repo imports the legacy protocol package
 - `packages/shared/` is renamed to `packages/shared-utils/` and its package.json name is `@cwmb/shared-utils`
 - `packages/test-fixtures/` exists with at least factory helpers for the three most-used domain types
-- every workspace package.json that previously depended on `@cwmb/protocol` now depends only on the specific domain packages it actually uses
+- every workspace package.json that previously depended on the legacy protocol package now depends only on the specific domain packages it actually uses
 - root verification passes without compat workarounds
+
+Completed on April 28, 2026:
+
+- `packages/protocol/` has been deleted. Its exports now live in `packages/turn-model`, `packages/tool-contracts`, `packages/policy-model`, `packages/result-model`, and `packages/shared-utils`, with `packages/test-fixtures` added for shared factories.
+- `packages/shared/` has been renamed to `packages/shared-utils/`, and all gateway/userscript/extension consumers now import from the focused domain packages instead of the legacy protocol package.
+- `apps/userscript` now resolves the Stage 18 domain packages explicitly in both `tsconfig` path mappings and esbuild aliases, so extension-owned source pulled into the userscript bundle no longer depends on the removed package name.
+- `pnpm --filter @cwmb/shared-utils build`, `@cwmb/turn-model build`, `@cwmb/policy-model build`, `@cwmb/result-model build`, `@cwmb/tool-contracts build`, `@cwmb/test-fixtures build`, `pnpm --filter @cwmb/userscript lint`, `test`, `build`, `pnpm --filter @cwmb/gateway lint`, `test`, `build`, and root `pnpm lint`, `pnpm test`, `pnpm build` all succeeded after the split.
 
 ## Stage 19: Execute Module Stage - Extension Structure
 
@@ -1076,7 +1083,7 @@ Expected current source and compat surfaces to be removed:
 - `apps/userscript/src/state.ts` — compat state holder
 - `apps/userscript/src/chatgpt-mcp-bridge.user.ts` — former main userscript entrypoint
 - `apps/userscript/src/dom.ts`, `selectors.ts` — DOM helpers now owned by extension content script
-- Any remaining `@cwmb/protocol` references (should be zero after Stage 18)
+- Any remaining legacy protocol-package references (should be zero after Stage 18)
 
 Optimization targets:
 
@@ -1098,7 +1105,7 @@ Required validation:
 - `pnpm-workspace.yaml` no longer lists `apps/userscript`
 - root `package.json` scripts no longer reference userscript
 - every import in the repo points to a proper long-term owner (no compat middlemen remain)
-- `git grep` for removed package names (`@cwmb/protocol`, `@cwmb/shared`, `@cwmb/userscript`) returns zero results
+- `git grep` for removed package names (`packages/protocol`, `packages/shared`, `@cwmb/userscript`) returns zero stale-workspace references
 - real ChatGPT Web validation confirms the extension-only browser runtime path is fully functional
 
 Definition of done:

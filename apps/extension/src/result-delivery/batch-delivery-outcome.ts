@@ -1,4 +1,4 @@
-import type { BatchResultEnvelope } from '@cwmb/protocol';
+import type { BatchResultEnvelope } from '@cwmb/result-model';
 import { describeBatchFailure } from './batch-outcome-presentation.js';
 import type { DeliveryLogEvent } from './composer-delivery.js';
 import type { ReadyDeliveryStatus } from './delivery-state.js';

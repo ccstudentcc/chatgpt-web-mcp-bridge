@@ -1,7 +1,13 @@
 import { fileURLToPath } from 'node:url';
 import { context, build } from 'esbuild';
 
-const protocolEntry = fileURLToPath(new URL('../../../packages/protocol/dist/index.js', import.meta.url));
+const packageEntries = {
+  '@cwmb/policy-model': fileURLToPath(new URL('../../../packages/policy-model/dist/index.js', import.meta.url)),
+  '@cwmb/result-model': fileURLToPath(new URL('../../../packages/result-model/dist/index.js', import.meta.url)),
+  '@cwmb/shared-utils': fileURLToPath(new URL('../../../packages/shared-utils/dist/index.js', import.meta.url)),
+  '@cwmb/tool-contracts': fileURLToPath(new URL('../../../packages/tool-contracts/dist/index.js', import.meta.url)),
+  '@cwmb/turn-model': fileURLToPath(new URL('../../../packages/turn-model/dist/index.js', import.meta.url))
+};
 
 const banner = `// ==UserScript==
 // @name         ChatGPT Web MCP Bridge
@@ -23,9 +29,7 @@ const banner = `// ==UserScript==
 
 const options = {
   entryPoints: ['src/chatgpt-mcp-bridge.user.ts'],
-  alias: {
-    '@cwmb/protocol': protocolEntry
-  },
+  alias: packageEntries,
   bundle: true,
   format: 'iife' as const,
   platform: 'browser' as const,

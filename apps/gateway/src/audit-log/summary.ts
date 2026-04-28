@@ -1,4 +1,4 @@
-import { assessSensitiveTextContent } from '@cwmb/shared';
+import { assessSensitiveTextContent } from '@cwmb/shared-utils';
 import type { AuditExecutionFinishedEvent, AuditLogEntry, AuditLogSummary, AuditValueSummary } from './types.js';
 
 const MAX_DEPTH = 3;

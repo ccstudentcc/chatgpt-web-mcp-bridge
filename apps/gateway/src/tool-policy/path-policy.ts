@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { minimatch } from 'minimatch';
-import { AppError } from '@cwmb/shared';
+import { AppError } from '@cwmb/shared-utils';
 
 export interface PathPolicy {
   workspaceRoot: string;

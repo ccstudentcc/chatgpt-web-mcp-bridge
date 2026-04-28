@@ -6,22 +6,23 @@ import {
   createPolicyDeniedAuditEvent
 } from '../audit-log/index.js';
 import {
-  createBatchResultEnvelope,
   createExecuteRequestFromToolCallRequest,
   createExecuteResponse,
-  createExecutionErrorEnvelopeFromLegacyResponse,
-  createInlineToolResultEnvelopeFromLegacyResponse,
-  type BatchResultItem,
   type ExecuteRequest,
   type ExecuteResponse,
-  type RiskLevel,
   type ToolCallFailure,
   type ToolCallLiveResponse,
   type ToolCallRequest,
-  type ToolCallSuccess,
-  type ToolDecision
-} from '@cwmb/protocol';
-import { AppError, truncateText } from '@cwmb/shared';
+  type ToolCallSuccess
+} from '@cwmb/tool-contracts';
+import type { ToolDecision } from '@cwmb/policy-model';
+import {
+  createBatchResultEnvelope,
+  createExecutionErrorEnvelopeFromLegacyResponse,
+  createInlineToolResultEnvelopeFromLegacyResponse,
+  type BatchResultItem
+} from '@cwmb/result-model';
+import { AppError, truncateText, type RiskLevel } from '@cwmb/shared-utils';
 import type { GatewayConfig } from '../config.js';
 import type { Logger } from '../logger.js';
 import { assessToolCall, createFailureDecision, createSuccessDecision } from '../tool-policy/index.js';

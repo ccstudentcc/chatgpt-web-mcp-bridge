@@ -1,4 +1,5 @@
-import type { RiskLevel, ToolDescriptor } from '@cwmb/protocol';
+import type { RiskLevel } from '@cwmb/shared-utils';
+import type { ToolDescriptor } from '@cwmb/tool-contracts';
 
 export interface PendingToolBlockLike {
   block: {

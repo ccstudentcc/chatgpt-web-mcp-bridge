@@ -1,8 +1,8 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { TOKEN_HEADER } from '@cwmb/protocol';
-import { AppError } from '@cwmb/shared';
+import { TOKEN_HEADER } from '@cwmb/tool-contracts';
+import { AppError } from '@cwmb/shared-utils';
 import { appHome } from '../config.js';
 
 export const tokenPath = path.join(appHome, 'token');

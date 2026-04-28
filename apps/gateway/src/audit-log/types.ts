@@ -3,10 +3,9 @@ import type {
   ExecutionProfile,
   OperatorIntent,
   PolicyAction,
-  RequestInjectionContext,
-  RiskLevel,
-  TurnSource
-} from '@cwmb/protocol';
+  RiskLevel
+} from '@cwmb/shared-utils';
+import type { RequestInjectionContext, TurnSource } from '@cwmb/turn-model';
 
 export interface AuditRequestContext {
   requestId: string;

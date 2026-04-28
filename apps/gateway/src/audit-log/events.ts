@@ -1,10 +1,10 @@
 import {
-  createExecutionErrorEnvelopeFromLegacyResponse,
   type ExecuteRequest,
   type ToolCallFailure,
-  type ToolCallSuccess,
-  type ToolDecision
-} from '@cwmb/protocol';
+  type ToolCallSuccess
+} from '@cwmb/tool-contracts';
+import type { ToolDecision } from '@cwmb/policy-model';
+import { createExecutionErrorEnvelopeFromLegacyResponse } from '@cwmb/result-model';
 import type { AuditCallContext, AuditLogEntry, AuditRequestContext } from './types.js';
 import { summarizeAuditArgs, summarizeAuditResult } from './summary.js';
 

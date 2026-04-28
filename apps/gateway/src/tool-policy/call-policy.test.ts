@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { describe, expect, it } from 'vitest';
-import type { ExecuteRequest } from '@cwmb/protocol';
+import type { ExecuteRequest } from '@cwmb/tool-contracts';
 import type { LocalTool } from '../tools/index.js';
 import { assessToolCall, assertWriteEnabled, createFailureDecision, createSuccessDecision } from './call-policy.js';
 

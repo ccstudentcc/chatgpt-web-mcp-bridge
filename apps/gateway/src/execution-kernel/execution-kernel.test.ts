@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { describe, expect, it, vi } from 'vitest';
-import type { ExecuteRequest } from '@cwmb/protocol';
-import { AppError } from '@cwmb/shared';
+import type { ExecuteRequest } from '@cwmb/tool-contracts';
+import { AppError } from '@cwmb/shared-utils';
 import type { GatewayConfig } from '../config.js';
 import type { Logger } from '../logger.js';
 import { createExecutionKernel } from './execution-kernel.js';

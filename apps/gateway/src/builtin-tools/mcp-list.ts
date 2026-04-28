@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { CatalogToolDescriptor } from '@cwmb/protocol';
+import type { CatalogToolDescriptor } from '@cwmb/tool-contracts';
 import type { LocalTool } from '../tools/index.js';
 import type { MaterializeCatalogOptions } from '../tool-registry/catalog.js';
 

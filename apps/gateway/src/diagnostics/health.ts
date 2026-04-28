@@ -1,4 +1,5 @@
-import type { GatewayHealthContract, GatewayShellInfo } from '@cwmb/protocol';
+import type { GatewayHealthContract } from '@cwmb/tool-contracts';
+import type { GatewayShellInfo } from '@cwmb/shared-utils';
 import type { GatewayConfig } from '../config.js';
 import { detectShell } from '../shell-runtime/index.js';
 

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AppError } from '@cwmb/shared';
+import { AppError } from '@cwmb/shared-utils';
 import type { LocalTool } from '../tools/index.js';
 
 const WriteFileProposalArgsSchema = z.object({

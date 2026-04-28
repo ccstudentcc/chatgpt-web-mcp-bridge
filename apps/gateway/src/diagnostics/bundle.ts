@@ -1,4 +1,4 @@
-import type { GatewayHealthContract } from '@cwmb/protocol';
+import type { GatewayHealthContract } from '@cwmb/tool-contracts';
 import type { GatewayConfig } from '../config.js';
 import { appHome, resolveConfigPath } from '../config.js';
 import { readAuditLogEntries, resolveAuditLogsDir, summarizeAuditLogEntries } from '../audit-log/index.js';

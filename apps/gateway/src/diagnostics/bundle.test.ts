@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { GatewayHealthContract } from '@cwmb/protocol';
+import type { GatewayHealthContract } from '@cwmb/tool-contracts';
 import type { AuditLogEntry } from '../audit-log/index.js';
 import type { GatewayConfig } from '../config.js';
 import { createGatewayDiagnosticsBundle } from './bundle.js';

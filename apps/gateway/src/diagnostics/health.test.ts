@@ -1,4 +1,4 @@
-import { GatewayHealthContractSchema } from '@cwmb/protocol';
+import { GatewayHealthContractSchema } from '@cwmb/tool-contracts';
 import { describe, expect, it } from 'vitest';
 import type { GatewayConfig } from '../config.js';
 import { createGatewayHealthSnapshot } from './health.js';

@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { DEFAULT_GATEWAY_HOST, DEFAULT_GATEWAY_PORT } from '@cwmb/protocol';
+import { DEFAULT_GATEWAY_HOST, DEFAULT_GATEWAY_PORT } from '@cwmb/tool-contracts';
 import { DEFAULT_SHELL, normalizeConfiguredShell, type SupportedShell } from './shell-runtime/index.js';
 
 export interface GatewayConfig {

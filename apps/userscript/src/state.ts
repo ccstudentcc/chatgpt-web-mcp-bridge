@@ -1,4 +1,4 @@
-import type { CatalogSource, GatewayHealthContract, GatewayRuntimeSnapshot } from '@cwmb/protocol';
+import type { CatalogSource, GatewayHealthContract, GatewayRuntimeSnapshot } from '@cwmb/tool-contracts';
 import type { ParsedMcpBlock } from './parser.js';
 import type { DeliveryRecoveryNotice } from './result-delivery.js';
 import { normalizeChatGptConversationPath } from './chatgpt-runtime-facts.js';

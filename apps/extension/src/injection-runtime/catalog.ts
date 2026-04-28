@@ -1,4 +1,4 @@
-import type { CatalogContract, CatalogSource, ToolDescriptor } from '@cwmb/protocol';
+import type { CatalogContract, CatalogSource, ToolDescriptor } from '@cwmb/tool-contracts';
 import type { RequestInjectionMode, RequestPromptSnapshot } from './request-injection-state.js';
 
 export interface ToolCatalogSummary {

@@ -1,4 +1,4 @@
-import type { CatalogSource } from '@cwmb/protocol';
+import type { CatalogSource } from '@cwmb/tool-contracts';
 import { chatgptConversationPaths, chatgptRequestPromptAttributes } from './chatgpt-runtime-facts.js';
 import {
   createEmptyRequestPromptSnapshot,

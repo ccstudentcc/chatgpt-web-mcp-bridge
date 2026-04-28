@@ -1,4 +1,4 @@
-import type { GatewayHealthContract } from '@cwmb/protocol';
+import type { GatewayHealthContract } from '@cwmb/tool-contracts';
 import type { AuditLogSummary } from '../audit-log/index.js';
 import type { SupportedShell } from '../shell-runtime/index.js';
 

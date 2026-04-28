@@ -1,5 +1,5 @@
 {
-  "name": "@cwmb/shared",
+  "name": "@cwmb/shared-utils",
   "version": "0.1.0",
   "type": "module",
   "main": "dist/index.js",
@@ -8,5 +8,8 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
   }
 }

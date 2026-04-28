@@ -10,7 +10,7 @@ import {
   type ToolCallLiveSuccess,
   type ToolCallRequest,
   type ToolDescriptor
-} from '@cwmb/protocol';
+} from '@cwmb/tool-contracts';
 import { state } from './state.js';
 
 export async function health(): Promise<GatewayHealthContract> {

@@ -1,4 +1,4 @@
-import { truncateText, type TruncateResult } from '@cwmb/shared';
+import { truncateText, type TruncateResult } from '@cwmb/shared-utils';
 import type { CapturedShellOutput, CapturedShellStream } from './types.js';
 
 export function shapeCapturedShellOutput(stdout: string, stderr: string, maxChars: number): CapturedShellOutput {
