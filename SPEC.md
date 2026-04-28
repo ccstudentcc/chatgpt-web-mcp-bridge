@@ -8,7 +8,7 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage, the Stage 8 `result-delivery` module stage, the Stage 9 `injection-runtime` module stage, the Stage 10 `operator-panel` module stage, the Stage 11 `execution-kernel` module stage, the Stage 12 `tool-registry` module stage, the Stage 13 `tool-policy` module stage, the Stage 14 `builtin-tools` module stage, the Stage 15 `shell-runtime` module stage, the Stage 16 `audit-log` module stage, and the Stage 17 `diagnostics` module stage are now complete. The declared Phase 2 Final Core extraction sequence is therefore complete, and no new active module stage is selected in this file yet.
+Phase 1 shared-contract freeze is complete. Stages 7—17 (the Final Core extraction sequence: `turn-runtime`, `result-delivery`, `injection-runtime`, `operator-panel`, `execution-kernel`, `tool-registry`, `tool-policy`, `builtin-tools`, `shell-runtime`, `audit-log`, `diagnostics`) are now complete. Stages 18—21 (the target-structure completion sequence: `package-domain-extraction`, `extension-structure`, `gateway-structure`, `remove-compat-layers`) are defined and planned but not yet active. No new active module stage is selected in this file yet — the next gate will be Stage 18.
 
 Phase 2 exists so the repo can finish `apps/extension` and `apps/gateway` one module at a time, keeping each stage narrow enough to improve ownership, timing, logic, stability, and test coverage without reopening multiple modules at once.
 
@@ -33,6 +33,10 @@ Declared Phase 2 module order:
 9. `shell-runtime`
 10. `audit-log`
 11. `diagnostics`
+12. `package-domain-extraction`
+13. `extension-structure`
+14. `gateway-structure`
+15. `remove-compat-layers`
 
 ## Phase 2 Program Contract
 
@@ -82,7 +86,9 @@ Exit gate for any Phase 2 stage:
 
 ## Current Stage State
 
-Active module stage: none. The most recently closed stage is `diagnostics` on April 28, 2026.
+Active module stage: none. The most recently closed stage is `diagnostics` (Stage 17) on April 28, 2026. The next planned stage is `package-domain-extraction` (Stage 18).
+
+Stages 18-21 are defined in `IMPLEMENTATION_PLAN.md` with full owner surfaces, constraints, validation, and definitions of done. Their activation gate requires an explicit declaration in this file and `TASK_STATUS.md` before code work begins.
 
 Most recently completed module-stage file surfaces:
 
@@ -125,6 +131,11 @@ Most recently completed stage intent:
 - Keep userscript-side consumption on thin compatibility wiring only where the current live baseline still requires it during migration.
 - Keep `docs/operations/chatgpt-web-runtime-evidence.md` as the only allowed repository source for ChatGPT Web DOM/request-shape/selectors evidence.
 - Update root task-control docs whenever the active v0.9 slice, gate, validation rule, or sequencing truth changes.
+- **Stages 18—21 extend Phase 2 to complete the target structure:**
+  - Split `packages/protocol/` into domain packages (`turn-model`, `tool-contracts`, `policy-model`, `result-model`), rename `shared/` to `shared-utils/`, create `test-fixtures/`, and delete `protocol/` (Stage 18).
+  - Complete the Chrome Extension shell with manifest v3, background service worker, content script, and `main/` composition root, making `apps/extension/` the primary browser runtime (Stage 19).
+  - Complete the gateway module layout: `api/` (replacing `routes/`), `proposal-engine/` (typed interface + stub), `external-mcp/` (typed interface + stub), `result-cache/` (typed interface + in-memory impl), and `main/` composition root (Stage 20).
+  - Delete all compat re-exports (`routes/`, `tools/`, `security/`, `shell/`, `utils/`) and archive `apps/userscript/` as a legacy reference, leaving the target structure as the only structure (Stage 21).
 
 ## Out Of Scope
 
@@ -133,12 +144,10 @@ Most recently completed stage intent:
 - Breaking the current userscript + gateway baseline without an explicit migration and re-verification plan.
 - Opening more than one primary module stage in the same round.
 - Broad capability rollout such as:
-  - full proposal workflow
+  - full proposal workflow (structural `proposal-engine/` stub with typed interfaces is in scope via Stage 20; full workflow implementation with reviewed/yolo/mode-aware lifecycle is not)
   - `reviewed` / `yolo` execution rollout
   - `run_pwsh` shipping as general product scope
-  - external/custom MCP rollout
-  - extension-first shell migration
-- Major gateway execution-kernel extraction before the program reaches the declared gateway stages.
+  - external/custom MCP rollout (structural `external-mcp/` stub with typed interfaces is in scope via Stage 20; full MCP connection lifecycle and proxying is not)
 - Panel feature expansion unrelated to extraction.
 - DOM-heavy runtime rewrites based on unrecorded or scattered page observations.
 - Multi-platform browser AI support.
@@ -164,6 +173,10 @@ Most recently completed stage intent:
   - startup/history rescan
   - execute / insert / send runtime semantics
 - Phase 2 must keep converging runtime ownership into `apps/extension` and `apps/gateway`; it must not reframe `apps/userscript` as the intended final shell, product surface, or default landing zone for new long-term behavior.
+- Stage 19 must produce a real, installable Chrome Extension (manifest v3, service worker, content script) that fully owns the browser runtime; Stage 21 must archive `apps/userscript/` as a legacy reference, removed from the workspace.
+- Stage 18 must delete `packages/protocol/` and rename `packages/shared/` to `packages/shared-utils/` — no facade re-exports, no transitional package aliases.
+- Stage 20 must deliver `proposal-engine/` and `external-mcp/` as typed interfaces plus stubs only — capability rollout remains deferred to later phases.
+- Stage 21 must not delete any file that still owns unique runtime behavior — if a compat file contains logic not yet migrated, stop and complete the migration first.
 - ChatGPT Web DOM/request-shape facts must be recorded in `docs/operations/chatgpt-web-runtime-evidence.md` rather than duplicated across multiple docs.
 - If the active stage needs new page facts, the curated owner remains `apps/extension/src/chatgpt-adapter/*`; the stage must not mint a second page-facts source of truth.
 - Parser-level turn normalization must converge into `apps/extension/src/turn-runtime/*` rather than remaining a long-term truth source inside `apps/userscript/src/parser.ts`.

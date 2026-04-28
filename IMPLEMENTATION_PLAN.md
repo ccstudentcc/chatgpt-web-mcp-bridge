@@ -159,8 +159,12 @@ Declared module order:
 9. `shell-runtime`
 10. `audit-log`
 11. `diagnostics`
+12. `package-domain-extraction`
+13. `extension-structure`
+14. `gateway-structure`
+15. `remove-compat-layers`
 
-Why this order:
+Why this order (items 1-11):
 
 - `turn-runtime` first because the current assistant-turn normalization, invalid-turn handling, duplicate guard, and startup/history rescan semantics still shape the rest of the browser runtime.
 - `result-delivery` second because delivery must consume a stable normalized-turn and result-envelope path before injection and panel cleanup can stay narrow.
@@ -173,6 +177,13 @@ Why this order:
 - `audit-log` follows execution, policy, and shell ownership so audit events can describe stable concepts instead of moving targets.
 - `diagnostics` comes last because it must aggregate the real final-core truths rather than freezing interim wiring.
 
+Why this order (items 12-15):
+
+- `package-domain-extraction` first among the new stages because the domain model packages (`turn-model`, `tool-contracts`, `policy-model`, `result-model`, `shared-utils`, `test-fixtures`) must stabilize before extension and gateway restructure their boundaries around them. Deleting `packages/protocol/` and updating all consumer imports is a single atomic operation that cannot be split across stages without leaving the build broken.
+- `extension-structure` second because completing the Chrome Extension shell with a real manifest v3, background service worker, content script entrypoint, and `main/` composition root is a prerequisite for removing the userscript — the browser runtime must have a verified replacement before the old shell is archived.
+- `gateway-structure` third because the gateway can complete its final module layout (`api/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, `main/`) once the shared packages are stable, and the gateway does not depend on the extension shell being complete.
+- `remove-compat-layers` last because all compat re-exports in `apps/gateway/src/routes/`, `tools/`, `security/`, `shell/`, `utils/` and the entire `apps/userscript/` package can only be deleted after every consumer has been migrated to the proper owners — this stage is the final cleanup that confirms the target structure is the only structure.
+
 Resequencing rule:
 
 - resequence only when the active module reveals a hard dependency that would materially improve stability or validation order
@@ -180,7 +191,7 @@ Resequencing rule:
 
 ## Phase 2 Stage Execution Rules
 
-These rules apply to every Stage 7 through Stage 17 slice:
+These rules apply to every Stage 7 through Stage 21 slice:
 
 - The active stage owns one target module plus only the supporting seams needed to land it safely.
 - Supporting seams may include:
@@ -862,10 +873,250 @@ Completed on April 28, 2026:
 - `pnpm --filter @cwmb/gateway lint`, targeted diagnostics tests, `pnpm --filter @cwmb/gateway test`, `pnpm --filter @cwmb/gateway build`, and root `pnpm lint`, `pnpm test`, `pnpm build` succeeded again after the owner shift.
 - no userscript-side regression rerun or browser-to-gateway validation was required to close this stage because the change did not alter the live `/health` floor or any browser-runtime timing/DOM behavior.
 
+## Stage 18: Execute Module Stage - Package Domain Extraction
+
+Status: planned
+
+Goal:
+
+- split `packages/protocol/` into focused domain packages (`turn-model`, `tool-contracts`, `policy-model`, `result-model`), rename `packages/shared/` to `packages/shared-utils/`, create `packages/test-fixtures/`, and delete the old `protocol/` package
+
+Target owner surfaces:
+
+- `packages/turn-model/*` — TurnContext and MCP turn analysis types extracted from protocol
+- `packages/tool-contracts/*` — ToolDescriptor, ExecuteRequest, ExecuteResponse extracted from protocol
+- `packages/policy-model/*` — PolicyDecision, ToolAssessment extracted from protocol
+- `packages/result-model/*` — ResultEnvelope, BatchResult, inline/error result shapes extracted from protocol
+- `packages/shared-utils/*` — renamed from `packages/shared/`: errors, redaction, truncation, plus cross-domain shared types formerly in protocol (e.g. anything used by multiple domain packages)
+- `packages/test-fixtures/*` — shared test data, factory helpers, mock builders for all domain types
+
+Expected current source and compat surfaces:
+
+- `packages/protocol/src/*` — all current protocol exports
+- `packages/shared/src/*` — all current shared exports
+- Every import of `@cwmb/protocol` across `apps/extension/`, `apps/gateway/`, `apps/userscript/`, and other workspace packages
+
+Optimization targets:
+
+- give each domain concept (turn, tool contract, policy, result) its own package so boundaries are visible at the dependency level
+- eliminate the catch-all "protocol" concept that mixes transport shapes with domain models
+- make `shared-utils` a true utility layer rather than a second dumping ground
+- create `test-fixtures` so downstream stages and future work can write tests against shared factory helpers instead of reconstructing test data per app
+
+Stage constraints:
+
+- do not change any runtime behavior, type semantics, or API contract shapes — this stage is purely structural (move types, rename packages, update imports)
+- do not open extension or gateway module extraction while this stage is active
+- do not add new types, fields, or capabilities beyond what is mechanically required to complete the split
+- cross-domain shared types (used by 2+ domain packages) go into `shared-utils/`, not into one domain package that others must depend on
+- `test-fixtures/` may import from all domain packages and `shared-utils/`, but no domain package may depend on `test-fixtures/`
+
+Required validation:
+
+- every new package builds independently (`pnpm --filter <pkg> build`)
+- every new package has a minimal `index.ts` that re-exports its public surface
+- all consumer imports across extension, gateway, and userscript are updated to point to the correct domain package
+- `packages/protocol/` is deleted from the workspace and `pnpm-workspace.yaml`
+- root `pnpm lint`, `pnpm test`, and `pnpm build` pass with zero `@cwmb/protocol` references remaining
+
+Definition of done:
+
+- domain types live in exactly one obvious package rather than spread across a catch-all `protocol/`
+- no file in the repo imports `@cwmb/protocol`
+- `packages/shared/` is renamed to `packages/shared-utils/` and its package.json name is `@cwmb/shared-utils`
+- `packages/test-fixtures/` exists with at least factory helpers for the three most-used domain types
+- every workspace package.json that previously depended on `@cwmb/protocol` now depends only on the specific domain packages it actually uses
+- root verification passes without compat workarounds
+
+## Stage 19: Execute Module Stage - Extension Structure
+
+Status: planned
+
+Goal:
+
+- complete the Chrome Extension shell so `apps/extension/` is a real, installable extension that fully owns the browser runtime — replacing the userscript as the primary browser app
+
+Target owner surfaces:
+
+- `apps/extension/src/extension-shell/` — Chrome Extension manifest v3, background service worker (lifecycle management, alive ping, runtime messaging hub), content script entrypoint (injection trigger, page-actor bootstrap)
+- `apps/extension/src/main/` — composition root that wires `chatgpt-adapter`, `injection-runtime`, `turn-runtime`, `result-delivery`, and `operator-panel` into a single extension-runtime lifecycle (startup, injection, turn polling, execution, delivery, panel updates)
+
+Expected current source and compat surfaces:
+
+- `apps/userscript/src/chatgpt-mcp-bridge.user.ts` — current runtime orchestration that must be ported to extension-owned `main/`
+- `apps/userscript/src/dom.ts`, `selectors.ts` — DOM interaction primitives that the extension content script must provide
+- `apps/userscript/src/ui.ts` — operator panel rendering that must be adapted for extension shadow-DOM isolation
+- `apps/extension/src/chatgpt-adapter/` — already the owner for page facts; extension shell will consume it directly
+- `apps/extension/src/injection-runtime/` — already the owner for catalog injection; extension shell will install it via content script
+- `apps/extension/src/turn-runtime/` — already the owner for turn analysis; extension shell will drive its polling lifecycle
+- `apps/extension/src/result-delivery/` — already the owner for delivery semantics; extension shell will connect it to the page DOM
+- `apps/extension/src/operator-panel/` — already the owner for panel state; extension shell will mount it in an isolated DOM context
+- `docs/operations/chatgpt-web-runtime-evidence.md`
+
+Optimization targets:
+
+- replace the userscript's Greasemonkey-style injection lifecycle with a proper Chrome Extension service-worker + content-script model
+- make the extension's startup, injection timing, turn polling, execution dispatch, and panel rendering explicit in one composition root (`main/`)
+- preserve all current live runtime behavior (hidden injection, invalid-turn enforcement, startup/history rescan, execute/insert/send) while changing who owns the orchestration loop
+- isolate DOM interaction behind the content script boundary so the rest of the extension does not depend on Greasemonkey APIs
+
+Stage constraints:
+
+- do not change turn-runtime, injection-runtime, result-delivery, or operator-panel owner semantics — this stage wires them, it does not reopen their internal logic
+- do not open gateway-side work while this stage is active
+- do not change the live runtime contracts (`/health`, `/tools`, `/call-tool`, hidden injection, turn enforcement, rescan, execute/insert/send semantics)
+- the current userscript must remain buildable and functional until Stage 21 removes it — this stage adds the extension as a parallel runtime, not as an immediate replacement
+- do not introduce new capabilities (proposal workflow, reviewed/yolo, external MCP) through the extension shell
+
+Required validation:
+
+- `pnpm --filter @cwmb/extension lint`, `test`, and `build` pass
+- the extension loads in Chrome without manifest errors
+- the background service worker starts and logs a lifecycle ping
+- the content script injects into a target ChatGPT Web page and confirms DOM access
+- the existing userscript still builds and passes its tests (compat path preserved until Stage 21)
+- root `pnpm lint`, `pnpm test`, and `pnpm build` pass
+- real ChatGPT Web validation: hidden injection, turn detection, execution, and result delivery all function through the extension path
+
+Definition of done:
+
+- `apps/extension/` has a valid `manifest.json` (v3), a background service worker, and a content script entrypoint
+- `apps/extension/src/main/` is the single composition root that wires all extension-owned runtime modules
+- the extension can be loaded unpacked in Chrome and confirms alive status on a ChatGPT Web page
+- the current live runtime floor (injection, turn enforcement, rescan, execute/insert/send) is verified through the extension path on real ChatGPT Web
+- userscript still builds and works as a fallback until Stage 21
+
+## Stage 20: Execute Module Stage - Gateway Structure
+
+Status: planned
+
+Goal:
+
+- complete the gateway module layout by creating `api/` (replacing `routes/`), `proposal-engine/`, `external-mcp/`, `result-cache/`, and `main/` — with new modules delivered as typed interfaces plus stub implementations
+
+Target owner surfaces:
+
+- `apps/gateway/src/api/` — HTTP adapter layer: health, tools, and call-tool route handlers as thin validation + delegation adapters over the proper gateway owners; replaces `apps/gateway/src/routes/`
+- `apps/gateway/src/proposal-engine/` — typed interfaces for proposal lifecycle (Proposal, ProposalState, ProposalEngine), stub no-op implementation; this stage defines the contract, not the workflow rollout
+- `apps/gateway/src/external-mcp/` — typed interfaces for external MCP connection management (McpEndpoint, ExternalMcpRegistry), stub no-op implementation; this stage defines the contract, not the integration rollout
+- `apps/gateway/src/result-cache/` — typed interfaces for result caching (CacheKey, CacheEntry, ResultCache), stub in-memory implementation with TTL semantics; this stage defines the contract and a basic working cache
+- `apps/gateway/src/main/` — gateway composition root that wires `api/`, `execution-kernel/`, `tool-registry/`, `tool-policy/`, `builtin-tools/`, `shell-runtime/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, `audit-log/`, and `diagnostics/` into one server entrypoint; replaces the current `index.ts` / `server.ts` flat composition
+
+Expected current source and compat surfaces:
+
+- `apps/gateway/src/routes/*` — current route handlers to be replaced by `api/` adapters
+- `apps/gateway/src/index.ts` — current flat entrypoint to be replaced by `main/`
+- `apps/gateway/src/server.ts` — current server bootstrap to be consumed by `main/`
+- `packages/tool-contracts/` — domain package for tool descriptor types used by `proposal-engine/` and `external-mcp/` interfaces
+- `packages/policy-model/` — domain package for decision types used by `proposal-engine/` interfaces
+- `packages/result-model/` — domain package for result envelope types used by `result-cache/` interfaces
+
+Optimization targets:
+
+- make every gateway concern visible as a named module directory rather than hidden inside flat route or entrypoint files
+- give `proposal-engine/`, `external-mcp/`, and `result-cache/` stable typed interfaces so later phases can implement them without reopening module-boundary debates
+- replace the `routes/` directory — which has been a compat adapter layer since Stages 11-17 — with a properly named `api/` layer that owns HTTP adaptation
+- give the gateway a single composition root (`main/`) that makes dependency wiring explicit and testable
+
+Stage constraints:
+
+- `proposal-engine/` and `external-mcp/` must remain interface + stub only — this stage defines contracts, not capability rollout
+- `result-cache/` may include a basic in-memory implementation (TTL, max-size cap) but must not introduce persistent storage, distributed cache semantics, or a second source of execution truth
+- `api/` must delegate all execution, policy, registry, and diagnostics decisions to the proper owners — it is an HTTP adapter, not a second orchestration layer
+- do not open browser-runtime work while this stage is active
+- do not change the live runtime contracts (`/health`, `/tools`, `/call-tool`)
+- the current `routes/` directory and flat `index.ts` / `server.ts` entrypoints remain until Stage 21 removes them
+
+Required validation:
+
+- `pnpm --filter @cwmb/gateway lint`, `test`, and `build` pass
+- direct tests for `api/` adapters confirm they delegate to the correct owners
+- direct tests for `main/` confirm it starts a server with all modules wired
+- type-level tests for `proposal-engine/`, `external-mcp/`, and `result-cache/` confirm their interfaces are consumable
+- existing gateway owner tests (execution-kernel, tool-registry, tool-policy, builtin-tools, shell-runtime, audit-log, diagnostics) continue to pass
+- root `pnpm lint`, `pnpm test`, and `pnpm build` pass
+- at least one browser-to-gateway validation pass for the live `/health`, `/tools`, and `/call-tool` paths through the new `api/` adapters
+
+Definition of done:
+
+- `apps/gateway/src/api/` owns the HTTP adapter layer and all three live routes delegate through it to their proper owners
+- `apps/gateway/src/proposal-engine/` exports a typed `ProposalEngine` interface and a no-op stub
+- `apps/gateway/src/external-mcp/` exports a typed `ExternalMcpRegistry` interface and a no-op stub
+- `apps/gateway/src/result-cache/` exports a typed `ResultCache` interface and a working in-memory implementation
+- `apps/gateway/src/main/` is the single composition root that wires all gateway modules
+- the current `routes/`, `index.ts`, and `server.ts` remain as compat shells until Stage 21
+- root verification passes and live gateway paths are confirmed stable
+
+## Stage 21: Execute Module Stage - Remove All Compatibility Layers
+
+Status: planned
+
+Goal:
+
+- delete every compat re-export, adapter shell, and legacy directory that exists only to preserve the old structure — and archive `apps/userscript/` as a legacy reference
+
+Target owner surfaces:
+
+- (this stage deletes surfaces, not creates them)
+
+Expected current source and compat surfaces to be removed:
+
+- `apps/gateway/src/routes/*` — compat route adapters, replaced by `api/` since Stage 20
+- `apps/gateway/src/tools/*` — compat re-exports for builtin tools, all consumers now import from `builtin-tools/` directly
+- `apps/gateway/src/security/*` — compat re-exports for tool policy, all consumers now import from `tool-policy/` directly
+- `apps/gateway/src/shell/*` — compat re-exports for shell runtime, all consumers now import from `shell-runtime/` directly
+- `apps/gateway/src/utils/*` — compat re-exports for shared utilities, all consumers now import from `shared-utils/` or the appropriate domain package
+- `apps/userscript/*` — entire directory archived, removed from pnpm workspace
+- `apps/userscript/src/parser.ts` — compat wrapper for turn analysis
+- `apps/userscript/src/catalog.ts`, `catalog-cache.ts`, `request-injection-state.ts` — compat re-exports for injection-runtime
+- `apps/userscript/src/runtime-snapshot.ts`, `capabilities.ts` — compat re-exports for operator-panel
+- `apps/userscript/src/detection-state.ts`, `round-guard.ts`, `turn-runtime.ts` — compat consumers of turn-runtime
+- `apps/userscript/src/inserter.ts`, `preview.ts` — compat consumers of result-delivery
+- `apps/userscript/src/ui.ts` — compat panel render shell
+- `apps/userscript/src/state.ts` — compat state holder
+- `apps/userscript/src/chatgpt-mcp-bridge.user.ts` — former main userscript entrypoint
+- `apps/userscript/src/dom.ts`, `selectors.ts` — DOM helpers now owned by extension content script
+- Any remaining `@cwmb/protocol` references (should be zero after Stage 18)
+
+Optimization targets:
+
+- the target directory structure becomes the only directory structure — no compat re-exports, no legacy shells, no "temporary" adapters
+- gateway consumers import from exactly one obvious owner per concept
+- browser runtime consumers live exclusively in `apps/extension/`
+- `apps/userscript/` is archived with a README noting its legacy status, not kept as a buildable workspace member
+
+Stage constraints:
+
+- do not delete any file that still owns unique runtime behavior — if a compat file contains logic not yet migrated to the proper owner, stop and complete that migration first
+- do not change any runtime behavior, type semantics, or API contract — this stage only removes indirection
+- do not open new module extraction, capability work, or product-scope changes
+- the live runtime floor remains authoritative throughout
+
+Required validation:
+
+- root `pnpm lint`, `pnpm test`, and `pnpm build` pass with zero references to deleted paths
+- `pnpm-workspace.yaml` no longer lists `apps/userscript`
+- root `package.json` scripts no longer reference userscript
+- every import in the repo points to a proper long-term owner (no compat middlemen remain)
+- `git grep` for removed package names (`@cwmb/protocol`, `@cwmb/shared`, `@cwmb/userscript`) returns zero results
+- real ChatGPT Web validation confirms the extension-only browser runtime path is fully functional
+
+Definition of done:
+
+- `apps/gateway/src/routes/`, `tools/`, `security/`, `shell/`, and `utils/` directories no longer exist
+- `apps/userscript/` is archived (removed from workspace, README notes legacy status)
+- every gateway consumer imports from the module that owns the concept (`execution-kernel/`, `tool-registry/`, `tool-policy/`, `builtin-tools/`, `shell-runtime/`, `api/`, `audit-log/`, `diagnostics/`, `main/`)
+- every browser-runtime consumer lives under `apps/extension/`
+- the repo directory structure matches the v0.9 target architecture
+- root verification passes and live ChatGPT Web validation confirms the extension-only path
+
 ## Risks
 
 - The codebase still implements the proven userscript-first runtime, so the target docs remain ahead of the structure.
 - Hidden request-layer injection, invalid-turn enforcement, result delivery, and operator recovery are still real-page behaviors; browser-only regressions cannot be dismissed by passing unit tests alone.
-- Several target-state modules still do not yet exist as concrete directories, so future slices must create direct owner tests instead of relying only on route or monolith regressions.
+- Several target-state modules still do not yet exist as concrete directories (`extension-shell/`, `extension/main/`, `gateway/api/`, `gateway/proposal-engine/`, `gateway/external-mcp/`, `gateway/result-cache/`, `gateway/main/`, domain packages); Stages 18-21 must create direct owner tests instead of relying only on route or monolith regressions.
 - Follow-on work can still sprawl if a new slice is opened without first declaring its owner boundary and supporting seams in the task-control docs.
 - The repo still lacks browser-driven end-to-end automation, so major browser-runtime transitions will continue to depend on real ChatGPT Web manual verification.
+- Stage 18 (package-domain-extraction) is a high-risk atomic operation: splitting `protocol/` into 4 domain packages + renaming `shared/` + creating `test-fixtures` + updating every consumer import must succeed in one stage or the build breaks. The only valid intermediate state is "all imports updated and build passing."
+- Stage 19 (extension-structure) introduces a new browser-runtime entrypoint (Chrome Extension) while the existing userscript runtime must remain functional. Dual-runtime validation adds overhead until Stage 21 removes the userscript.
+- Stage 21 (remove-compat-layers) is the highest-risk deletion stage: if any compat file still carries unique runtime logic, deleting it will cause live-path regressions. Exhaustive pre-deletion verification is required.

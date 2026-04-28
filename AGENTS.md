@@ -16,11 +16,14 @@
   4. `SPEC.md`
   5. `IMPLEMENTATION_PLAN.md`
   6. `TASK_STATUS.md`
+- When working under `apps/extension`, `apps/gateway`, or `apps/userscript`, read the local `AGENTS.md` after this file and treat it as the subtree delta.
 
 ## Durable Workflow
 
 - When a change modifies the proven runtime baseline or validation floor, update `docs/prd.md` and sync the task-control docs in the same pass.
 - When a change modifies the active v0.9 product boundary, migration order, or target ownership, update the matching `docs/prd_vnext.md`, `docs/v0.9-entrypoint.md`, `docs/architecture/*`, `docs/protocols/*`, or `docs/operations/*` docs in the same pass, then sync the task-control docs.
+- When Stage 18-21 work changes package names, app structure, or compat-layer ownership, update the affected local `AGENTS.md` files in the same pass so subtree rules keep matching the live workspace layout.
+- After a Phase 2 stage closes, do not infer the next stage from the declared order alone. Treat `no active module stage` as a real stop state until `SPEC.md`, `IMPLEMENTATION_PLAN.md`, and `TASK_STATUS.md` explicitly activate the next stage.
 - Treat draft v0.9 docs and draft contract shapes as reference truth for direction, not as compatibility targets by themselves. Preserve or migrate the current live runtime baseline; do not spend compatibility budget on draft wording or draft-only fields unless task-control docs explicitly promote them into the live floor.
 - For any UI/UX design, redesign, visual polish, or operator-facing interface work, use the `ui-ux-pro-max` skill first. Start with its required `--design-system` workflow, and if the stack is not explicitly specified, default to the skill's `html-tailwind` guidance instead of improvising a design direction.
 - When the user authorizes sustained v0.9 progress with automatic commits, work on the corresponding phase mainline branch by default, currently `agent/v0.9-phase2-mainline` for Phase 2. Do not create per-stage branches unless the user explicitly asks for one, keep each commit scoped to one phase-aligned slice, and sync `TASK_STATUS.md` before every commit or session handoff.

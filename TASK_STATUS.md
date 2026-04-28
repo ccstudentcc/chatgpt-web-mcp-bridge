@@ -12,7 +12,7 @@
 - Phase 2 is now open as a module-by-module Final Core refactor program for completing `apps/extension` and `apps/gateway`.
 - Phase 2 execution rule is now explicit: one stage equals one module, and only one module stage may be active at a time.
 - Phase 2 may still use larger rewrites when they improve efficiency, timing, logic clarity, stability, or test coverage, but only inside the currently active module stage.
-- Phase 2 has now advanced through the full declared Stage 7-17 extraction sequence, including the gateway-side diagnostics owner shift.
+- Phase 2 has now advanced through the full declared Stage 7-17 extraction sequence, including the gateway-side diagnostics owner shift. Stages 18-21 (package-domain-extraction, extension-structure, gateway-structure, remove-compat-layers) are defined in `IMPLEMENTATION_PLAN.md` and `SPEC.md` but not yet active.
 - Stage 3 slice-definition work is complete; Stage 4 compat-preserving execution is complete on the same Phase 1 boundary.
 - Stage 5 execution-model definition is now complete, and the Phase 2 stage-definition pack is now explicit enough for execution: every declared module stage now has owner surfaces, supporting surfaces, optimization targets, validation expectations, and a definition of done in `IMPLEMENTATION_PLAN.md`.
 - Stage 6 module ordering and rationale are now also explicit; Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, 10 `operator-panel`, 11 `execution-kernel`, 12 `tool-registry`, 13 `tool-policy`, 14 `builtin-tools`, 15 `shell-runtime`, 16 `audit-log`, and 17 `diagnostics` are complete, and no new code-side extraction gate has been declared yet beyond that sequence.
@@ -191,7 +191,7 @@
 
 - Active program: Phase 2 module-by-module Final Core refactor
 - Battleground: Final Core
-- Primary axis: no active extraction gate; the declared Final Core Stage 7-17 sequence is closed and waiting for explicit resequencing before further module work opens
+- Primary axis: no active extraction gate; the declared Final Core Stage 7-17 sequence is closed. Stages 18-21 (package-domain-extraction, extension-structure, gateway-structure, remove-compat-layers) are defined and planned as the target-structure completion sequence; activation requires explicit declaration in `TASK_STATUS.md` before code work begins.
 - Active module stage: none. Most recently completed stage: `diagnostics`
 - Phase 1 completed implementation surfaces:
   - `packages/protocol/*`
@@ -204,17 +204,21 @@
   - `docs/protocols/*`
   - `docs/operations/chatgpt-web-runtime-evidence.md`
 - Phase 2 module order:
-  - `turn-runtime`
-  - `result-delivery`
-  - `injection-runtime`
-  - `operator-panel`
-  - `execution-kernel`
-  - `tool-registry`
-  - `tool-policy`
-  - `builtin-tools`
-  - `shell-runtime`
-  - `audit-log`
-  - `diagnostics`
+  - `turn-runtime` (Stage 7, complete)
+  - `result-delivery` (Stage 8, complete)
+  - `injection-runtime` (Stage 9, complete)
+  - `operator-panel` (Stage 10, complete)
+  - `execution-kernel` (Stage 11, complete)
+  - `tool-registry` (Stage 12, complete)
+  - `tool-policy` (Stage 13, complete)
+  - `builtin-tools` (Stage 14, complete)
+  - `shell-runtime` (Stage 15, complete)
+  - `audit-log` (Stage 16, complete)
+  - `diagnostics` (Stage 17, complete)
+  - `package-domain-extraction` (Stage 18, planned)
+  - `extension-structure` (Stage 19, planned)
+  - `gateway-structure` (Stage 20, planned)
+  - `remove-compat-layers` (Stage 21, planned)
 - Phase 2 stage-completion rubric now requires:
   - one explicit long-term owner for the active module
   - supporting seams kept translation-only
@@ -274,11 +278,16 @@
 - The Stage 14 `builtin-tools` module stage is now closed. Structured builtin implementations now route through `apps/gateway/src/builtin-tools/*`, while the current `apps/gateway/src/tools/*` and `apps/gateway/src/utils/find-rg.ts` files remain translation-only compat seams.
 - The Stage 16 `audit-log` module stage is now closed. Durable gateway audit truth now routes through explicit execution, policy, and lifecycle event owners plus redacted summaries under `apps/gateway/src/audit-log/*`, while the current kernel path consumes that owner directly without reopening diagnostics or panel formatting concerns.
 - The Stage 17 `diagnostics` module stage is now closed. Gateway health shaping, config-derived runtime facts, and redacted diagnostics bundle assembly now route through `apps/gateway/src/diagnostics/*`, while the current `/health` route remains a thin compat adapter and the public health floor stays stable.
-- Still explicitly not opened after closing the declared Stage 7-17 extraction sequence:
-  - extension-first shell migration
+- The following items are now planned as Stages 18-21 (full definitions in `IMPLEMENTATION_PLAN.md`) — they are not yet activated:
+  - Stage 18: package domain extraction (`turn-model`, `tool-contracts`, `policy-model`, `result-model`, `shared-utils` rename, `test-fixtures` creation, `protocol/` deletion)
+  - Stage 19: extension shell migration to full Chrome Extension (manifest v3, service worker, content script, `main/` composition root)
+  - Stage 20: gateway structure completion (`api/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, `main/`)
+  - Stage 21: removal of all compat layers (`routes/`, `tools/`, `security/`, `shell/`, `utils/`), archive `apps/userscript/`
+- Still explicitly out of scope until a later Phase:
   - `reviewed` / `yolo` rollout
-  - proposal workflow rollout
-  - external/custom MCP rollout
+  - full proposal workflow implementation (interface only in Stage 20)
+  - `run_pwsh` as shipped product scope
+  - external/custom MCP full implementation (interface only in Stage 20)
   - new browser-runtime behavior unrelated to keeping the live `/health` and `/call-tool` floors stable
   - broad panel redesign as a separate battleground
 
@@ -300,7 +309,7 @@
 
 - Use `docs/v0.9-entrypoint.md` first when deciding where new v0.9 truth belongs.
 - Use `docs/prd.md` only as the closed reference baseline for the current proven runtime.
-- Do not reopen Phase 1 implicitly. The declared Stage 7-17 Phase 2 extraction sequence is already complete; if follow-on work needs a new primary module or battleground, update the task-control docs first instead of assuming `diagnostics` is still open.
+- Do not reopen Phase 1 implicitly. The declared Stage 7-17 Phase 2 extraction sequence is already complete. Stages 18-21 (package-domain-extraction, extension-structure, gateway-structure, remove-compat-layers) are fully defined in `IMPLEMENTATION_PLAN.md` and `SPEC.md`; activate Stage 18 by declaring it explicitly in `TASK_STATUS.md` before starting code work.
 - If a change depends on ChatGPT Web DOM/request-shape/selectors facts, put the raw evidence in `docs/operations/chatgpt-web-runtime-evidence.md` instead of scattering it through task docs.
 - If code needs ChatGPT Web page facts, add or update them in `apps/extension/src/chatgpt-adapter/` first, then adapt current userscript consumers through compat wiring.
 - When a cleaner direct implementation exists in `apps/extension` or `apps/gateway`, prefer landing there over recreating new long-term logic in userscript-shaped files.

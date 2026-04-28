@@ -19,16 +19,17 @@ This migration guide follows the active v0.9 execution model defined in [v0.9-ta
 
 Current top-level implementation shape:
 
-- `apps/userscript`
-- `apps/gateway`
-- `packages/protocol`
-- `packages/shared`
+- `apps/extension` (runtime modules extracted in Stages 7-10, shell completion planned in Stage 19)
+- `apps/gateway` (execution, registry, policy, builtin, shell, audit, diagnostics modules extracted in Stages 11-17, structure completion planned in Stage 20)
+- `apps/userscript` (compat carrier, to be archived in Stage 21)
+- `packages/protocol` (to be split into domain packages and deleted in Stage 18)
+- `packages/shared` (to be renamed to `packages/shared-utils` in Stage 18)
 
 Important current facts:
 
-- Most real ChatGPT runtime knowledge still lives inside `apps/userscript/src/*`
-- Gateway is still structurally flat relative to the target execution-kernel split
-- Shared protocol and model layers are present, but too thin to carry the full target contract surface
+- Core runtime logic has been extracted from userscript into `apps/extension/src/*` modules (Stages 7-10), but the userscript still owns the runtime orchestration loop
+- Gateway is now fully modularized behind owner boundaries (Stages 11-17), but `routes/`, `tools/`, `security/`, `shell/`, and `utils/` still exist as compat re-exports
+- Shared protocol and model layers are present in `packages/protocol/` but too monolithic; domain package split is planned in Stage 18
 - The strongest currently verified behavior knowledge comes from real userscript runtime behavior, not from a future gateway abstraction
 
 ### 1.2 What Must Not Be Misread
@@ -37,9 +38,10 @@ The current implementation layout is not the target ownership map.
 
 In particular:
 
-- `apps/userscript` is the current implementation container, not the final product shell
-- `apps/gateway/src/server.ts` and `index.ts` are current composition roots, not proof that the flat gateway shape is desirable
-- `packages/shared` is a current utility bucket, not the intended final shared-model design
+- `apps/userscript` is the current implementation container, not the final product shell; it will be archived in Stage 21
+- `apps/gateway/src/server.ts` and `index.ts` are current composition roots, not proof that the flat gateway shape is desirable; they will be replaced by `main/` in Stage 20
+- `packages/protocol/` is a current catch-all, not the intended final domain-model design; it will be split into `turn-model`, `tool-contracts`, `policy-model`, and `result-model` in Stage 18
+- `packages/shared/` is a current utility bucket, not the intended final shared-utils design; it will be renamed in Stage 18
 
 ## 2. Target Reality
 
@@ -140,14 +142,17 @@ Current source of truth:
 
 Target ownership mapping:
 
-- HTTP route handling -> `apps/gateway/src/api/`
+- HTTP route handling -> `apps/gateway/src/api/` (replaces `routes/`, Stage 20)
 - execution orchestration -> `apps/gateway/src/execution-kernel/`
 - catalog materialization -> `apps/gateway/src/tool-registry/`
 - decision making -> `apps/gateway/src/tool-policy/`
 - tool implementations -> `apps/gateway/src/builtin-tools/`
 - shell handling -> `apps/gateway/src/shell-runtime/`
 - audit and diagnostics -> `apps/gateway/src/audit-log/` and `apps/gateway/src/diagnostics/`
-- current `server.ts` and `index.ts` -> temporary composition roots only
+- proposal lifecycle contract -> `apps/gateway/src/proposal-engine/` (interface + stub, Stage 20)
+- external MCP connection contract -> `apps/gateway/src/external-mcp/` (interface + stub, Stage 20)
+- result caching -> `apps/gateway/src/result-cache/` (interface + in-memory impl, Stage 20)
+- composition root -> `apps/gateway/src/main/` (replaces `server.ts`/`index.ts`, Stage 20)
 
 ### 4.3 Shared Package Mapping
 
@@ -158,25 +163,35 @@ Current source of truth:
 
 Target ownership mapping:
 
-- extension/gateway transport contracts -> `packages/protocol`
-- turn normalization model -> `packages/turn-model`
-- policy-facing model -> `packages/policy-model`
-- result envelopes -> `packages/result-model`
-- low-level helpers only -> `packages/shared-utils`
+- extension/gateway transport contracts, execution shapes, result envelopes, turn context, policy decisions → domain packages (`packages/turn-model`, `packages/tool-contracts`, `packages/policy-model`, `packages/result-model`) replacing the former `packages/protocol/`
+- low-level helpers, cross-domain shared types → `packages/shared-utils` (renamed from `packages/shared`)
+- shared test data and factory helpers → `packages/test-fixtures`
 
 ## 5. Module Maturity Matrix
 
 | Module | Current reality | Target role | Current risk | Move priority |
 |---|---|---|---|---|
-| `chatgpt-adapter` | implicit and scattered in userscript | explicit extension module | DOM/runtime coupling | high |
-| `injection-runtime` | partial and mixed with catalog logic | explicit extension module | mixed concerns | high |
-| `turn-runtime` | real logic exists today | explicit extension module | likely to become a new god object | high |
-| `result-delivery` | partial and mixed with DOM/UI concerns | explicit extension module | insertion/runtime entanglement | high |
-| `execution-kernel` | mostly absent as a named layer | unique gateway orchestrator | high risk of overgrowth | high |
-| `tool-registry` | mostly absent as a named layer | catalog truth owner | easily mixed with policy | high |
-| `tool-policy` | only partial semantics exist today | explicit decision layer | rules can stay scattered | high |
-| `proposal-engine` | future-facing | extension ring capability | can distract from core | medium |
-| `external-mcp` | future-facing | extension ring capability | can overtake builtin focus | medium |
+| `chatgpt-adapter` | extracted owner (Stages 7-10) | explicit extension module | ownership clear | complete |
+| `injection-runtime` | extracted owner (Stage 9) | explicit extension module | ownership clear | complete |
+| `turn-runtime` | extracted owner (Stage 7) | explicit extension module | ownership clear | complete |
+| `result-delivery` | extracted owner (Stage 8) | explicit extension module | ownership clear | complete |
+| `operator-panel` | extracted owner (Stage 10) | explicit extension module | ownership clear | complete |
+| `execution-kernel` | extracted owner (Stage 11) | unique gateway orchestrator | ownership clear | complete |
+| `tool-registry` | extracted owner (Stage 12) | catalog truth owner | ownership clear | complete |
+| `tool-policy` | extracted owner (Stage 13) | explicit decision layer | ownership clear | complete |
+| `builtin-tools` | extracted owner (Stage 14) | builtin implementation owner | ownership clear | complete |
+| `shell-runtime` | extracted owner (Stage 15) | shell execution owner | ownership clear | complete |
+| `audit-log` | extracted owner (Stage 16) | audit truth owner | ownership clear | complete |
+| `diagnostics` | extracted owner (Stage 17) | read-only diagnostics owner | ownership clear | complete |
+| `extension-shell` | not yet created | Chrome Extension shell (Stage 19) | userscript still primary runtime | high |
+| `extension-main` | not yet created | composition root (Stage 19) | orchestration still in userscript | high |
+| `gateway-api` | exists as `routes/` compat layer | HTTP adapter (Stage 20) | compat layer still named `routes/` | medium |
+| `proposal-engine` | not yet created | typed interface + stub (Stage 20) | scope boundary clear (stub only) | low |
+| `external-mcp` | not yet created | typed interface + stub (Stage 20) | scope boundary clear (stub only) | low |
+| `result-cache` | not yet created | typed interface + in-memory impl (Stage 20) | scope boundary clear | low |
+| `gateway-main` | not yet created | composition root (Stage 20) | flat entrypoints still present | medium |
+| `domain-packages` | monolithic `protocol/` catch-all | split into 4 domain + shared-utils + test-fixtures (Stage 18) | catch-all obscures dependencies | high |
+| `compat-layers` | routes/tools/security/shell/utils still exist | deleted (Stage 21) | indirection and hidden ownership | high |
 
 ## 6. Ordered Migration Phases
 
@@ -225,25 +240,30 @@ Canonical sequencing rule:
 - Phase 2 is the one-module-at-a-time program defined in the root task-control docs.
 - Exact module order, active stage, validation gates, and definition of done live in `SPEC.md`, `IMPLEMENTATION_PLAN.md`, and `TASK_STATUS.md`.
 
-Current Phase 2 module order:
+Full Phase 2 module order (Stages 7-21, see root `IMPLEMENTATION_PLAN.md` and `SPEC.md` for active state):
 
-1. `turn-runtime`
-2. `result-delivery`
-3. `injection-runtime`
-4. `operator-panel`
-5. `execution-kernel`
-6. `tool-registry`
-7. `tool-policy`
-8. `builtin-tools`
-9. `shell-runtime`
-10. `audit-log`
-11. `diagnostics`
+1. `turn-runtime` (complete)
+2. `result-delivery` (complete)
+3. `injection-runtime` (complete)
+4. `operator-panel` (complete)
+5. `execution-kernel` (complete)
+6. `tool-registry` (complete)
+7. `tool-policy` (complete)
+8. `builtin-tools` (complete)
+9. `shell-runtime` (complete)
+10. `audit-log` (complete)
+11. `diagnostics` (complete)
+12. `package-domain-extraction` (planned) — split `protocol/` into domain packages, rename `shared/`, create `test-fixtures/`
+13. `extension-structure` (planned) — full Chrome Extension shell + `main/`, extension becomes primary browser runtime
+14. `gateway-structure` (planned) — `api/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, `main/`
+15. `remove-compat-layers` (planned) — delete all compat re-exports, archive `apps/userscript/`
 
 Goals:
 
 - create target extension and gateway ownership boundaries one module at a time
 - stop both browser and gateway runtime code from behaving like flat mixed-control surfaces
 - preserve the current live runtime floor while improving timing clarity, failure isolation, and direct testability inside the active module stage
+- (Stages 18-21) complete the target directory structure, eliminate the `packages/protocol/` catch-all, replace the userscript with a real Chrome Extension, and remove every compat re-export layer
 
 Allowed work:
 
@@ -252,22 +272,16 @@ Allowed work:
 - preserve current behavior while moving logic
 - improve timing clarity, failure isolation, and direct testability inside the active module stage
 - use narrow supporting seams only when they are required to finish the active module cleanly
+- (Stages 18-21) create typed interfaces and stubs for `proposal-engine/`, `external-mcp/`, and `result-cache/`; structural package splits and renames; archive `apps/userscript/`
 
 Forbidden work:
 
 - opening multiple primary module stages at once
 - treating all browser-runtime modules as one batch
-- treating gateway execution-kernel work as a later non-Phase-2 program
 - major product-scope expansion or new capability families
 - panel feature expansion unrelated to extraction
 - preserving userscript structure just for migration symmetry when a cleaner extension plus gateway path is available
-
-Exit criteria for each active Phase 2 stage:
-
-- the active stage's owner semantics are directly tested instead of only through the monolith or route shell
-- the stage does not reopen neighboring module stages implicitly
-- the proven live runtime baseline is not weakened by the ownership shift
-- matching consumer-side validation is rerun when the stage touches a still-live compatibility-floor route or browser-runtime path
+- (Stages 18-21) implementing full proposal workflow, external MCP lifecycle, or persistent result-cache beyond in-memory TTL semantics
 
 ### Phase 3: Introduce Mode-Aware Execution
 
@@ -406,15 +420,16 @@ Compat may not:
 
 ### 9.1 Deleting The Old Userscript Main Implementation
 
-The old userscript-centric primary implementation may only be removed once all of the following are true:
+The old userscript-centric primary implementation may only be removed once all of the following are true (target: Stage 21, with extension migration completing in Stage 19):
 
-- `apps/extension` is the primary browser app
+- `apps/extension` is the primary browser app (Stage 19: manifest v3, service worker, content script, `main/` composition root)
 - hidden injection works there
 - invalid-turn handling works there
 - startup rescan and duplicate guard work there
 - result insertion and auto-send work there
 - userscript no longer owns exclusive runtime behavior
 - manual acceptance has been updated to the extension-first flow
+- Stage 21 explicitly declares the removal gate and verifies no remaining consumers depend on userscript paths
 
 ### 9.2 Deleting Flat Gateway Entry Logic
 
