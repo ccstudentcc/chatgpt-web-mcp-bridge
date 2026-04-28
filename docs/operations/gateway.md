@@ -14,9 +14,12 @@ The gateway is the local execution kernel and contract host. It is not the ChatG
 The gateway owns:
 
 - the live route surface: `/health`, `/tools`, and `/call-tool`
+- the Stage 20 HTTP adapter owner under `apps/gateway/src/api/*`
+- the Stage 20 composition root under `apps/gateway/src/main/*`
 - materialized catalog truth for the current builtin tool set
 - builtin tool execution for the current shipped v0.1 tools
 - shell detection plus guarded `run_pwsh` runtime semantics under `apps/gateway/src/shell-runtime/*`
+- the Stage 20 structural contracts for proposal lifecycle, external MCP registry, and result caching under `apps/gateway/src/{proposal-engine,external-mcp,result-cache}/*`
 - structured execution, policy, and lifecycle audit truth under `apps/gateway/src/audit-log/*`
 - health snapshot creation, config-derived runtime facts, and redacted diagnostics bundle assembly under `apps/gateway/src/diagnostics/*`
 - localhost/origin/token/trusted-local access control
@@ -39,7 +42,7 @@ Current audit rule:
 - later diagnostics should aggregate these owner events instead of reverse-engineering route-local strings
 - diagnostics should read config, shell facts, and redacted audit summaries through their owners rather than assembling a second execution or policy control plane
 
-Target-state docs may assign proposal handling, external MCP lifecycle, or result-cache subsystems to the gateway in the future, but those are not current shipped gateway subsystems yet.
+Proposal workflow, external MCP lifecycle, and cached-result rollout are still not shipped gateway behaviors. Stage 20 only makes those module boundaries explicit in code so later phases can implement them without reopening ownership.
 
 ## 3. Current Live Routes And What They Mean
 

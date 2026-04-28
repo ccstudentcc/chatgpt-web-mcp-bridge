@@ -20,7 +20,7 @@ This migration guide follows the active v0.9 execution model defined in [v0.9-ta
 Current top-level implementation shape:
 
 - `apps/extension` (runtime modules extracted in Stages 7-10, real extension shell and `main/` composition root now active in Stage 19)
-- `apps/gateway` (execution, registry, policy, builtin, shell, audit, diagnostics modules extracted in Stages 11-17, structure completion planned in Stage 20)
+- `apps/gateway` (execution, registry, policy, builtin, shell, audit, diagnostics modules extracted in Stages 11-17, and the Stage 20 structure slice now landed in code through `api/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, and `main/`)
 - `apps/userscript` (compat carrier, to be archived in Stage 21)
 - `packages/protocol` (deleted in Stage 18 after the domain-package split)
 - `packages/shared` (renamed to `packages/shared-utils` in Stage 18)
@@ -28,7 +28,7 @@ Current top-level implementation shape:
 Important current facts:
 
 - Core runtime logic has been extracted from userscript into `apps/extension/src/*` modules (Stages 7-10), and Stage 19 now moves the primary runtime orchestration loop into `apps/extension/src/main/*` while userscript remains a fallback bootstrap.
-- Gateway is now fully modularized behind owner boundaries (Stages 11-17), but `routes/`, `tools/`, `security/`, `shell/`, and `utils/` still exist as compat re-exports
+- Gateway is now fully modularized behind owner boundaries: Stages 11-17 extracted execution, registry, policy, builtin, shell, audit, and diagnostics; Stage 20 now lands `api/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, and `main/` in code; `routes/`, `tools/`, `security/`, `shell/`, and `utils/` still exist as compat seams awaiting Stage 21 deletion
 - Shared protocol and model layers now live in the focused domain packages introduced by Stage 18 instead of the former monolithic `packages/protocol/`.
 - The strongest currently verified behavior knowledge comes from real userscript runtime behavior, not from a future gateway abstraction
 
@@ -39,7 +39,7 @@ The current implementation layout is not the target ownership map.
 In particular:
 
 - `apps/userscript` is the current implementation container, not the final product shell; it will be archived in Stage 21
-- `apps/gateway/src/server.ts` and `index.ts` are current composition roots, not proof that the flat gateway shape is desirable; they will be replaced by `main/` in Stage 20
+- `apps/gateway/src/server.ts` and `index.ts` are now compat entrypoints, not proof that the flat gateway shape is desirable; `apps/gateway/src/main/*` is the active composition root and the flat entrypoints remain only until Stage 21 deletes them
 - the former `packages/protocol/` catch-all is already gone; use `turn-model`, `tool-contracts`, `policy-model`, and `result-model`
 - the former `packages/shared/` bucket is already gone; use `packages/shared-utils`
 
@@ -185,11 +185,11 @@ Target ownership mapping:
 | `diagnostics` | extracted owner (Stage 17) | read-only diagnostics owner | ownership clear | complete |
 | `extension-shell` | active Stage 19 implementation | Chrome Extension shell (Stage 19) | dual-runtime verification still required until Stage 21 | high |
 | `extension-main` | active Stage 19 implementation | composition root (Stage 19) | userscript fallback still imports the same owner | high |
-| `gateway-api` | exists as `routes/` compat layer | HTTP adapter (Stage 20) | compat layer still named `routes/` | medium |
-| `proposal-engine` | not yet created | typed interface + stub (Stage 20) | scope boundary clear (stub only) | low |
-| `external-mcp` | not yet created | typed interface + stub (Stage 20) | scope boundary clear (stub only) | low |
-| `result-cache` | not yet created | typed interface + in-memory impl (Stage 20) | scope boundary clear | low |
-| `gateway-main` | not yet created | composition root (Stage 20) | flat entrypoints still present | medium |
+| `gateway-api` | active Stage 20 implementation | HTTP adapter (Stage 20) | live browser-to-gateway validation still pending before close | medium |
+| `proposal-engine` | active Stage 20 implementation | typed interface + stub (Stage 20) | scope boundary clear (stub only) | low |
+| `external-mcp` | active Stage 20 implementation | typed interface + stub (Stage 20) | scope boundary clear (stub only) | low |
+| `result-cache` | active Stage 20 implementation | typed interface + in-memory impl (Stage 20) | not yet exercised on the live route path | low |
+| `gateway-main` | active Stage 20 implementation | composition root (Stage 20) | compat entrypoints still present until Stage 21 | medium |
 | `domain-packages` | split and active after Stage 18 | 4 domain packages + shared-utils + test-fixtures | importer churn across apps still needs validation | medium |
 | `compat-layers` | routes/tools/security/shell/utils still exist | deleted (Stage 21) | indirection and hidden ownership | high |
 
@@ -254,8 +254,8 @@ Full Phase 2 module order (Stages 7-21, see root `IMPLEMENTATION_PLAN.md` and `S
 10. `audit-log` (complete)
 11. `diagnostics` (complete)
 12. `package-domain-extraction` (complete) — split `protocol/` into domain packages, rename `shared/`, create `test-fixtures/`
-13. `extension-structure` (active) — full Chrome Extension shell + `main/`, extension becomes primary browser runtime
-14. `gateway-structure` (planned) — `api/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, `main/`
+13. `extension-structure` (complete) — full Chrome Extension shell + `main/`, extension becomes primary browser runtime
+14. `gateway-structure` (active) — `api/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, `main/`
 15. `remove-compat-layers` (planned) — delete all compat re-exports, archive `apps/userscript/`
 
 Goals:
