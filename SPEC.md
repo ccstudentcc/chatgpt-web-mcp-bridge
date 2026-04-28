@@ -8,7 +8,7 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage, the Stage 8 `result-delivery` module stage, the Stage 9 `injection-runtime` module stage, the Stage 10 `operator-panel` module stage, the Stage 11 `execution-kernel` module stage, the Stage 12 `tool-registry` module stage, and the Stage 13 `tool-policy` module stage are now complete. Phase 2 remains a module-by-module Final Core refactor program, and the next active module stage is `builtin-tools`.
+Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage, the Stage 8 `result-delivery` module stage, the Stage 9 `injection-runtime` module stage, the Stage 10 `operator-panel` module stage, the Stage 11 `execution-kernel` module stage, the Stage 12 `tool-registry` module stage, the Stage 13 `tool-policy` module stage, and the Stage 14 `builtin-tools` module stage are now complete. Phase 2 remains a module-by-module Final Core refactor program, and the next active module stage is `shell-runtime`.
 
 Phase 2 exists so the repo can finish `apps/extension` and `apps/gateway` one module at a time, keeping each stage narrow enough to improve ownership, timing, logic, stability, and test coverage without reopening multiple modules at once.
 
@@ -82,31 +82,22 @@ Exit gate for any Phase 2 stage:
 
 ## Current Active Stage
 
-Active module stage: `builtin-tools`
+Active module stage: `shell-runtime`
 
 Current module-stage file surfaces:
 
-- `apps/gateway/src/builtin-tools/*`
-- `apps/gateway/src/tools/read-file.ts`
-- `apps/gateway/src/tools/read-file.test.ts`
-- `apps/gateway/src/tools/list-directory.ts`
-- `apps/gateway/src/tools/search-files.ts`
-- `apps/gateway/src/tools/search-files.test.ts`
-- `apps/gateway/src/tools/grep-files.ts`
-- `apps/gateway/src/tools/grep-files.test.ts`
-- `apps/gateway/src/tools/write-file.ts`
-- `apps/gateway/src/tools/write-file.test.ts`
-- `apps/gateway/src/tools/write-file-proposal.ts`
-- `apps/gateway/src/tools/mcp-list.ts`
-- `apps/gateway/src/tools/mcp-list.test.ts`
-- `apps/gateway/src/utils/find-rg.ts`
+- `apps/gateway/src/shell-runtime/*`
+- `apps/gateway/src/shell/detect-shell.ts`
+- `apps/gateway/src/tools/run-pwsh.ts`
+- `apps/gateway/src/config.ts`
+- `apps/gateway/src/config.test.ts`
 - the root task-control docs
 
 Current stage intent:
 
-- consolidate builtin tool implementations under `apps/gateway/src/builtin-tools/*` with cleaner shared execution conventions
-- separate tool implementation logic from route and orchestration concerns
-- reduce repeated filesystem and command-helper logic where a shared builtin-tools owner can keep it explicit
+- make `apps/gateway/src/shell-runtime/*` the single owner for shell detection, command guarding, `cwd` and environment shaping, timeout control, and captured shell outputs
+- isolate shell-specific timing and process rules from tool policy and builtin orchestration
+- keep shell behavior explicit enough to test before broader shell capability expansion
 
 ## In Scope
 

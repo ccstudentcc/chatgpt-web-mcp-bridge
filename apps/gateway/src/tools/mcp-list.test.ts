@@ -1,4 +1,4 @@
-import type { McpListResult } from './mcp-list.js';
+import type { McpListResult } from '../builtin-tools/mcp-list.js';
 import { describe, expect, it } from 'vitest';
 import type { GatewayConfig } from '../config.js';
 import { createGatewayToolRegistry } from '../tool-registry/index.js';

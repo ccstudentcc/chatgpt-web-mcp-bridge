@@ -630,7 +630,7 @@ Completed on April 28, 2026:
 
 ## Stage 14: Execute Module Stage - Builtin Tools
 
-Status: in progress
+Status: completed
 
 Goal:
 
@@ -682,9 +682,18 @@ Definition of done:
 - route, registry, and policy layers no longer carry builtin-only execution details
 - the builtin layer is cleaner without changing the current live tool behavior unexpectedly
 
+Completed on April 28, 2026:
+
+- `apps/gateway/src/builtin-tools/*` now owns the structured builtin implementations for `read_file`, `list_directory`, `search_files`, `grep_files`, `write_file`, `write_file_proposal`, and `mcp_list`, plus shared workspace-policy, workspace-search, binary-content, and `rg` helper seams.
+- `apps/gateway/src/tool-registry/registry.ts` now consumes one builtin-tools owner seam instead of assembling staged builtin implementations inline, while `run_pwsh` remains outside that owner boundary for the later `shell-runtime` stage.
+- `apps/gateway/src/tools/*` builtin files and `apps/gateway/src/utils/find-rg.ts` are now compat re-export seams rather than hidden owner locations for builtin execution logic.
+- direct gateway tests now cover every moved builtin tool, including newly added direct coverage for `list_directory` and the still-disabled `write_file_proposal` placeholder.
+- `pnpm --filter @cwmb/gateway lint`, `pnpm --filter @cwmb/gateway test`, `pnpm --filter @cwmb/gateway build`, and root `pnpm lint`, `pnpm test`, `pnpm build` succeeded again after the owner shift.
+- no new live browser validation was required to close this stage because the shipped `/tools` and `/call-tool` behavior stayed compat-stable; the change was ownership and gateway-local testability.
+
 ## Stage 15: Execute Module Stage - Shell Runtime
 
-Status: pending
+Status: in progress
 
 Goal:
 

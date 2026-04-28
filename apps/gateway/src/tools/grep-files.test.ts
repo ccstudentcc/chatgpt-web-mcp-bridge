@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { GatewayConfig } from '../config.js';
-import { grepFilesTool } from './grep-files.js';
+import { grepFilesTool } from '../builtin-tools/grep-files.js';
 
 const createdRoots: string[] = [];
 

@@ -9,15 +9,19 @@ import type { GatewayConfig } from '../config.js';
 const mockHasRg = vi.hoisted(() => vi.fn());
 const mockSpawn = vi.hoisted(() => vi.fn());
 
-vi.mock('../utils/find-rg.js', () => ({
-  hasRg: mockHasRg
-}));
+vi.mock('../builtin-tools/rg-runtime.js', async () => {
+  const actual = await vi.importActual<typeof import('../builtin-tools/rg-runtime.js')>('../builtin-tools/rg-runtime.js');
+  return {
+    ...actual,
+    hasRg: mockHasRg
+  };
+});
 
 vi.mock('node:child_process', () => ({
   spawn: mockSpawn
 }));
 
-import { searchFilesTool } from './search-files.js';
+import { searchFilesTool } from '../builtin-tools/search-files.js';
 
 const createdRoots: string[] = [];
 

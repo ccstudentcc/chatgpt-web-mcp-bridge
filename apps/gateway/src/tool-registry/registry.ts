@@ -1,14 +1,8 @@
 import type { CatalogContract, CatalogToolDescriptor, ToolSource } from '@cwmb/protocol';
 import type { GatewayConfig } from '../config.js';
+import { createBuiltinTools } from '../builtin-tools/index.js';
 import type { LocalTool } from '../tools/index.js';
-import { listDirectoryTool } from '../tools/list-directory.js';
-import { createMcpListTool } from '../tools/mcp-list.js';
-import { grepFilesTool } from '../tools/grep-files.js';
-import { readFileTool } from '../tools/read-file.js';
 import { runPwshTool } from '../tools/run-pwsh.js';
-import { searchFilesTool } from '../tools/search-files.js';
-import { writeFileProposalTool } from '../tools/write-file-proposal.js';
-import { writeFileTool } from '../tools/write-file.js';
 import { materializeCatalog, materializeCatalogTools, type MaterializeCatalogOptions, type ToolRegistryEntry } from './catalog.js';
 
 export interface GatewayToolRegistry {
@@ -19,13 +13,13 @@ export interface GatewayToolRegistry {
 }
 
 export function createGatewayToolRegistry(config: GatewayConfig): GatewayToolRegistry {
-  const baseEntries = createBuiltinEntries(config);
   let entries: ToolRegistryEntry[] = [];
-  const mcpListTool = createMcpListTool({
+  const builtinTools = createBuiltinTools(config, {
     getCatalogTools: (options) => materializeCatalogTools(entries, options)
   });
+  const baseEntries = createBuiltinEntries([...builtinTools, { ...runPwshTool, enabled: config.allowPwsh }]);
 
-  entries = [createRegistryEntry('builtin', mcpListTool), ...baseEntries];
+  entries = baseEntries;
   const tools = new Map(entries.map((entry) => [entry.name, entry.tool]));
 
   return {
@@ -36,18 +30,8 @@ export function createGatewayToolRegistry(config: GatewayConfig): GatewayToolReg
   };
 }
 
-function createBuiltinEntries(config: GatewayConfig): ToolRegistryEntry[] {
-  const builtinTools: LocalTool[] = [
-    readFileTool,
-    listDirectoryTool,
-    searchFilesTool,
-    grepFilesTool,
-    { ...writeFileTool, enabled: config.allowWrite },
-    writeFileProposalTool,
-    { ...runPwshTool, enabled: config.allowPwsh }
-  ];
-
-  return builtinTools.map((tool) => createRegistryEntry('builtin', tool));
+function createBuiltinEntries(tools: LocalTool[]): ToolRegistryEntry[] {
+  return tools.map((tool) => createRegistryEntry('builtin', tool));
 }
 
 function createRegistryEntry(source: ToolSource, tool: LocalTool): ToolRegistryEntry {
