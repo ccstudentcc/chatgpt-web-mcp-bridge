@@ -17,12 +17,18 @@ describe('/tools route', () => {
     expect(response.json()).toMatchObject({
       catalogVersion: 'phase1.shared-contract-freeze.v1',
       workspaceRoot: '/workspace',
+      generatedAt: expect.any(String),
       tools: expect.arrayContaining([
         expect.objectContaining({
           name: 'mcp_list',
           displayName: 'List MCP tools',
           source: 'builtin',
-          schemaId: 'builtin.mcp_list.v1'
+          schemaId: 'builtin.mcp_list.v1',
+          availability: {
+            legacy_auto: 'execute',
+            reviewed: 'execute',
+            yolo: 'execute'
+          }
         })
       ])
     });

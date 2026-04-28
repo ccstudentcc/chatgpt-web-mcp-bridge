@@ -1,24 +1,35 @@
 import type { McpListResult } from './mcp-list.js';
 import { describe, expect, it } from 'vitest';
 import type { GatewayConfig } from '../config.js';
-import { createToolRegistry } from './index.js';
+import { createGatewayToolRegistry } from '../tool-registry/index.js';
 
 describe('mcp_list tool', () => {
-  it('returns current tools with example arguments', async () => {
-    const registry = createToolRegistry(createConfig());
-    const tool = registry.get('mcp_list');
+  it('returns the same materialized descriptors as the live catalog owner', async () => {
+    const registry = createGatewayToolRegistry(createConfig());
+    const tool = registry.tools.get('mcp_list');
 
     expect(tool).toBeDefined();
     const result = await tool!.run({ includeDisabled: true }, { config: createConfig(), logger: createLogger() }) as McpListResult;
+    const liveCatalog = registry.materializeCatalog({ generatedAt: new Date('2026-04-28T00:00:00.000Z') });
 
-    expect(result.tools.some((item) => item.name === 'mcp_list')).toBe(true);
-    expect(result.tools.some((item) => item.name === 'read_file')).toBe(true);
-    expect(result.tools.some((item) => item.name === 'write_file')).toBe(true);
-    expect(result.tools.some((item) => item.name === 'run_pwsh')).toBe(true);
+    expect(result.tools).toEqual(liveCatalog.tools);
     expect(result.tools.find((item) => item.name === 'read_file')?.exampleArgs).toEqual({ path: 'README.md' });
     expect(result.total).toBe(8);
     expect(result.enabled).toBe(5);
     expect(result.disabled).toBe(3);
+  });
+
+  it('can omit disabled descriptors without changing enabled-state counts', async () => {
+    const registry = createGatewayToolRegistry(createConfig());
+    const tool = registry.tools.get('mcp_list');
+
+    const result = await tool!.run({ includeDisabled: false }, { config: createConfig(), logger: createLogger() }) as McpListResult;
+
+    expect(result.tools.every((item) => item.enabled)).toBe(true);
+    expect(result.tools.some((item) => item.name === 'write_file')).toBe(false);
+    expect(result.total).toBe(5);
+    expect(result.enabled).toBe(5);
+    expect(result.disabled).toBe(0);
   });
 });
 

@@ -140,6 +140,23 @@ describe('gateway-client', () => {
           workspaceRoot: '/workspace',
           tools: [
             {
+              name: 'mcp_list',
+              title: 'List MCP tools',
+              description: 'List the current gateway tools, including enabled state and example arguments.',
+              risk: 'low',
+              requiresConfirmation: false,
+              enabled: true,
+              exampleArgs: {},
+              displayName: 'List MCP tools',
+              source: 'builtin',
+              schemaId: 'builtin.mcp_list.v1',
+              availability: {
+                legacy_auto: 'execute',
+                reviewed: 'execute',
+                yolo: 'execute'
+              }
+            },
+            {
               name: 'read_file',
               title: 'Read File',
               description: 'Read a UTF-8 file under workspaceRoot.',
@@ -158,9 +175,25 @@ describe('gateway-client', () => {
     const { listCatalog, listTools } = await import('./gateway-client.js');
     await expect(listCatalog()).resolves.toMatchObject({
       catalogVersion: 'phase1.shared-contract-freeze.v1',
-      workspaceRoot: '/workspace'
+      workspaceRoot: '/workspace',
+      tools: [
+        expect.objectContaining({
+          name: 'mcp_list',
+          schemaId: 'builtin.mcp_list.v1',
+          availability: {
+            legacy_auto: 'execute',
+            reviewed: 'execute',
+            yolo: 'execute'
+          }
+        }),
+        expect.objectContaining({
+          name: 'read_file',
+          source: 'builtin'
+        })
+      ]
     });
     await expect(listTools()).resolves.toMatchObject([
+      { name: 'mcp_list', source: 'builtin' },
       { name: 'read_file', source: 'builtin' }
     ]);
   });

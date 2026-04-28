@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { CatalogToolDescriptor } from '@cwmb/protocol';
 import type { LocalTool } from './index.js';
+import type { MaterializeCatalogOptions } from '../tool-registry/catalog.js';
 
 const McpListArgsSchema = z.object({
   includeDisabled: z.boolean().default(true)
@@ -15,7 +16,11 @@ export interface McpListResult {
   disabled: number;
 }
 
-export function createMcpListTool(getTools: () => LocalTool[]): LocalTool<McpListArgs, McpListResult> {
+interface McpListCatalogSource {
+  getCatalogTools(options?: Pick<MaterializeCatalogOptions, 'includeDisabled'>): CatalogToolDescriptor[];
+}
+
+export function createMcpListTool(source: McpListCatalogSource): LocalTool<McpListArgs, McpListResult> {
   return {
     name: 'mcp_list',
     title: 'List MCP tools',
@@ -26,9 +31,7 @@ export function createMcpListTool(getTools: () => LocalTool[]): LocalTool<McpLis
     exampleArgs: {},
     argsSchema: McpListArgsSchema,
     async run(args) {
-      const tools = getTools()
-        .filter((tool) => args.includeDisabled || tool.enabled)
-        .map(toToolDescriptor);
+      const tools = source.getCatalogTools({ includeDisabled: args.includeDisabled });
 
       return {
         tools,
@@ -37,31 +40,5 @@ export function createMcpListTool(getTools: () => LocalTool[]): LocalTool<McpLis
         disabled: tools.filter((tool) => !tool.enabled).length
       };
     }
-  };
-}
-
-export function toToolDescriptor(tool: Pick<LocalTool, 'name' | 'title' | 'description' | 'risk' | 'requiresConfirmation' | 'enabled' | 'exampleArgs'>): CatalogToolDescriptor {
-  return {
-    name: tool.name,
-    title: tool.title,
-    displayName: tool.title,
-    description: tool.description,
-    source: 'builtin',
-    risk: tool.risk,
-    requiresConfirmation: tool.requiresConfirmation,
-    enabled: tool.enabled,
-    schemaId: `builtin.${tool.name}.v1`,
-    availability: tool.enabled
-      ? {
-          legacy_auto: tool.requiresConfirmation ? 'confirmation_required' : 'execute',
-          reviewed: tool.requiresConfirmation ? 'confirmation_required' : 'execute',
-          yolo: 'execute'
-        }
-      : {
-          legacy_auto: 'deny',
-          reviewed: 'deny',
-          yolo: 'deny'
-        },
-    exampleArgs: tool.exampleArgs
   };
 }
