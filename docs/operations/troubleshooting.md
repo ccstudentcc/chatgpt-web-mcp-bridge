@@ -15,7 +15,9 @@ Run these checks in order before diving into deeper theory:
 
 1. Confirm the gateway is reachable through `/health`.
 2. Confirm `/tools` returns the expected live catalog, including `mcp_list`.
-3. Check the userscript activity log to see whether the outgoing ChatGPT request was injected, raced the prompt bootstrap, or matched a body shape the hook did not patch.
+3. Check the active browser-runtime activity log:
+   - extension content-script panel.
+   Use it to see whether the outgoing ChatGPT request was injected, raced the prompt bootstrap, or matched a body shape the hook did not patch.
 4. Inspect the latest assistant turn shape:
    - no MCP block emitted,
    - valid MCP block emitted,
@@ -56,7 +58,7 @@ Then read:
 
 Check first:
 
-- userscript activity log for injection success vs prompt-not-ready race vs matched-but-unpatched request body
+- active browser-runtime activity log for injection success vs prompt-not-ready race vs matched-but-unpatched request body
 - whether the ask was a simple local-file request that should have triggered the hidden contract directly
 - whether the model fell back to unrelated native connectors instead of bridge tools
 
@@ -83,7 +85,9 @@ Check first:
 
 Current rule:
 
-- prose or reasoning mixed into the tool-call turn is a hard block
+- brief natural-language context before the first fenced `mcp` block is allowed
+- prose or reasoning mixed into the tool-call turn is a hard block once the first fenced `mcp` block has appeared
+- a short UI thinking/status residue before the first fenced `mcp` block is recoverable with a warning
 - a short UI thinking/status residue is recoverable with a warning
 - unfenced MCP-like JSON noise without prose is recoverable only if a valid fenced `mcp` block is already present
 
@@ -177,7 +181,7 @@ Stay in current-operation docs when the question is:
 
 Switch to [../v0.9-entrypoint.md](../v0.9-entrypoint.md) only when the question is:
 
-- where should a future extension/gateway split land,
+- where should the now-active extension/gateway split land next,
 - which target modules should own a capability later,
 - which active v0.9 slice should own the next implementation work.
 

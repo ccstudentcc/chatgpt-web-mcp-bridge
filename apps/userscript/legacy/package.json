@@ -1,0 +1,25 @@
+{
+  "name": "@cwmb/userscript",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/chatgpt-mcp-bridge.user.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build:deps": "pnpm --filter @cwmb/shared-utils build && pnpm --filter @cwmb/turn-model build && pnpm --filter @cwmb/result-model build && pnpm --filter @cwmb/tool-contracts build",
+    "dev": "tsx scripts/build.ts --watch",
+    "build": "pnpm run build:deps && tsx scripts/build.ts",
+    "test": "pnpm run build:deps && vitest run",
+    "lint": "pnpm run build:deps && tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@cwmb/result-model": "workspace:*",
+    "@cwmb/shared-utils": "workspace:*",
+    "@cwmb/tool-contracts": "workspace:*",
+    "@cwmb/turn-model": "workspace:*",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "esbuild": "^0.23.0",
+    "@types/node": "^20.12.12"
+  }
+}

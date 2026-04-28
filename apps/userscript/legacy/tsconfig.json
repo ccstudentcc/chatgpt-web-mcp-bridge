@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "outDir": "dist",
+    "lib": ["ES2022", "DOM"],
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      "@cwmb/policy-model": ["../../packages/policy-model/dist/index.d.ts"],
+      "@cwmb/result-model": ["../../packages/result-model/dist/index.d.ts"],
+      "@cwmb/shared-utils": ["../../packages/shared-utils/dist/index.d.ts"],
+      "@cwmb/tool-contracts": ["../../packages/tool-contracts/dist/index.d.ts"],
+      "@cwmb/turn-model": ["../../packages/turn-model/dist/index.d.ts"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "../extension/src/chatgpt-adapter/chatgpt-runtime-facts.ts",
+    "../extension/src/operator-panel/**/*.ts",
+    "../extension/src/result-delivery/**/*.ts"
+  ]
+}

@@ -2,7 +2,7 @@
 
 A safe local tool bridge that lets ChatGPT Web request read-only project context through MCP-style JSON blocks.
 
-> This is not an official ChatGPT MCP client. It is a local bridge for Windows + Chrome users who want a conservative, auditable workflow.
+> This is not an official ChatGPT MCP client. It is a local bridge for ChatGPT Web users who want a conservative, auditable workflow.
 
 ## Documentation map
 
@@ -20,7 +20,7 @@ Default behavior is intentionally conservative:
 - Only injects on `https://chatgpt.com/*` and `https://chat.openai.com/*`.
 - Only rewrites ChatGPT conversation requests, not arbitrary page traffic.
 - Only listens on `127.0.0.1`.
-- Rejects non-ChatGPT `Origin` headers at the gateway layer.
+- Rejects non-ChatGPT `Origin` headers at the gateway layer; Stage 19 extension proxy requests are only accepted when the extension asserts a real ChatGPT page origin.
 - Uses trusted local mode by default, so localhost requests do not need a pairing token.
 - Limits all file operations to `workspaceRoot`.
 - Blocks `.env`, SSH keys, browser profile data, Git credentials, and other sensitive paths.
@@ -37,7 +37,7 @@ Do not point `workspaceRoot` at your whole user directory or disk root.
 - PowerShell Core (`pwsh`) recommended; Windows PowerShell fallback is detected
 - Node.js 20+
 - pnpm 9+
-- Tampermonkey
+- Chrome Extension developer mode for the primary Stage 19 runtime path
 - `rg` recommended for faster search
 
 ## Install
@@ -82,15 +82,24 @@ Invoke-RestMethod http://127.0.0.1:8024/health
 
 If you later want explicit pairing-token auth again, set `"trustedLocalMode": false` and restart the gateway.
 
-## Install userscript
+## Load the extension
 
-Build userscript:
+Build the extension shell:
 
 ```pwsh
-pnpm dev:userscript
+pnpm dev:extension
 ```
 
-Install `apps/userscript/dist/chatgpt-mcp-bridge.user.js` in Tampermonkey.
+Then open `chrome://extensions`, enable Developer mode, choose `Load unpacked`, and select `apps/extension/dist`.
+
+Expected extension-runtime smoke signals:
+
+- the extension loads without manifest errors,
+- the background service worker logs a lifecycle message,
+- visiting ChatGPT Web mounts the bridge panel inside the content-script shadow host,
+- request-hook diagnostics continue to report injection timing in the panel log.
+
+The former userscript implementation is archived under [`apps/userscript/README.md`](apps/userscript/README.md) as a Stage 21 legacy reference. It is no longer a workspace app or a supported runtime path.
 
 Open ChatGPT Web. In the bridge panel:
 
@@ -101,7 +110,7 @@ Open ChatGPT Web. In the bridge panel:
 - verify `Auto execute`, `Auto insert`, and `Auto send` are all on for the fully automatic flow,
 - leave `Continue on error` off if you want fail-stop batch behavior, or turn it on to keep executing later tools after one batch item fails.
 
-When you change the Gateway base URL in the panel, the userscript refreshes gateway status and `/tools` capabilities immediately.
+When you change the Gateway base URL in the panel, the active browser runtime refreshes gateway status and `/tools` capabilities immediately.
 
 ## Try your first tool call
 
@@ -122,11 +131,11 @@ Expected flow:
 
 ```text
 ChatGPT outputs mcp block
-→ userscript detects it
-→ userscript auto-runs the enabled tool
+→ extension detects it
+→ extension auto-runs the enabled tool
 → gateway reads README.md under workspaceRoot
-→ userscript inserts tool_result into the input box
-→ userscript auto-sends it back to ChatGPT
+→ extension inserts `tool_result` into the input box
+→ extension auto-sends it back to ChatGPT
 ```
 
 If `Auto insert` is off, the panel keeps the result in `Insert result` / `Copy result` mode until you choose to insert it manually.
@@ -157,7 +166,7 @@ Example:
 
 ## Batch tool calls
 
-One assistant reply can contain multiple `mcp` blocks. The userscript will:
+One assistant reply can contain multiple `mcp` blocks. The active browser runtime will:
 
 ```text
 detect the blocks in order

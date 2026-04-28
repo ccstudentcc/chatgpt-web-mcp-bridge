@@ -6,20 +6,36 @@
 - `docs/prd.md` is now the closed v0.1 reference baseline: a useful behavior reference for the proven userscript + gateway runtime, but no longer the active product target.
 - Root `SPEC.md`, `IMPLEMENTATION_PLAN.md`, and `TASK_STATUS.md` now track the active v0.9 mainline.
 - `docs/v0.9-entrypoint.md` is the navigation entrypoint for that mainline; `docs/prd_vnext.md` owns the active product-boundary truth; `docs/architecture/v0.9-target-architecture.md` owns the target module-boundary truth.
-- The current codebase still implements the proven userscript + gateway baseline, so v0.9 work must preserve or explicitly migrate the current live contracts rather than pretending they no longer matter.
-- Phase 1 shared-contract freeze is now complete. No later extraction or capability slice has been opened yet.
+- The current codebase now runs through `apps/extension` plus `apps/gateway` only; the proven userscript baseline has been archived as a reference, not kept as a live workspace app.
+- `apps/userscript/` is now a legacy archive with a README and `legacy/` snapshot content only. It is not the desired v0.9 shell, and it is not a supported runtime path.
+- Phase 1 shared-contract freeze is now complete.
+- Phase 2 is now open as a module-by-module Final Core refactor program for completing `apps/extension` and `apps/gateway`.
+- Phase 2 execution rule is now explicit: one stage equals one module, and only one module stage may be active at a time.
+- Phase 2 may still use larger rewrites when they improve efficiency, timing, logic clarity, stability, or test coverage, but only inside the currently active module stage.
+- Phase 2 code has now advanced through the full declared Stage 7-21 extraction sequence. `package-domain-extraction`, `extension-structure`, `gateway-structure`, and `remove-compat-layers` are closed.
+- Stage 21 code-side cleanup is now landed. On April 28, 2026, compat imports were removed, gateway compat directories were deleted, extension runtime tests were migrated under `apps/extension/src/main/*`, and `apps/userscript/` was archived as a legacy reference outside the pnpm workspace.
+- Stage 21 is now closed. On April 28, 2026, the user confirmed real ChatGPT Web extension-only validation in a real browser, so the remove-compat-layers slice can end and there is currently no active module stage.
+- Stage 19 is now closed. On April 28, 2026, the user confirmed that the remaining extension-path issue had been fixed in the latest commit and approved ending `extension-structure` so Stage 20 could begin.
+- The Stage 19 extension path now also carries an explicit gateway trust bridge: extension-background proxy requests assert the underlying ChatGPT page origin, and the gateway accepts extension-origin calls only when that assertion matches the allowed ChatGPT Web origins. This fixes extension-path `ORIGIN_NOT_ALLOWED` failures without widening the localhost trust boundary to arbitrary webpages.
+- Stage 20 code-side extraction is now landed: `apps/gateway/src/api/*` owns HTTP adaptation, `proposal-engine/*`, `external-mcp/*`, and `result-cache/*` now exist as direct Stage 20 owner directories, `apps/gateway/src/main/*` is the explicit gateway composition root, and the former `routes/*` / `server.ts` compat shells were removed by Stage 21 after the owner split had already landed.
+- Stage 20 is now closed. On April 28, 2026, the user confirmed manual browser-to-gateway validation for `/health`, `/tools`, and `/call-tool` through the new `api/` adapters, so the structure slice can end without inferring Stage 21 automatically.
 - Stage 3 slice-definition work is complete; Stage 4 compat-preserving execution is complete on the same Phase 1 boundary.
+- Stage 5 execution-model definition is now complete, and the Phase 2 stage-definition pack is now explicit enough for execution: every declared module stage now has owner surfaces, supporting surfaces, optimization targets, validation expectations, and a definition of done in `IMPLEMENTATION_PLAN.md`.
+- Stage 6 module ordering and rationale are now also explicit; Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, 10 `operator-panel`, 11 `execution-kernel`, 12 `tool-registry`, 13 `tool-policy`, 14 `builtin-tools`, 15 `shell-runtime`, 16 `audit-log`, and 17 `diagnostics` are complete, and no new code-side extraction gate has been declared yet beyond that sequence.
+- The current dialogue-level acceptance summary for April 27, 2026 reports the bridge chain, batch behavior, workspace read/search/grep tools, security boundaries, protocol alignment, core gateway/protocol/userscript tracing, and real write/UI end-to-end usage as currently usable with no remaining blocker called out for the just-closed Stage 7 boundary.
 - Draft v0.9 docs and draft contract shapes are reference truth only. They are not separate compatibility targets; compatibility work in the current slice applies to the proven live runtime floor and the still-live routes/behaviors it depends on.
 - ChatGPT Web DOM/request-shape/selectors evidence now has one intended home: `docs/operations/chatgpt-web-runtime-evidence.md`.
-- ChatGPT Web page-fact code truth now targets one v0.9 owner: `apps/extension/src/chatgpt-adapter/`; current userscript code should only consume or compat-re-export that truth.
-- Request-injection mode/status helper truth now also has a narrow v0.9 target owner at `apps/extension/src/injection-runtime/`; current userscript request-hook and state code should consume it through compat wiring rather than duplicate local owner semantics.
-- Browser-runtime snapshot helper truth now also has a narrow v0.9 target owner at `apps/extension/src/operator-panel/`; current userscript state code should consume it through compat wiring rather than remain the long-term owner.
-- Turn-runtime helper truth now also has a narrow v0.9 target owner at `apps/extension/src/turn-runtime/`; current userscript invalid-turn state, pending-selection identity, and auto-round guard code should consume it through compat wiring rather than remain the long-term owner.
-- Phase 1 implementation has started in code, not only in docs: `@cwmb/protocol` now exports the first shared `CatalogContract`, `TurnContext`, `ExecuteRequest`, `ExecuteResponse`, `ToolDecision`, and `ResultEnvelope` surfaces with matching schemas/tests.
-- `@cwmb/protocol` now also exports a shared `GatewayHealthContract` and browser-local `GatewayRuntimeSnapshot`, so gateway reachability/config truth can live beside catalog truth without userscript-only field drift.
-- `/tools` now materializes Phase 1 catalog metadata (`catalogVersion`, `generatedAt`, `workspaceRoot`) while preserving the existing `tools` array that current userscript consumers already expect.
-- `/health` is now validated through the shared contract before userscript applies automation defaults; the earlier local `shell: string` typing drift is gone, and shell diagnostics now stay structured end-to-end.
-- `/call-tool` now attaches compatibility execution metadata under a nested `execute` object, so current userscript code keeps the legacy top-level `result` while Phase 1 consumers can still read `requestId`, `executionId`, `decisions`, and structured result-envelope metadata.
+- ChatGPT Web page-fact code truth now targets one v0.9 owner: `apps/extension/src/chatgpt-adapter/`; the archived userscript snapshot is reference-only and must not become a second source of truth.
+- Injection-runtime helper truth now has a wider v0.9 target owner at `apps/extension/src/injection-runtime/`; extension-only browser-runtime code should consume that logic directly instead of recreating userscript-shaped local owner semantics.
+- Shared model-facing tool-guidance text for the live catalog prompt now also has one extension-owned owner path at `apps/extension/src/injection-runtime/catalog.ts`; visible/manual catalog prompt and hidden request injection prompt should wrap that same guidance instead of maintaining separate copies.
+- Browser-runtime snapshot helper truth now also has a narrow v0.9 target owner at `apps/extension/src/operator-panel/`; the archived userscript state snapshot is reference-only and must not become a competing owner.
+- Turn-runtime helper truth now also has a narrow v0.9 target owner at `apps/extension/src/turn-runtime/`; the archived userscript invalid-turn and guard code is historical evidence only, not a live owner path.
+- Phase 1 implementation has started in code, not only in docs: the shared contract surfaces for `CatalogContract`, `TurnContext`, `ExecuteRequest`, `ExecuteResponse`, `ToolDecision`, and `ResultEnvelope` now live in the focused domain packages with matching schemas/tests.
+- Those shared contract surfaces now also include `GatewayHealthContract` and browser-local `GatewayRuntimeSnapshot`, so gateway reachability/config truth can live beside catalog truth without userscript-only field drift.
+- The Stage 7-17 milestone bullets below are retained as audit history from the pre-Stage-21 compat path. Any `apps/userscript/src/*` references there now point to archived material under `apps/userscript/legacy/src/*`, not to current live runtime owners.
+- `/tools` now materializes Phase 1 catalog metadata (`catalogVersion`, `generatedAt`, `workspaceRoot`) while preserving the existing `tools` array that the browser runtime still expects.
+- `/health` is now validated through the shared contract before the browser runtime applies automation defaults; the earlier local `shell: string` typing drift is gone, and shell diagnostics now stay structured end-to-end.
+- `/call-tool` now attaches compatibility execution metadata under a nested `execute` object, so the archived userscript baseline keeps the legacy top-level `result` while Phase 1 consumers can still read `requestId`, `executionId`, `decisions`, and structured result-envelope metadata.
 - Shared compat parsing no longer accepts the earlier flat top-level `requestId` / `executionId` / `decisions` / `result` execute shape; that transition-only form was not part of the live runtime floor and is now intentionally inert.
 - Userscript-side request construction now goes through shared protocol compat helpers instead of repeating local `ToolCallRequest` assembly in multiple files.
 - Userscript-side gateway handling now reads `execute` compat metadata through shared helpers on both success and failure paths.
@@ -29,13 +45,73 @@
 - Userscript cache/bootstrap/runtime state now retain the full catalog contract instead of only `tools[]`, so `catalogVersion` and `workspaceRoot` are available for diagnostics without another shape migration later.
 - Userscript panel/runtime state now also tracks whether the visible catalog came from the live gateway or cached bootstrap, so diagnostics can distinguish “catalog known” from “catalog freshly synced”.
 - Userscript runtime state now stores one shared runtime snapshot for validated `/health` plus current catalog truth, while still distinguishing live catalog sync from cached bootstrap catalog warmup.
-- Pure request-injection mode/status semantics now live under `apps/extension/src/injection-runtime/request-injection-state.ts`, while userscript keeps only thin compat re-exports and algorithm-local request-hook logic.
-- The pure runtime-snapshot helper semantics have been lifted out of userscript-local state code into `apps/extension/src/operator-panel/runtime-snapshot.ts`, while `apps/userscript/src/runtime-snapshot.ts` remains a thin compat re-export.
+- Pure request-injection mode/status semantics now live under `apps/extension/src/injection-runtime/request-injection-state.ts`; before Stage 21 archival the userscript compat path consumed them through thin re-exports and request-hook wiring.
+- Catalog prompt construction, bootstrap/live prompt-sync copy, and request-payload injection helpers now also live under `apps/extension/src/injection-runtime/{catalog,catalog-cache,request-body-injection}.ts`; the archived userscript `catalog*.ts` and `request-hook.ts` files are reference-only compat shells now.
+- The pure runtime-snapshot helper semantics have been lifted out of userscript-local state code into `apps/extension/src/operator-panel/runtime-snapshot.ts`; the old `apps/userscript/src/runtime-snapshot.ts` survives only in the legacy archive.
+- Operator-panel owner truth now also lives in `apps/extension/src/operator-panel/capabilities.ts` and `panel-state.ts`, so capability gating, operator-facing runtime stats, injection diagnostics summary copy, and collapsed-toggle availability no longer drift inside the archived userscript-local panel conditionals.
+- The Stage 10 `operator-panel` module stage is now closed. On April 28, 2026, real ChatGPT Web validation passed for operator-visible runtime statuses, collapsed `Execute` / `Insert` / `Send` / `Continue` actions, and manual recovery affordances after the panel owner shift.
+- The Stage 11 `execution-kernel` code extraction is now in local code: `apps/gateway/src/execution-kernel/execution-kernel.ts` owns batch-first execution orchestration, executor selection, per-call decision assembly, inline-versus-batch result shaping, and legacy `/call-tool` compat response assembly, while `apps/gateway/src/routes/call-tool.ts` is reduced to auth, request validation, and kernel delegation.
+- Direct gateway owner tests now cover single-call legacy compat behavior plus multi-call batch coordination at the kernel seam, and userscript batch regression coverage confirms live `/call-tool` consumer aggregation still holds when each per-call payload carries nested `execute` metadata.
+- The Stage 11 `execution-kernel` module stage is now closed. On April 28, 2026, manual browser-to-gateway validation passed for the live `/call-tool` path, including single-call and batch execution, after the kernel owner shift.
+- The Stage 12 `tool-registry` code extraction is now in local code: `apps/gateway/src/tool-registry/{catalog,registry}.ts` owns builtin tool aggregation plus materialized catalog generation, while `apps/gateway/src/routes/tools.ts` and `apps/gateway/src/tools/mcp-list.ts` now only provide route or tool-shaped consumption of that owner.
+- Direct gateway owner tests now cover catalog metadata materialization plus enabled-only filtering at the registry seam, and userscript `/tools` consumer regressions still validate the full catalog contract including `mcp_list` descriptor metadata.
+- The Stage 12 `tool-registry` module stage is now closed. On April 28, 2026, live browser-to-gateway `/tools` validation passed after the registry owner shift, so the catalog owner seam can stand without reopening adjacent browser-runtime modules.
+- The Stage 13 `tool-policy` code extraction is now in local code: `apps/gateway/src/tool-policy/{call-policy,path-policy}.ts` owns pre-execution tool assessment, failure-to-decision mapping, workspace hard-path policy resolution, and blocked-path matching, while `apps/gateway/src/security/*` now acts as compat export wiring and the execution kernel consumes explicit policy helpers instead of re-deriving decisions locally.
+- Direct gateway owner tests now cover pre-execution allow/deny assessment plus workspace path policy, and matching route and userscript regressions keep current `/call-tool` consumer-visible decision and error behavior stable.
+- The Stage 13 `tool-policy` module stage is now closed. On April 28, 2026, the owner shift and validation completed without widening runtime scope or opening `reviewed` / `yolo` rollout semantics.
+- The Stage 14 `builtin-tools` code extraction is now in local code: `apps/gateway/src/builtin-tools/*` owns read/list/search/grep/write/mcp-list implementations plus shared workspace-policy, workspace-search, binary-content, and `rg` helper seams, while `apps/gateway/src/tools/*` and `apps/gateway/src/utils/find-rg.ts` now act only as compat re-export layers.
+- Direct gateway owner tests now cover every moved builtin tool, including new direct coverage for `list_directory` and the still-disabled `write_file_proposal` placeholder, while route and userscript regressions keep current `/tools` and `/call-tool` behavior stable.
+- The Stage 14 `builtin-tools` module stage is now closed. On April 28, 2026, gateway and root validation passed again with no new browser-runtime validation required because the live gateway surfaces remained compat-stable.
+- The Stage 15 `shell-runtime` module stage is now closed. On April 28, 2026, shell detection, command guarding, `cwd` and environment shaping, timeout control, and captured shell-output contracts moved behind `apps/gateway/src/shell-runtime/*`, direct owner-level tests were added, and gateway/root validation passed again without reopening browser-runtime work.
+- The Stage 16 `audit-log` module stage is now closed. On April 28, 2026, structured execution, policy, and lifecycle audit ownership moved behind `apps/gateway/src/audit-log/*`, direct owner-level tests were added for event shaping and redaction, and gateway/root validation passed again without reopening browser-runtime work.
+- The Stage 17 `diagnostics` module stage is now closed. On April 28, 2026, gateway health shaping, config-derived runtime facts, and redacted diagnostics bundle assembly moved behind `apps/gateway/src/diagnostics/*`, `/health` became a thin compat adapter over that owner seam, and gateway/root validation passed again without changing the live `/health` floor.
 - Pure invalid-turn state, pending-selection identity, and auto-round guard semantics now live under `apps/extension/src/turn-runtime/*`, while userscript `detection-state.ts`, `round-guard.ts`, and `turn-runtime.ts` only provide compat wiring or local type adaptation.
+- Parser-level turn normalization is now a compat concern only in `apps/userscript/src/parser.ts`, while the latest-open-turn and startup/history rescan decision pipeline now lives under extension-owned turn-runtime helpers.
+- The first Phase 2 extraction step is now in code: parser-level MCP turn analysis and normalization logic lives under `apps/extension/src/turn-runtime/mcp-turn-analysis.ts`, while `apps/userscript/src/parser.ts` is reduced to a thin compat wrapper that restores legacy `callId` semantics.
+- The next Phase 2 extraction step is now also in code: latest-open-turn message identity and pending-turn detection semantics live under `apps/extension/src/turn-runtime/pending-turn-detection.ts`, while `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now only supplies DOM text extraction, current runtime state, and userscript-local hashing/batch helpers.
+- The latest-open-turn scan state transition is now also in code: `apps/extension/src/turn-runtime/assistant-turn-scan.ts` owns the pure clear/pending/invalid-waiting/invalid decision flow for startup/history rescan, while `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now only supplies DOM discovery, visible-text extraction, and runtime side effects for the active turn-runtime path.
+- The live userscript rescan path now consumes extension-owned `analyzeMcpTurn()` directly instead of routing startup/history rescan through the userscript parser compat wrapper.
+- Pending-turn batch-vs-single detected status semantics now live under `apps/extension/src/turn-runtime/pending-turn-runtime.ts`, and userscript no longer defines its own `detected` / `detected_batch` rule locally.
+- Message-identity tracking now also flows through extension-owned `trackMessageIdentity()`, so userscript no longer advances ephemeral message identity counters with a local wrapper around the lower-level helper.
+- Pending scan-result application now also flows through extension-owned `scan-runtime-effects.ts`, so userscript no longer owns the pure clear/pending/invalid runtime update semantics for startup/history rescan.
+- Latest assistant/user turn-source orchestration now also flows through extension-owned `turn-source.ts`, so userscript no longer owns the request-identity fallback or latest-open-turn source assembly around the shared scan pipeline.
+- Pending selection clear/consume/ignore transitions now also flow through extension-owned `pending-runtime-effects.ts`, so userscript no longer owns the pure pending-selection mutation rules for detection reset, single-call consumption, batch completion, or ignore actions.
+- Latest request-identity resolution plus latest-assistant turn scan orchestration for clear, pending, invalid-waiting, and invalid runtime outcomes now also flows through extension-owned `turn-runtime-poll.ts`, so userscript no longer owns the end-to-end startup/history rescan decision assembly.
+- Invalid-turn enforcement now aligns with the `Insert MCP list` / `Copy MCP list` contract: brief natural-language context before the first fenced `mcp` block is allowed, while prose, analysis, or thinking text between or after tool-call blocks is still a hard block.
+- Live-page follow-up from April 27, 2026 showed that strict invalid-turn rules alone were not enough: the assistant scan path also needed to normalize selector hits back to the outer assistant turn container so the analyzer sees surrounding prose instead of only the inner code-block text.
+- The latest live-page diagnostics on April 27, 2026 also showed a second rendered-turn gap: even when the outer assistant `SECTION` visible text already contained `prefix prose + rendered mcp block + suffix prose`, the turn analyzer could still classify the reply as `valid` and enter `pending`.
+- The latest live-page diagnostics on April 28, 2026 showed a second DOM-text contamination case: when ChatGPT reply regeneration added the built-in reply picker (`1/2`) under an otherwise valid rendered `mcp` block, whole-turn `innerText` could append that UI residue after the block and trigger a false `invalid_mcp_turn`.
+- Turn-runtime parsing now treats visible rendered `mcp` text as a first-class analysis source before falling back to DOM code-block candidates, so prose-wrapped rendered MCP replies no longer depend on DOM candidate formatting to be blocked.
+- The userscript build now resolves the Stage 18 domain-package entrypoints explicitly for extension-owned turn-runtime source pulled into the bundle, so Phase 2 owner shifts do not depend on pnpm package-boundary luck during esbuild resolution.
 - Shared protocol now owns the current `tool_result_batch` item union and batch envelope helper, including the compat `source.messageId` field used by userscript result insertion.
 - Userscript single-result insertion now formats shared `inline_tool_result` / `execution_error` envelopes instead of serializing raw legacy single-call payloads directly.
 - Userscript batch execution now returns the shared batch envelope shape instead of a local duplicate interface, and batch result formatting consumes the shared envelope directly.
-- App-local `lint`, `test`, and `build` scripts for `apps/userscript` and `apps/gateway` now rebuild required workspace package outputs first, so new `@cwmb/protocol` / `@cwmb/shared` exports do not depend on manual build ordering.
+- App-local `lint`, `test`, and `build` scripts for `apps/userscript` and `apps/gateway` now rebuild required workspace package outputs first, so new domain-package exports do not depend on manual build ordering.
+- The first Stage 8 `result-delivery` owner is now in code: `apps/extension/src/result-delivery/result-formatting.ts` owns bridge-visible single-result and batch-result payload formatting, while `apps/userscript/src/inserter.ts` keeps only the DOM-specific composer shell plus thin compat re-exports.
+- Composer delivery timing now also has one extension-owned owner path at `apps/extension/src/result-delivery/composer-delivery.ts`, so manual insert and auto-insert now share the same insertion, send-confirmation, and clipboard-fallback semantics instead of drifting inside `apps/userscript/src/chatgpt-mcp-bridge.user.ts`.
+- Delivery failure handling on the live compat path now keeps execution meaning separate from delivery warnings: send-button and submission failures are logged explicitly, but a pre-existing batch or tool failure summary is not overwritten just because bridge delivery could not finish cleanly.
+- Delivery recovery semantics now also have one extension-owned owner path split across `apps/extension/src/result-delivery/composer-delivery.ts`, `batch-delivery-outcome.ts`, and `operator-panel-copy.ts`, so retryable batch retention, clipboard/composer preservation hints, and recovery-specific insert/copy labels no longer drift inside `apps/userscript/src/chatgpt-mcp-bridge.user.ts` and `apps/userscript/src/ui.ts`.
+- Undelivered result refresh recovery now also has one live compat path: when the current ChatGPT thread still preserves the same unsent composer payload after refresh, userscript restores that delivery state and suppresses re-executing the same assistant `mcp` turn instead of duplicating insertion.
+- That refresh restore path now prefers the observed composer snapshot over strict equality with the original bridge insertion payload, because real ChatGPT refresh can preserve the same undelivered result while still normalizing away presentation-only lines such as the leading bridge heading.
+- Recovered auto-send now also uses one authoritative delivery source: if an undelivered bridge result must resume sending after refresh, userscript temporarily replaces the current composer with the persisted authoritative result payload, waits for a real ChatGPT submission state, and only then restores any unrelated preserved user draft instead of sending or restoring whatever bridge residue happened to survive in the composer.
+- Recovered-delivery runtime gating is now also centralized on one extension-owned owner path at `apps/extension/src/result-delivery/delivery-state.ts`, so startup resume, pending-detection defer, empty-composer release, and unrelated-draft preservation all flow through one pure state-machine helper instead of drifting across ad hoc userscript checks.
+- Recovered startup delivery now also retries after late composer hydration on live page mutations instead of relying on one early refresh-time probe, so `Send=off` -> switch `Send=on` -> refresh can still resume on the first hydrated page load rather than only after a second refresh.
+- Startup restore now also keeps the persisted undelivered-result session while ChatGPT still shows an empty pre-hydration composer, and it only clears that session after hydration reveals a different non-empty draft, so the first refresh no longer loses recovery state before the preserved composer text returns.
+- Live assistant-turn scanning now also has a bounded mutation scheduler: repeated ChatGPT DOM churn can delay the settle timer, but it can no longer postpone runtime MCP detection indefinitely once a valid assistant reply has stabilized.
+- Auto-send confirmation now also waits for the inserted composer text to settle before clicking send, and it no longer treats an already-existing stop/streaming state as proof that the just-restored bridge result was truly submitted.
+- Startup refresh recovery now also gates the first live turn scan behind a short undelivered-result grace window, so the bridge can restore a preserved same-thread composer result before startup/history rescan is allowed to re-run the old assistant `mcp` turn.
+- Recovered send resume now also distinguishes between authoritative full composer state and bridge residue: if the current composer already still contains the authoritative result, bridge reuses it instead of reinserting; if only truncated residue survived, bridge still replaces it with the authoritative payload before any send attempt.
+- Live composer insertion now also restores ChatGPT-friendly block structure on editable fallback paths, and composer button lookup now scans all visible candidates before sending, so delivery no longer depends on a single text-node insertion shape or the first matching submit-button node being the live send affordance.
+- Recovered startup delivery now also keeps a short retry window after the first resume attempt, so if truncated-composer refresh recovery fires before ChatGPT's send affordance is fully actionable, later hydration or mutation events on that same first refresh can retry authoritative send instead of requiring a second manual refresh.
+- Auto-send confirmation now no longer treats arbitrary non-empty composer drift as proof of submission, so a first-refresh fallback from the authoritative payload back to truncated bridge residue cannot be misreported as `Sent result back to ChatGPT.` while the undelivered result state is actually still stuck in the composer.
+- Auto-send confirmation on the live ChatGPT path now also consumes request-hook conversation events as the primary success signal, so a transient stop-button transition without a real fetch/xhr conversation request no longer counts as successful submission during recovered send or normal auto-send.
+- Repeated real conversation submissions on the same ChatGPT endpoint now also advance the live submission signal even when their operator log line is deduplicated, so recovery and normal auto-send do not stall on the second identical `fetch /conversation` submission just because the hook status key stayed the same.
+- Authoritative composer reuse is now also stricter: a matching `tool_result` block alone is no longer enough if extra manual text contaminates the composer, so recovered send reinserts the unique bridge payload before auto-send instead of shipping mixed manual-plus-bridge content.
+- Panel-facing delivery derivation now also has one extension-owned owner path at `apps/extension/src/result-delivery/delivery-state.ts`, so ready-status fallback, batch-vs-single delivery classification, retryable-batch visibility, and manual insert availability no longer drift between `apps/userscript/src/chatgpt-mcp-bridge.user.ts` and `apps/userscript/src/ui.ts`.
+- Panel-facing delivery presentation now also has one extension-owned owner path at `apps/extension/src/result-delivery/panel-presentation.ts`, so pending-block preview summaries and delivery status badge labels/tones no longer drift between `apps/userscript/src/preview.ts` and `apps/userscript/src/ui.ts`.
+- Batch failure presentation now also has one extension-owned owner path at `apps/extension/src/result-delivery/batch-outcome-presentation.ts`, so retryable batch stop/failure summaries and operator-facing warn-copy no longer drift inside `apps/userscript/src/chatgpt-mcp-bridge.user.ts`.
+- Delivery operator-panel copy now also has one extension-owned owner path at `apps/extension/src/result-delivery/operator-panel-copy.ts`, so collapsed-panel summary text plus delivery-specific retry/insert/copy/disclosure labels no longer drift inside `apps/userscript/src/ui.ts`.
+- ChatGPT send-button recognition is now tightened against refreshed real-page evidence: `#composer-submit-button` no longer counts as send-ready while it is still `data-testid="stop-button"` / `aria-label="停止流式传输"`, so auto-send waits for a real send affordance instead of treating the stop button as success.
 
 ## Verified Reference Baseline
 
@@ -57,15 +133,59 @@
 - After requiring a valid `CatalogContract` on the live userscript `/tools` path, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After promoting the userscript cache/state layer from `tools[]` to the full catalog contract, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After surfacing live-vs-cache catalog provenance in userscript state/UI, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
-- After introducing the shared `/health` contract and runtime snapshot state, `pnpm --filter @cwmb/protocol test`, `build`, `pnpm --filter @cwmb/gateway test`, and `pnpm --filter @cwmb/userscript lint`, `test`, `build` succeeded again.
+- After introducing the shared `/health` contract and runtime snapshot state, the shared-contract package tests/build plus `pnpm --filter @cwmb/gateway test` and `pnpm --filter @cwmb/userscript lint`, `test`, `build` succeeded again.
 - After seeding the extension `injection-runtime` request-injection state owner and switching userscript to compat re-exports, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After moving injection-runtime catalog prompt construction, bootstrap cache IO, prompt-sync diagnostics, and request-payload mutation into extension-owned helpers, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After converging visible/manual and hidden injection prompt tool guidance onto one extension-owned owner path and expanding guidance coverage for `mcp_list`, `read_file`, `list_directory`, `search_files`, and `grep_files`, `pnpm --filter @cwmb/userscript lint`, `test -- --run src/catalog.test.ts`, and `build` succeeded again.
 - After seeding the extension `operator-panel` runtime-snapshot owner and switching userscript to a compat re-export, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After seeding the extension `turn-runtime` helper owner and switching userscript invalid-turn / round-guard helpers to compat wiring, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After moving MCP turn analysis ownership into `apps/extension/src/turn-runtime/mcp-turn-analysis.ts`, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` succeeded again.
+- After moving latest-open-turn message identity and pending-turn detection semantics into `apps/extension/src/turn-runtime/pending-turn-detection.ts`, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` succeeded again.
+- After moving the latest-open-turn scan decision state into `apps/extension/src/turn-runtime/assistant-turn-scan.ts`, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After switching the live userscript rescan path to extension-owned `analyzeMcpTurn()`, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After moving pending-turn runtime status helpers plus message-identity tracking onto extension-owned turn-runtime helpers, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After moving pending scan-result runtime effects onto extension-owned turn-runtime helpers, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After moving latest assistant/user turn-source orchestration onto extension-owned turn-runtime helpers, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After moving pending selection clear/consume/ignore transitions onto extension-owned turn-runtime helpers, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After realigning invalid-turn enforcement with the manual `Insert MCP list` / `Copy MCP list` contract so brief prose before the first fenced `mcp` block is allowed again, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After normalizing assistant scan candidates back to the outer assistant turn container when present, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After promoting visible rendered `mcp` text to a first-class turn-analysis source and adding a regression for prose-wrapped rendered replies with DOM-format drift, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After moving request-identity plus latest-assistant scan orchestration into `apps/extension/src/turn-runtime/turn-runtime-poll.ts` and adding direct owner-level regression coverage, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After seeding `apps/extension/src/result-delivery/*`, unifying manual and automatic result delivery on the same owner semantics, and adding direct owner-level delivery tests, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After lifting delivery-state derivation into `apps/extension/src/result-delivery/delivery-state.ts` and switching both the live userscript runtime and panel to consume the same owner helpers, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After lifting delivery panel presentation into `apps/extension/src/result-delivery/panel-presentation.ts` and switching userscript preview/UI helpers to thin compat re-exports, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After lifting batch failure presentation into `apps/extension/src/result-delivery/batch-outcome-presentation.ts` and switching the live batch compat path to consume the same owner helper, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After lifting collapsed-panel summary and delivery-specific action/disclosure copy into `apps/extension/src/result-delivery/operator-panel-copy.ts` and switching the current userscript panel to consume the same owner helper, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After lifting panel capability gating and view-state assembly into extension-owned operator-panel helpers, adding structured request-prompt/request-hook observer state, and keeping collapsed `Execute` / `Insert` / `Send` / `Continue` toggles wired to the same handlers, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After teaching assistant-turn text extraction to prefer the markdown body over whole-turn UI chrome, and adding a regenerated-reply regression for reply-picker residue after a rendered `mcp` block, targeted `pnpm --filter @cwmb/userscript test -- --run src/dom.test.ts src/turn-runtime-poll.test.ts src/parser.test.ts`, `pnpm --filter @cwmb/userscript lint`, and `pnpm --filter @cwmb/userscript build` succeeded again.
+- After lifting batch delivery recovery decisions plus clipboard/composer preservation copy into extension-owned result-delivery helpers and wiring the current userscript compat path onto them, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After adding undelivered-result refresh restore plus stricter stop-button-vs-send-button gating from refreshed real-page evidence, targeted `pnpm --filter @cwmb/userscript test -- --run inserter.test.ts state.test.ts result-delivery.test.ts turn-runtime-poll.test.ts`, `pnpm --filter @cwmb/userscript lint`, and root `pnpm test` / `pnpm build` succeeded again.
+- After switching undelivered-result refresh restore to prefer the observed composer snapshot instead of exact raw payload equality, targeted `pnpm --filter @cwmb/userscript test -- --run state.test.ts inserter.test.ts result-delivery.test.ts turn-runtime-poll.test.ts` plus root `pnpm test` / `pnpm build` succeeded again.
+- After tightening recovered auto-send around authoritative-result replacement plus post-submit draft restore, targeted `pnpm --filter @cwmb/userscript test -- --run state.test.ts result-delivery.test.ts inserter.test.ts`, `pnpm --filter @cwmb/userscript lint`, `pnpm --filter @cwmb/userscript build`, and root `pnpm lint` / `pnpm test` / `pnpm build` succeeded again.
+- After centralizing recovered-delivery runtime decisions plus multiline composer round-trip fallback, targeted `pnpm --filter @cwmb/userscript test -- --run inserter.test.ts state.test.ts result-delivery.test.ts result-delivery-state.test.ts`, `pnpm --filter @cwmb/userscript build`, and root `pnpm test` succeeded again.
+- After tightening send confirmation around the inserted composer snapshot, adding late-hydration restore retries, and bounding live mutation scan delay, targeted `pnpm --filter @cwmb/userscript test -- --run dom.test.ts result-delivery.test.ts state.test.ts inserter.test.ts result-delivery-state.test.ts`, `pnpm --filter @cwmb/userscript build`, `pnpm --filter @cwmb/userscript lint`, and root `pnpm test` succeeded again.
+- After adding pre-send insertion settle gating plus explicit coverage for stale stop-state false positives, targeted `pnpm --filter @cwmb/userscript test -- --run result-delivery.test.ts state.test.ts inserter.test.ts result-delivery-state.test.ts`, `pnpm --filter @cwmb/userscript build`, and root `pnpm test` / `pnpm lint` succeeded again.
+- After adding startup undelivered-result scan gating plus authoritative-composer reuse on recovered send, targeted `pnpm --filter @cwmb/userscript test -- --run dom.test.ts state.test.ts result-delivery.test.ts turn-runtime-poll.test.ts`, `pnpm --filter @cwmb/userscript lint`, and root `pnpm test` succeeded again.
+- After fixing the startup restore clear condition so empty pre-hydration composer probes stay non-destructive until a non-empty mismatch appears, targeted `pnpm --filter @cwmb/userscript test -- --run src/state.test.ts src/result-delivery.test.ts src/dom.test.ts`, `pnpm --filter @cwmb/userscript lint`, and root `pnpm test` succeeded again.
+- After restoring block-structured editable fallback insertion plus all-candidate send-button lookup and full button-press dispatch, targeted `pnpm --filter @cwmb/userscript test -- --run src/inserter.test.ts src/result-delivery.test.ts src/state.test.ts src/dom.test.ts`, `pnpm --filter @cwmb/userscript lint`, and root `pnpm test` succeeded again.
+- After adding startup recovered-send retry-window semantics so first-refresh truncated residue can retry authoritative send on later hydration or mutation events, targeted `pnpm --filter @cwmb/userscript test -- --run src/result-delivery-state.test.ts src/state.test.ts src/result-delivery.test.ts src/dom.test.ts src/inserter.test.ts`, `pnpm --filter @cwmb/userscript lint`, root `pnpm test`, and `pnpm --filter @cwmb/userscript build` succeeded again.
+- After tightening send confirmation so non-empty truncated bridge residue no longer counts as successful submission, targeted `pnpm --filter @cwmb/userscript test -- --run src/result-delivery.test.ts src/result-delivery-state.test.ts src/state.test.ts src/inserter.test.ts src/dom.test.ts`, `pnpm --filter @cwmb/userscript lint`, root `pnpm test`, and `pnpm --filter @cwmb/userscript build` succeeded again.
+- After wiring request-hook conversation events into send confirmation so stop-button-only transitions no longer count as sent success, targeted `pnpm --filter @cwmb/userscript test -- --run src/result-delivery.test.ts src/result-delivery-state.test.ts src/state.test.ts src/inserter.test.ts src/dom.test.ts`, `pnpm --filter @cwmb/userscript lint`, root `pnpm test`, and `pnpm --filter @cwmb/userscript build` succeeded again.
+- After incorporating reviewer-found gaps around repeated identical submission signals plus contaminated authoritative-composer reuse, targeted `pnpm --filter @cwmb/userscript test -- --run src/result-delivery.test.ts src/result-delivery-state.test.ts src/state.test.ts src/inserter.test.ts src/dom.test.ts`, `pnpm --filter @cwmb/userscript lint`, root `pnpm test`, and `pnpm --filter @cwmb/userscript build` succeeded again.
+- After extracting the first gateway-side `execution-kernel` owner seam, `pnpm --filter @cwmb/gateway lint`, `pnpm --filter @cwmb/gateway test`, `pnpm --filter @cwmb/gateway build`, targeted `pnpm --filter @cwmb/userscript test -- --run src/batch.test.ts src/gateway-client.test.ts`, and root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After manual browser-to-gateway validation confirmed live `/call-tool` single-call and batch behavior on the extracted kernel path, Stage 11 could close without reopening adjacent browser-runtime modules.
+- After extracting the first gateway-side `tool-registry` owner seam, `pnpm --filter @cwmb/gateway lint`, targeted `pnpm --filter @cwmb/gateway test -- --run src/tool-registry/registry.test.ts src/routes/tools.test.ts src/tools/mcp-list.test.ts`, targeted `pnpm --filter @cwmb/userscript test -- --run src/gateway-client.test.ts src/catalog.test.ts src/catalog-cache.test.ts`, `pnpm --filter @cwmb/gateway test`, and `pnpm --filter @cwmb/gateway build` succeeded again.
+- After closing the gateway-side `tool-registry` stage with live `/tools` validation, the catalog owner seam could be treated as complete and the next open gate moved to `tool-policy`.
+- After extracting the first gateway-side `tool-policy` owner seam, `pnpm --filter @cwmb/gateway lint`, targeted `pnpm --filter @cwmb/gateway test -- --run src/tool-policy/call-policy.test.ts src/tool-policy/path-policy.test.ts src/security/path-policy.test.ts src/tools/write-file.test.ts src/routes/call-tool.test.ts src/execution-kernel/execution-kernel.test.ts`, targeted `pnpm --filter @cwmb/userscript test -- --run src/gateway-client.test.ts src/batch.test.ts`, `pnpm --filter @cwmb/gateway build`, and root `pnpm lint`, `pnpm test`, `pnpm build` succeeded again.
+- After extracting the gateway-side `builtin-tools` owner seam, `pnpm --filter @cwmb/gateway lint`, `pnpm --filter @cwmb/gateway test`, `pnpm --filter @cwmb/gateway build`, and root `pnpm lint`, `pnpm test`, `pnpm build` succeeded again.
+- After extracting the gateway-side `audit-log` owner seam, `pnpm --filter @cwmb/gateway lint`, `pnpm --filter @cwmb/gateway test`, `pnpm --filter @cwmb/gateway build`, and root `pnpm lint`, `pnpm test`, `pnpm build` succeeded again.
 
 ## Active Stop Line
 
 - The v0.1 stop line is closed as of April 27, 2026.
-- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. The next gate is to choose and document the first post-Phase-1 extraction-focused Final Core slice without accidentally broadening into capability rollout.
+- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, 10 `operator-panel`, 11 `execution-kernel`, 12 `tool-registry`, 13 `tool-policy`, 14 `builtin-tools`, 15 `shell-runtime`, 16 `audit-log`, 17 `diagnostics`, 18 `package-domain-extraction`, 19 `extension-structure`, 20 `gateway-structure`, and 21 `remove-compat-layers` are complete. There is currently no active module stage.
+- Any Phase 2 stage completion claim now requires direct owner-level tests, adjacent compat-path regression checks, root `pnpm lint` / `test` / `build`, and real ChatGPT Web validation whenever browser runtime timing or DOM behavior changed.
+- Stage 20 close-out now includes direct owner tests plus manual browser-to-gateway validation for `/health`, `/tools`, and `/call-tool` through the new `api/` adapters.
 - Until explicitly migrated, the active compatibility floor includes:
   - `/health`
   - `/tools`
@@ -77,47 +197,157 @@
 
 ## Active Slice
 
-- Most recently completed slice: Phase 1 shared-contract freeze
-- Battleground used: Final Core
-- Completed implementation surfaces:
+- Active program: Phase 2 module-by-module Final Core refactor
+- Battleground: Final Core
+- Primary axis: no active module stage; follow-on slice undeclared
+- Active module stage: none. Most recently completed fully closed stage: `remove-compat-layers`
+- Phase 1 completed implementation surfaces:
   - `packages/protocol/*`
   - narrow gateway route adapters
-  - current userscript protocol consumers
+  - legacy userscript protocol consumers before Stage 21 archival
   - `apps/extension/src/chatgpt-adapter/*`
   - `apps/extension/src/injection-runtime/*`
   - `apps/extension/src/operator-panel/*`
   - `apps/extension/src/turn-runtime/*`
   - `docs/protocols/*`
   - `docs/operations/chatgpt-web-runtime-evidence.md`
-- Still explicitly not opened by completing Phase 1:
-  - extension-first shell migration
-  - gateway execution-kernel extraction
+- Phase 2 module order:
+  - `turn-runtime` (Stage 7, complete)
+  - `result-delivery` (Stage 8, complete)
+  - `injection-runtime` (Stage 9, complete)
+  - `operator-panel` (Stage 10, complete)
+  - `execution-kernel` (Stage 11, complete)
+  - `tool-registry` (Stage 12, complete)
+  - `tool-policy` (Stage 13, complete)
+  - `builtin-tools` (Stage 14, complete)
+  - `shell-runtime` (Stage 15, complete)
+  - `audit-log` (Stage 16, complete)
+  - `diagnostics` (Stage 17, complete)
+  - `package-domain-extraction` (Stage 18, complete)
+  - `extension-structure` (Stage 19, complete)
+  - `gateway-structure` (Stage 20, complete)
+  - `remove-compat-layers` (Stage 21, complete)
+- Phase 2 stage-completion rubric now requires:
+  - one explicit long-term owner for the active module
+  - supporting seams kept translation-only
+  - timing and logic simplification inside the active boundary
+  - stronger direct test coverage than before the stage
+  - root verification, plus real-page validation for browser-runtime stages
+- Most recently completed module-stage implementation surfaces:
+  - `apps/extension/src/extension-shell/*`
+  - `apps/extension/src/main/*`
+  - `apps/userscript/README.md`
+  - `apps/extension/package.json`
+  - `docs/architecture/extension-runtime.md`
+  - root task-control docs
+- Phase 2 progress landed so far:
+  - `apps/extension/src/injection-runtime/catalog.ts` is now the long-term owner for visible fallback catalog prompt construction, hidden request prompt snapshots, and bootstrap-versus-live prompt-sync diagnostics copy
+  - `apps/extension/src/injection-runtime/catalog-cache.ts` is now the long-term owner for browser-local catalog bootstrap cache read/write semantics
+  - `apps/extension/src/injection-runtime/request-body-injection.ts` is now the long-term owner for hidden request-payload mutation helpers shared by direct request-hook wiring and injected page-hook fallback
+  - `apps/extension/src/turn-runtime/mcp-turn-analysis.ts` is now the long-term owner for MCP turn parsing / normalization
+  - `apps/extension/src/turn-runtime/pending-turn-detection.ts` is now the long-term owner for latest-open-turn identity and pending-turn detection semantics
+  - `apps/extension/src/turn-runtime/assistant-turn-scan.ts` is now the long-term owner for startup/history rescan scan-state decisions across clear, pending, invalid-waiting, and invalid outcomes
+  - `apps/extension/src/turn-runtime/pending-turn-runtime.ts` is now the long-term owner for batch-vs-single pending detection status semantics on the live turn-runtime path
+  - `apps/extension/src/turn-runtime/scan-runtime-effects.ts` is now the long-term owner for applying clear, pending, and invalid scan outcomes onto the live runtime state
+  - `apps/extension/src/turn-runtime/turn-source.ts` is now the long-term owner for latest assistant/user turn-source lookup orchestration, request-identity fallback, and latest-open-turn source assembly ahead of the shared scan pipeline
+  - `apps/extension/src/turn-runtime/pending-runtime-effects.ts` is now the long-term owner for pending selection clear/consume/ignore mutations across detection reset, single-tool execution, batch completion, and ignore flows
+  - `apps/extension/src/turn-runtime/turn-runtime-poll.ts` is now the long-term owner for current-request identity resolution plus latest-assistant turn scan orchestration on the live startup/history rescan path
+  - `apps/extension/src/result-delivery/result-formatting.ts` is now the long-term owner for bridge-visible single-result and batch-result payload formatting
+  - `apps/extension/src/result-delivery/composer-delivery.ts` is now the long-term owner for insertion outcome, auto-send confirmation timing, and clipboard-fallback semantics shared by single-result and batch-result delivery
+  - `apps/extension/src/result-delivery/batch-delivery-outcome.ts` is now the long-term owner for retryable-batch retention plus batch-ready status/log decisions after execution completes
+  - `apps/extension/src/result-delivery/delivery-state.ts` is now the long-term owner for ready-status fallback, batch-vs-single delivery classification, panel-facing manual insert availability, and retryable-batch visibility derivation
+  - `apps/extension/src/result-delivery/panel-presentation.ts` is now the long-term owner for pending-block preview summaries plus delivery status badge labels and tones used by the current operator panel
+  - `apps/extension/src/result-delivery/batch-outcome-presentation.ts` is now the long-term owner for operator-facing batch stop/failure summary copy on the current retryable batch path
+  - `apps/extension/src/result-delivery/operator-panel-copy.ts` is now the long-term owner for collapsed-panel summary text plus delivery-specific retry/insert/copy/disclosure labels and delivery-recovery callout copy on the current operator panel
+  - `apps/extension/src/operator-panel/capabilities.ts` is now the long-term owner for pending-tool capability assessment and manual-versus-auto action gating on the current operator panel
+  - `apps/extension/src/operator-panel/panel-state.ts` is now the long-term owner for operator-facing runtime stat assembly, injection diagnostics summary copy, visible action availability, and collapsed-toggle availability on the current operator panel
+  - `apps/extension/src/result-delivery/startup-recovery.ts` is now the long-term owner for startup undelivered-result restore probing plus delivery-specific startup composer normalization
+  - `apps/gateway/src/shell-runtime/*` is now the long-term owner for shell detection, configured-shell normalization, guarded `run_pwsh` preparation/execution, timeout handling, and captured stdout/stderr/combined-output shaping; Stage 21 deleted the former `shell/*` and shell-related compat adapters
+  - `apps/gateway/src/audit-log/*` is now the long-term owner for structured execution, policy, and lifecycle audit truth, while `apps/gateway/src/logger.ts` remains a compat re-export seam and `apps/gateway/src/execution-kernel/*` now only emits owner-defined audit events
+  - `apps/gateway/src/diagnostics/*` is now the long-term owner for health snapshot creation, config-derived runtime facts, and redacted diagnostics bundle assembly; `apps/gateway/src/api/health.ts` is the live adapter and the public `/health` contract stays unchanged
+  - `apps/gateway/src/api/*` is now the long-term owner for `/health`, `/tools`, and `/call-tool` HTTP adaptation; the old `routes/*` compat layer was deleted in Stage 21
+  - `apps/gateway/src/main/*` is now the long-term owner for gateway dependency wiring; `apps/gateway/src/index.ts` delegates to that composition root and `apps/gateway/src/server.ts` was deleted in Stage 21
+  - `apps/gateway/src/proposal-engine/*` now defines the typed proposal contract plus Stage 20 no-op stub, without opening the real proposal workflow yet
+  - `apps/gateway/src/external-mcp/*` now defines the typed external MCP registry contract plus Stage 20 no-op stub, without opening live endpoint lifecycle work yet
+  - `apps/gateway/src/result-cache/*` now defines the typed result-cache contract plus an in-memory TTL implementation, without turning cached results into a second execution-truth path
+  - `apps/extension/src/main/*` now owns the extension-only runtime shell that previously remained split across `apps/userscript/src/*`, including DOM helpers, gateway fetch orchestration, request-hook wiring, result insertion, runtime state, and operator-panel rendering
+  - `apps/userscript/` is now an archive only: `README.md` plus `legacy/` reference material, with no live workspace package or supported runtime entrypoint
+- The Stage 7 `turn-runtime` module stage is now closed. Userscript files touched there remain reference or temporary bridge surfaces, not target-state ownership destinations by themselves.
+- The Stage 8 `result-delivery` module stage is now closed. Real-page validation passed for insert-only, insert-plus-send, insertion-failure recovery, `Send=off -> Send=on -> refresh`, truncated residue refresh recovery, and repeated identical conversation-request submissions. Delivery-specific pure logic now routes through `apps/extension/src/result-delivery/*`, while userscript files remain compat/runtime shells only.
+- The Stage 9 `injection-runtime` module stage is now closed. Real-page validation passed for first-message hidden injection, visible fallback behavior, injection diagnostics timing, and cold-start recovery after cache deletion; in the warm-bootstrap path the operator did not observe `Catalog src = Cached bootstrap` before live sync, but the hidden path still worked and the cache was promptly recreated, so the stage can close without keeping a second local catalog truth.
+- The Stage 10 `operator-panel` module stage is now closed. Operator-visible runtime snapshot truth, intent gating, and diagnostics entry copy now route through extension-owned operator-panel helpers, while userscript panel files remain compat/runtime shells only.
+- The Stage 11 `execution-kernel` module stage is now closed. Route-local `/call-tool` orchestration moved behind `apps/gateway/src/execution-kernel/execution-kernel.ts`, the current route remains a thin compat adapter, and manual live `/call-tool` validation passed before the close.
+- The Stage 12 `tool-registry` module stage is now closed. Route-local catalog assembly lives behind `apps/gateway/src/tool-registry/{catalog,registry}.ts`, the current `/tools` route and `mcp_list` tool consume that shared owner seam, and live `/tools` validation passed before the close.
+- The Stage 13 `tool-policy` module stage is now closed. Workspace hard-path policy, pre-execution tool assessment, and failure-decision mapping now route through `apps/gateway/src/tool-policy/*`, while the current route and tool shells stay compat-stable.
+- The Stage 14 `builtin-tools` module stage is now closed. Structured builtin implementations now route through `apps/gateway/src/builtin-tools/*`, while the current `apps/gateway/src/tools/*` and `apps/gateway/src/utils/find-rg.ts` files remain translation-only compat seams.
+- The Stage 16 `audit-log` module stage is now closed. Durable gateway audit truth now routes through explicit execution, policy, and lifecycle event owners plus redacted summaries under `apps/gateway/src/audit-log/*`, while the current kernel path consumes that owner directly without reopening diagnostics or panel formatting concerns.
+- The Stage 17 `diagnostics` module stage is now closed. Gateway health shaping, config-derived runtime facts, and redacted diagnostics bundle assembly now route through `apps/gateway/src/diagnostics/*`, while the current `/health` route remains a thin compat adapter and the public health floor stays stable.
+- The Stage 18 `package-domain-extraction` module stage is now closed. `packages/protocol/` has been deleted, `packages/shared/` has been renamed to `packages/shared-utils/`, the new domain packages plus `packages/test-fixtures/` now own the shared contract surfaces, and all gateway/userscript/extension consumers now import from the focused packages instead of the legacy protocol package.
+- The most recently closed target-structure slice is:
+  - Stage 21: compatibility-layer removal and userscript archival
+- Stage 20 code-side verification passed on April 28, 2026:
+  - `pnpm --filter @cwmb/gateway lint`
+  - `pnpm --filter @cwmb/gateway test`
+  - `pnpm --filter @cwmb/gateway build`
+  - root `pnpm lint`
+  - root `pnpm test`
+  - root `pnpm build`
+- Stage 20 manual close-out verification also passed on April 28, 2026:
+  - browser-to-gateway `/health` through `apps/gateway/src/api/*`
+  - browser-to-gateway `/tools` through `apps/gateway/src/api/*`
+  - browser-to-gateway `/call-tool` through `apps/gateway/src/api/*`
+- Stage 19 code-side validation passed on April 28, 2026 before close-out:
+  - `pnpm --filter @cwmb/extension lint`, `test`, `build`
+  - root `pnpm lint`, `pnpm test`, `pnpm build`
+- Stage 21 code-side validation passed on April 28, 2026:
+  - `pnpm --filter @cwmb/extension lint`, `test`, `build`
+  - `pnpm --filter @cwmb/gateway lint`, `test`, `build`
+  - root `pnpm lint`, `pnpm test`, `pnpm build`
+  - `pnpm-workspace.yaml` no longer includes `apps/userscript`
+  - root `package.json` no longer references `@cwmb/userscript` scripts
+- Stage 21 manual close-out verification also passed on April 28, 2026:
+  - real ChatGPT Web extension-only runtime validation in a real browser
+- Stage 18 verification passed on April 28, 2026, and the workspace remained green after Stage 19 shell landing:
+  - `pnpm --filter @cwmb/shared-utils build`
+  - `pnpm --filter @cwmb/turn-model build`
+  - `pnpm --filter @cwmb/policy-model build`
+  - `pnpm --filter @cwmb/result-model build`
+  - `pnpm --filter @cwmb/tool-contracts build`
+  - `pnpm --filter @cwmb/test-fixtures build`
+  - `pnpm --filter @cwmb/gateway lint`, `test`, `build`
+  - root `pnpm lint`, `pnpm test`, `pnpm build`
+- Still explicitly out of scope until a later Phase:
   - `reviewed` / `yolo` rollout
-  - proposal workflow rollout
-  - external/custom MCP rollout
-  - broad builtin capability expansion
+  - full proposal workflow implementation (interface only in Stage 20)
+  - `run_pwsh` as shipped product scope
+  - external/custom MCP full implementation (interface only in Stage 20)
+  - new browser-runtime behavior unrelated to keeping the live `/health` and `/call-tool` floors stable
+  - broad panel redesign as a separate battleground
 
 ## Caveats
 
 - The repo still lacks browser-driven end-to-end automation, so browser-runtime transitions will continue to need real ChatGPT Web verification.
-- The active codebase is still userscript-first today; the v0.9 architecture and protocol docs are active target truth, not evidence that the refactor already happened.
+- The repo still lacks browser-driven end-to-end automation, so the extension-only runtime path still needs periodic real ChatGPT Web validation even though unit/root verification is green.
+- Stages 20 and 21 are now both fully closed: the `api/` path is the live gateway adapter, the userscript runtime is no longer part of the supported workspace path, and there is currently no active Phase 2 module stage.
 - The unified ChatGPT Web runtime evidence doc exists now, but it is not yet a fully populated evidence pack; DOM-heavy work should refresh or add evidence there before expanding.
-- The extension target skeleton now covers page-fact ownership plus narrow request-injection, runtime-snapshot, and turn-runtime helper ownership only; this is still not blanket authorization to migrate broader browser runtime logic into `apps/extension` yet.
+- Phase 2 may span many commits and substantial refactors, but the control rule is now stage isolation, not “one big package”: progress should come from completing one module cleanly before activating the next.
 - Later-scope capabilities remain target-state work rather than shipped behavior:
   - `reviewed` / `yolo`
   - full proposal workflow
   - `run_pwsh` as a shipped capability
   - external/custom MCP as a shipped extension ring
-  - Chrome Extension as the primary browser shell
 
 ## Next Handoff
 
 - Use `docs/v0.9-entrypoint.md` first when deciding where new v0.9 truth belongs.
 - Use `docs/prd.md` only as the closed reference baseline for the current proven runtime.
-- Do not reopen Phase 1 implicitly. Start the next round by documenting the next active slice first.
+- Do not reopen Phase 1 implicitly. The declared Stage 7-21 extraction sequence is already complete, and there is currently no active module slice.
 - If a change depends on ChatGPT Web DOM/request-shape/selectors facts, put the raw evidence in `docs/operations/chatgpt-web-runtime-evidence.md` instead of scattering it through task docs.
-- If code needs ChatGPT Web page facts, add or update them in `apps/extension/src/chatgpt-adapter/` first, then adapt current userscript consumers through compat wiring.
+- If code needs ChatGPT Web page facts, add or update them in `apps/extension/src/chatgpt-adapter/` first.
+- When a cleaner direct implementation exists in `apps/extension` or `apps/gateway`, land it there; do not rebuild archived userscript-shaped seams.
 - Do not add or keep adapters only to preserve draft-only field names, draft wording, or other reference-only shapes. Keep compatibility only where current live runtime behavior still depends on it.
 - Treat nested `execute` as the only active `/call-tool` execution-metadata compat surface unless a future task doc explicitly reopens that decision with live runtime evidence.
-- The next useful narrowing step is to decide whether `parser.ts`-level turn normalization itself should start moving behind an extension `turn-runtime` owner seam as the first post-Phase-1 extraction slice.
-- If a change tries to expand into extraction or capability rollout, stop and either narrow it back to this slice or first update the task-control docs with a new active slice.
+- `diagnostics` is closed. Do not assume a next extraction stage; Stage 21 is also formally closed, and any follow-on slice still needs an explicit declaration in the task-control docs.
+- Use the expanded `IMPLEMENTATION_PLAN.md` stage contract as the execution source of truth for module boundaries, allowed supporting surfaces, validation, and stage exit conditions; do not re-invent those rules ad hoc in code review.
+- If a change would activate a new Phase 2 or follow-on module stage, first update the task-control docs to declare that slice explicitly rather than assuming the old diagnostics gate still applies.
+- The next possible follow-on slice is undeclared. Choose it explicitly in the task-control docs before opening new scope.

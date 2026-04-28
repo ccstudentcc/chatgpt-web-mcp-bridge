@@ -1,0 +1,17 @@
+{
+  "name": "@cwmb/result-model",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build:deps": "pnpm --filter @cwmb/shared-utils build",
+    "build": "pnpm run build:deps && tsc -p tsconfig.json",
+    "test": "pnpm run build:deps && vitest run",
+    "lint": "pnpm run build:deps && tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@cwmb/shared-utils": "workspace:*",
+    "zod": "^3.23.8"
+  }
+}

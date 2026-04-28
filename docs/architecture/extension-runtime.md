@@ -35,6 +35,13 @@ apps/extension/src/
 └─ main/
 ```
 
+Current Stage 19-21 runtime state:
+
+- `apps/extension/src/main/extension-runtime.ts` now owns the shared browser-runtime composition root used by the real extension shell and the extension-owned runtime helpers under `src/main/*`.
+- `apps/extension/src/extension-shell/*` now owns the Chrome-extension host layer: manifest-driven entrypoints, background lifecycle ping, gateway messaging bridge, main-world request hook, content-script bootstrap, and panel mount isolation.
+- Stage 21 archives the former userscript bootstrap under `apps/userscript/legacy/`; the active browser runtime path is now extension-only.
+- Local extension and root verification are green for `pnpm --filter @cwmb/extension lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build`; real ChatGPT Web extension-path validation also passed on April 28, 2026, so Stage 21 is formally closed.
+
 ## 3. Module Boundaries
 
 ### 3.1 `chatgpt-adapter`
@@ -47,6 +54,7 @@ Owns:
 - assistant/user turn snapshots
 - observer hooks and page diagnostics
 - the canonical v0.9 code module for ChatGPT Web page facts, currently seeded at `apps/extension/src/chatgpt-adapter/chatgpt-runtime-facts.ts`
+- newly discovered ChatGPT-page helpers such as selector refinements, placeholder recognition, turn-id extraction, and other runtime normalization facts before they are consumed elsewhere
 
 Does not own:
 
@@ -61,6 +69,11 @@ Minimum public surface:
 - observe turn stream
 - expose page diagnostics facts
 - expose shared page-fact constants/helpers without forcing compat consumers to redefine them
+
+Rule:
+
+- if a fact is primarily about how ChatGPT Web renders, labels, structures, or identifies page elements, add it here first and let downstream modules consume it
+- `turn-runtime`, `injection-runtime`, and `result-delivery` should not each grow their own copies of page-fact logic, and the archived userscript reference must not become a parallel owner again
 
 ### 3.2 `injection-runtime`
 
@@ -85,7 +98,10 @@ Invariants:
 
 Current Phase 1 seed:
 
-- `apps/extension/src/injection-runtime/request-injection-state.ts` now owns the pure request-injection mode/status helper semantics used by current userscript compat state and request-hook diagnostics
+- `apps/extension/src/injection-runtime/request-injection-state.ts` now owns the pure request-injection mode/status helper semantics used by the extension-owned runtime state and request-hook diagnostics
+- `apps/extension/src/injection-runtime/catalog.ts` now owns hidden-versus-visible catalog prompt construction, the shared tool-guidance text consumed by both prompt wrappers, and bootstrap/live prompt-sync copy
+- `apps/extension/src/injection-runtime/catalog-cache.ts` now owns browser-local catalog bootstrap cache read/write semantics
+- `apps/extension/src/injection-runtime/request-body-injection.ts` now owns request-payload mutation for hidden prompt injection, while `apps/extension/src/main/request-hook.ts` and `apps/extension/src/extension-shell/page-hook-runtime.ts` provide the live runtime shell that installs page hooks and forwards diagnostics
 
 ### 3.3 `turn-runtime`
 
@@ -112,7 +128,7 @@ Invariants:
 
 Current Phase 1 seed:
 
-- `apps/extension/src/turn-runtime/*` now owns the pure invalid-turn state, pending-selection identity, and auto-round guard helper semantics used by current userscript compat code
+- `apps/extension/src/turn-runtime/*` now owns the pure invalid-turn state, pending-selection identity, and auto-round guard helper semantics used by the extension-owned browser runtime
 
 ### 3.4 `result-delivery`
 
@@ -144,9 +160,12 @@ Owns:
 - diagnostics copy entrypoints
 - conversation-scoped execution-profile control
 
-Current Phase 1 seed:
+Current Phase 2 progress:
 
-- `apps/extension/src/operator-panel/runtime-snapshot.ts` now owns the pure browser-side runtime-snapshot helper semantics used by current userscript compat state
+- `apps/extension/src/operator-panel/runtime-snapshot.ts` now owns the pure browser-side runtime-snapshot helper semantics used by the extension-owned runtime state
+- `apps/extension/src/operator-panel/capabilities.ts` now owns pending-tool capability assessment plus manual-versus-auto action gating for the current operator panel
+- `apps/extension/src/operator-panel/panel-state.ts` now owns operator-facing runtime stat assembly, injection diagnostics summary copy, action visibility, and collapsed-toggle availability while `apps/extension/src/main/ui.ts` remains the live DOM/render shell
+- Stage 19 established those operator-panel owner semantics, and Stage 21 keeps them intact while the extension content script mounts the rendered panel inside an isolated shadow-root host.
 
 Does not own:
 

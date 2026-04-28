@@ -23,6 +23,7 @@ Current live reminders:
 - low-risk read tools are the current automatic path
 - `write_file` is the only shipped high-risk builtin and stays manual-only even when enabled
 - `run_pwsh`, full proposal workflows, and richer mode routing remain target-state planning items unless task-control docs explicitly say otherwise
+- gateway pre-execution tool assessment plus workspace hard-path policy now live under `apps/gateway/src/tool-policy/{call-policy,path-policy}.ts`
 
 Current live signals are narrower than the target policy model:
 

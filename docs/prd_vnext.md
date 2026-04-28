@@ -58,7 +58,7 @@ vNext 不把会话管理作为主产品线。
 
 最终浏览器壳是 Chrome Extension。
 
-当前 userscript 只是过渡实现来源，不应再被视为终态产品形态。
+当前 userscript 已经降级为归档 reference baseline，保存在 `apps/userscript/legacy/` 供回看，不再是 workspace app，也不是受支持的运行时路径。
 
 ---
 
@@ -71,13 +71,19 @@ vNext 不把会话管理作为主产品线。
 - 当前主路径是 hidden request-layer injection
 - 当前 live catalog truth 来自 `/tools`
 - 当前 canonical gateway route set 是 `/health`、`/tools`、`/call-tool`
-- 当前 `mcp_list`、注入 prompt、catalog truth 必须对齐
+- 当前 `mcp_list`、visible/hidden 注入 prompt、共享 tool guidance、catalog truth 必须对齐
 - 当前非原生 MCP 边界必须保留
 - 当前 invalid-turn enforcement 必须保留
 - 当前 startup/history rescan 规则必须保留
 - 当前 execute / insert / send 自动化开关语义必须保留
 
 vNext 不是用未来设想覆盖这些事实，而是在不丢失它们的前提下定义最终产品。
+
+这里的“继承”指行为继承，不是代码形态继承。
+
+- userscript 提供的是已验证行为参考
+- extension + gateway 才是 v0.9 的正式实现落点
+- 当直接在 extension / gateway 重写或重组逻辑更利于效率、时序和边界清晰时，优先走直接重构，而不是为了“照抄 userscript”去维持一条人为 compat 路线
 
 ---
 

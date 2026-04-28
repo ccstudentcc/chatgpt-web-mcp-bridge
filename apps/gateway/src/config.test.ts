@@ -52,6 +52,35 @@ describe('loadConfig', () => {
     const config = await loadConfig({ appHomeOverride: appHome, cwdOverride: cwdRoot });
     expect(config.workspaceRoot).toBe(workspaceRoot);
   });
+
+  it('keeps a supported shell selection from config', async () => {
+    const appHome = await makeTempDir('cwmb-config-');
+    const workspaceRoot = path.join(appHome, 'workspace');
+    await fs.mkdir(workspaceRoot, { recursive: true });
+    await fs.writeFile(
+      path.join(appHome, 'config.json'),
+      `${JSON.stringify({ host: '127.0.0.1', port: 8024, workspaceRoot, shell: 'powershell.exe' }, null, 2)}\n`,
+      'utf8'
+    );
+
+    const config = await loadConfig({ appHomeOverride: appHome, cwdOverride: workspaceRoot });
+    expect(config.shell).toBe('powershell.exe');
+  });
+
+  it('rejects unsupported shell selections from config', async () => {
+    const appHome = await makeTempDir('cwmb-config-');
+    const workspaceRoot = path.join(appHome, 'workspace');
+    await fs.mkdir(workspaceRoot, { recursive: true });
+    await fs.writeFile(
+      path.join(appHome, 'config.json'),
+      `${JSON.stringify({ host: '127.0.0.1', port: 8024, workspaceRoot, shell: 'bash' }, null, 2)}\n`,
+      'utf8'
+    );
+
+    await expect(loadConfig({ appHomeOverride: appHome, cwdOverride: workspaceRoot })).rejects.toThrow(
+      'Unsupported gateway shell: bash'
+    );
+  });
 });
 
 async function makeTempDir(prefix: string): Promise<string> {

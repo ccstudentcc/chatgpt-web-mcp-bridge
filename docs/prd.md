@@ -168,7 +168,7 @@ userscript 基于 `/tools` 动态生成一份 live catalog prompt，并在 ChatG
 - 对路径和目标工具都已明确的简单本地文件请求，注入 prompt 还应鼓励模型直接发出对应的 `mcp` block，而不是先声明自己是否能访问工作区、是否执行了 MCP，或反问用户是否继续。
 - 对这类简单请求，注入 prompt 还应给出一条精确的 fenced `mcp` 回复形状，并明确禁止模型在收到真实 `tool_result` 之前擅自宣称“调用失败”“未执行”“已看到结果”或“不可用”。
 - assistant 发出 `mcp` block 后必须立刻停止，等待 userscript 回填真实 `tool_result` / `tool_result_batch`；不得自行伪造、复述或脑补这些结果内容。
-- assistant 在发起 `mcp` 工具调用前，可以先给出必要的自然语言上下文；但一旦首个 fenced `mcp` block 已经出现，后续内容就不得再夹带自然语言、分析、阶段性结论，或任何“边想边说”的中途思考文本。仅当真实 ChatGPT 页面额外渲染出短的 thinking/status 标签、且该标签不属于模型正文时，userscript 才可在日志记 warning 后忽略它。
+- assistant 在发起 `mcp` 工具调用前，可以先给出必要的自然语言上下文；真实 ChatGPT 页面若在首个 `mcp` block 前额外渲染出短的 thinking/status 标签、且该标签不属于模型正文，userscript 也可在日志记 warning 后忽略它。仅在首个 fenced `mcp` block 已经出现之后，后续内容才不得再夹带自然语言、分析、阶段性结论，或任何“边想边说”的中途思考文本。
 - userscript 对 rendered code block 的自动检测只应接受明确标记为 `mcp` 的代码块；普通 JSON / TypeScript / 示例代码块即使碰巧含有 `tool` / `args` 结构，也不得被当成 MCP 调用。
 - 如果 assistant 仍然产出混合回复，userscript 执行层必须把该回合判为非法 `mcp` turn：不自动执行、不进入 pending 队列，并在面板中明确显示格式违规原因。
 - 非法 `mcp` turn 的判定应在当前 assistant 回复内容稳定后再落锤；对仍在流式增长中的半成品 `mcp` / JSON 片段，不应过早显示最终格式违规告警。
@@ -242,6 +242,8 @@ v0.1 定义三个独立开关：
 | `autoSendResult` | 结果插入后自动发送 | 停留在 `inserted`，用户手动点页面发送按钮 |
 
 无论工具成功还是失败，只要已经生成结构化 `tool_result` / `tool_result_batch`，都必须继续遵守 `autoInsertResult` 与 `autoSendResult` 的当前值。
+
+当 `autoSendResult` 需要继续处理一份已插入但未发送的 bridge 结果时，发送源必须始终是桥接层保存的权威 `tool_result` / `tool_result_batch` 文本，而不是刷新后当前 composer 里残留、被用户裁剪、或被 ChatGPT 轻微重排过的可见文本。
 
 ### 7.4 Batch 规则
 
@@ -360,6 +362,8 @@ userscript 必须优先写入当前可见的真实输入控件，而不是隐藏
 - 优先可见 `contenteditable`，例如 `#prompt-textarea`
 - 其次可见 textarea
 - 失败时退回剪贴板
+- 若结果已经插入但尚未发送，刷新同一会话后应优先恢复这份未发送结果的 bridge 状态，而不是把同一条尚未闭合的 assistant `mcp` turn 再执行一遍
+- 对这类“未发送但可继续发送”的恢复路径，bridge 应先暂时用权威结果完整替换 composer，再尝试发送；发送确认后才恢复用户原本草稿，发送失败则保留权威结果继续停留在 composer 中
 
 ### 9.2 发送按钮
 
@@ -368,6 +372,8 @@ ChatGPT 页面在输入框为空时可能显示语音按钮。userscript 必须�
 - 在结果插入后等待真实 send button 状态出现
 - 再尝试点击发送
 - 不能因为仍处于语音按钮态就立即判定 “send button not found”
+- 不能仅凭 `#composer-submit-button` 这个 id 就判定“已经可以发送”；当它仍是 `data-testid="stop-button"`、`aria-label="停止流式传输"` 之类的 stop 态时，必须继续等待，而不是点错按钮或误记发送成功
+- 对自动发送成功的判定，不能只看“按钮点过了”或“composer 文本后来变了”；至少要确认 ChatGPT 已进入真实提交/流式状态，或 composer 已明显脱离这次插入的权威结果后，才允许把先前草稿恢复回输入框
 
 ### 9.3 选择器治理
 
@@ -630,6 +636,8 @@ README 首页必须明确：
 
 - 结果能写入当前真实输入框，而不是隐藏 fallback textarea
 - 自动发送能等待 send button 出现
+- 自动发送不会把 stop-streaming 态的 `#composer-submit-button` 误当成 send button
+- 对于已插入但未发送的结果，刷新同一线程不会重复执行同一条 assistant `mcp` turn，也不会重复插入同一份结果
 - `continueBatchOnError` 关闭时，batch 失败后后续项不执行并标记 `skipped`
 - `continueBatchOnError` 开启时，batch 在失败后继续执行后续项并统一回填失败摘要
 - 同一 assistant 回复多 block 只回填一次批量结果

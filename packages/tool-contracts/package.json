@@ -1,0 +1,20 @@
+{
+  "name": "@cwmb/tool-contracts",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build:deps": "pnpm --filter @cwmb/shared-utils build && pnpm --filter @cwmb/turn-model build && pnpm --filter @cwmb/policy-model build && pnpm --filter @cwmb/result-model build",
+    "build": "pnpm run build:deps && tsc -p tsconfig.json",
+    "test": "pnpm run build:deps && vitest run",
+    "lint": "pnpm run build:deps && tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@cwmb/policy-model": "workspace:*",
+    "@cwmb/result-model": "workspace:*",
+    "@cwmb/shared-utils": "workspace:*",
+    "@cwmb/turn-model": "workspace:*",
+    "zod": "^3.23.8"
+  }
+}

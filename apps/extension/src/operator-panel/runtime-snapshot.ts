@@ -3,7 +3,7 @@ import type {
   CatalogSource,
   GatewayHealthContract,
   GatewayRuntimeSnapshot
-} from '@cwmb/protocol';
+} from '@cwmb/tool-contracts';
 
 export function hasLiveGatewayCatalog(snapshot: GatewayRuntimeSnapshot | undefined): boolean {
   return snapshot?.catalogSource === 'live' && snapshot.catalog !== undefined;

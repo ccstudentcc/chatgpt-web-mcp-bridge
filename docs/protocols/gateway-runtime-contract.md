@@ -4,7 +4,7 @@
 
 - Status: draft v1
 - Owner: gateway route layer plus browser runtime client
-- Used by: userscript state, future extension compat state, operator diagnostics
+- Used by: extension runtime state, operator diagnostics, contract validation
 
 This document defines the shared runtime contract around gateway reachability/config truth and the browser-local snapshot that aggregates it with catalog truth.
 
@@ -31,12 +31,12 @@ At the current repo stage:
 Current implementation note:
 
 - the gateway now serves a shared `GatewayHealthContract` on `/health`
-- the userscript now validates `/health` before applying automation defaults
-- the userscript state now stores a `GatewayRuntimeSnapshot` that can hold:
+- the browser runtime now validates `/health` before applying automation defaults
+- the browser runtime state now stores a `GatewayRuntimeSnapshot` that can hold:
   - live health truth from `/health`
   - catalog truth from `/tools`
   - whether the visible catalog is live or cached bootstrap data
-- the narrow target owner for pure browser-side runtime-snapshot helper semantics is now seeded at `apps/extension/src/operator-panel/runtime-snapshot.ts`, with current userscript code consuming it through a compat re-export
+- the narrow target owner for pure browser-side runtime-snapshot helper semantics is now seeded at `apps/extension/src/operator-panel/runtime-snapshot.ts`, with the extension-owned runtime consuming it directly
 
 ## 3. Minimum Contract Surface
 

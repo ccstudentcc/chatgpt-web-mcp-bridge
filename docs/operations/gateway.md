@@ -14,11 +14,17 @@ The gateway is the local execution kernel and contract host. It is not the ChatG
 The gateway owns:
 
 - the live route surface: `/health`, `/tools`, and `/call-tool`
+- the Stage 20 HTTP adapter owner under `apps/gateway/src/api/*`
+- the Stage 20 composition root under `apps/gateway/src/main/*`
 - materialized catalog truth for the current builtin tool set
 - builtin tool execution for the current shipped v0.1 tools
+- shell detection plus guarded `run_pwsh` runtime semantics under `apps/gateway/src/shell-runtime/*`
+- the Stage 20 structural contracts for proposal lifecycle, external MCP registry, and result caching under `apps/gateway/src/{proposal-engine,external-mcp,result-cache}/*`
+- structured execution, policy, and lifecycle audit truth under `apps/gateway/src/audit-log/*`
+- health snapshot creation, config-derived runtime facts, and redacted diagnostics bundle assembly under `apps/gateway/src/diagnostics/*`
 - localhost/origin/token/trusted-local access control
 - workspace and sensitive-path enforcement
-- execution logging and basic diagnostics for current tool calls
+- the live `/health` route as the public health contract, with diagnostics staying read-only and internal by default
 
 The gateway does not own:
 
@@ -27,15 +33,24 @@ The gateway does not own:
 - result insertion into the composer
 - conversation-local runtime UI state
 
-Target-state docs may assign proposal handling, richer shell flows, external MCP lifecycle, or result-cache subsystems to the gateway in the future, but those are not current shipped gateway subsystems yet.
+`run_pwsh` remains a default-disabled power tool unless `allowPwsh=true`, so current shipped v0.1 behavior is still conservative even though shell-runtime now has a direct gateway owner.
+
+Current audit rule:
+
+- durable audit entries should describe stable execution, policy, and lifecycle concepts
+- audit summaries must stay redacted and must not persist raw result content, secrets, or panel-facing formatting copy
+- later diagnostics should aggregate these owner events instead of reverse-engineering route-local strings
+- diagnostics should read config, shell facts, and redacted audit summaries through their owners rather than assembling a second execution or policy control plane
+
+Proposal workflow, external MCP lifecycle, and cached-result rollout are still not shipped gateway behaviors. Stage 20 only makes those module boundaries explicit in code so later phases can implement them without reopening ownership.
 
 ## 3. Current Live Routes And What They Mean
 
 Current shipped v0.1 runtime truth still depends on these routes:
 
-- `/health`: gateway reachability, config-derived runtime status, and operator-visible health summary
+- `/health`: gateway reachability, config-derived runtime status, and operator-visible health summary; the route is now a thin adapter over diagnostics-owned health shaping
 - `/tools`: canonical live catalog truth used by hidden injection, panel capability display, and `mcp_list` alignment
-- `/call-tool`: canonical live execution route for the current userscript flow
+- `/call-tool`: canonical live execution route for the current browser-runtime flow
 
 Operational rule:
 
@@ -51,6 +66,7 @@ At the current repo stage:
 - `/tools` remains the canonical live catalog contract
 - `/call-tool` remains the canonical live execution route
 - `/health` remains the canonical live health and gateway-status route
+- richer diagnostics may be assembled internally, but they must not silently widen the public route surface or become a second execution control plane
 - browser runtimes may aggregate validated `/health` and `/tools` into one local runtime snapshot, but that snapshot is not a new route contract
 - route renaming must not silently demote live runtime dependencies
 - any future logical rename must use an approved migration plan
