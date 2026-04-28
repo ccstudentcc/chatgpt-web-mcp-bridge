@@ -11,10 +11,21 @@ export const chatgptCodeBlockFallbackSelectors = [
   '[class*="whitespace-pre"]'
 ] as const;
 
+// Prefer the rendered markdown body over the whole assistant turn so regenerated-reply
+// chrome such as reply pickers or action rows does not pollute visible assistant text.
 export const chatgptAssistantContentSelectors = [
   '.markdown',
   '[class*="markdown"]'
 ] as const;
+
+// The live page exposes these bridge-owned prompt attributes on <html>; keep the names
+// centralized here so request-hook consumers do not become a parallel owner.
+export const chatgptRequestPromptAttributes = {
+  prompt: 'data-cwmb-request-prompt',
+  mode: 'data-cwmb-request-prompt-mode',
+  source: 'data-cwmb-request-prompt-source',
+  catalogVersion: 'data-cwmb-request-prompt-catalog-version'
+} as const;
 
 export const chatgptSelectors = {
   assistantMessage: '[data-message-author-role="assistant"]',
@@ -25,6 +36,8 @@ export const chatgptSelectors = {
   codeBlockStrict: chatgptCodeBlockStrictSelectors.join(', '),
   codeBlockFallback: chatgptCodeBlockFallbackSelectors.join(', '),
   codeBlock: [...chatgptCodeBlockStrictSelectors, ...chatgptCodeBlockFallbackSelectors].join(', '),
+  // Current ChatGPT Web shows both the visible contenteditable prompt surface and a hidden
+  // textarea fallback at the same time; prefer editable inputs first, keep textarea as backup.
   editableInputs: [
     '#prompt-textarea[contenteditable="true"]',
     '[contenteditable="true"][role="textbox"]',

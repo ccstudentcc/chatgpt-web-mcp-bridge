@@ -4,6 +4,7 @@ export {
   chatgptCodeBlockStrictSelectors,
   chatgptConversationPaths,
   chatgptIgnorableStatusLinePatterns,
+  chatgptRequestPromptAttributes,
   chatgptSelectors,
   extractChatGptAssistantBodyText,
   findNearestChatGptAssistantTurn,

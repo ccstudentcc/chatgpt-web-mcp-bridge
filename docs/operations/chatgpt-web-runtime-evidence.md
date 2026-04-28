@@ -171,12 +171,15 @@ But the underlying DOM/request-shape observations still need to be centralized h
 
 - Date: 2026-04-28
 - Method: manual repro on a real signed-in page, captured assistant-turn HTML from the current ChatGPT runtime, and follow-up userscript regression tests
+- Snapshot:
+  - local repo `tmp/chatgpt1.html` capture kept as validation evidence only, not as a committed runtime fixture
 - Page state:
   - existing thread
   - assistant reply regenerated so the turn showed the built-in reply picker (`1/2`)
   - visible assistant body was only one rendered `mcp` code block for `read_file README.md`
 - Observation:
   - The same assistant `SECTION[data-turn="assistant"]` still contained the regenerated-reply action strip and reply-picker text under the message body.
+  - In the captured snapshot, the assistant-authored body stayed under `div.markdown...`, while the regenerated-reply controls lived later in the same assistant message as a sibling action group with `aria-label="回复操作"` and pager text such as `1/2`.
   - On that DOM shape, reading `innerText` from the whole assistant turn or whole `[data-message-author-role="assistant"]` container can append UI residue such as the reply-picker `1/2` after the valid rendered `mcp` block, even though the actual markdown body itself remains MCP-only.
   - That means invalid-turn enforcement can falsely report `natural language or other non-block content after MCP tool-call blocks` when the model output is correct and only ChatGPT chrome changed around it.
 - Impact:
@@ -185,6 +188,33 @@ But the underlying DOM/request-shape observations still need to be centralized h
 - Affected surfaces:
   - `apps/extension/src/chatgpt-adapter/chatgpt-runtime-facts.ts`
   - `apps/userscript/src/chatgpt-runtime-facts.ts`
+  - `apps/userscript/src/dom.ts`
+  - `apps/userscript/src/dom.test.ts`
+
+## Evidence: local DOM snapshot also confirms turn identity split, live prompt attrs, and dual composer surfaces
+
+- Date: 2026-04-28
+- Method: captured local DOM snapshot from a real signed-in page after multiple bridge round-trips, plus adapter/request-hook code review
+- Snapshot:
+  - local repo `tmp/chatgpt1.html` capture kept as validation evidence only, not as a committed runtime fixture
+- Page state:
+  - existing thread
+  - multiple assistant `mcp` replies, bridge-inserted `tool_result` follow-ups, and a ready composer
+- Observation:
+  - Conversation turns rendered on outer `section[data-turn][data-turn-id][data-testid="conversation-turn-*"]` containers, while inner message nodes carried their own `data-message-author-role`, `data-message-id`, and optional `data-message-model-slug`.
+  - The snapshot showed a real split between outer turn identity and inner message identity: for example, the outer assistant turn used `data-turn-id="request-...-0"` while the nested assistant message used a separate UUID-style `data-message-id`.
+  - The root `<html>` node carried bridge-owned prompt metadata as DOM attributes: `data-cwmb-request-prompt`, `data-cwmb-request-prompt-mode`, `data-cwmb-request-prompt-source="live"`, and `data-cwmb-request-prompt-catalog-version`.
+  - The same ready composer exposed both a hidden fallback `textarea[name="prompt-textarea"]` and a visible `div#prompt-textarea[contenteditable="true"][role="textbox"]`.
+  - Bridge-inserted `tool_result` content rendered in later `section[data-turn="user"]` turns rather than as assistant turns, which matches the current close-out rule that a later user-side bridge result can close an older assistant MCP turn.
+- Impact:
+  - Bridge-owned request-prompt attribute names should be centralized under `apps/extension/src/chatgpt-adapter/` rather than remaining a userscript-only page-facts owner.
+  - Turn/runtime code must keep distinguishing outer turn ids from inner message ids when deriving pending-turn identity or normalizing assistant candidates.
+  - Composer interaction should continue preferring the visible contenteditable prompt surface and keeping the textarea path as a fallback only.
+  - History/closure logic should continue treating later bridge `tool_result` user turns as authoritative close-outs for older assistant MCP turns.
+- Affected surfaces:
+  - `apps/extension/src/chatgpt-adapter/chatgpt-runtime-facts.ts`
+  - `apps/userscript/src/chatgpt-runtime-facts.ts`
+  - `apps/userscript/src/request-hook.ts`
   - `apps/userscript/src/dom.ts`
   - `apps/userscript/src/dom.test.ts`
 

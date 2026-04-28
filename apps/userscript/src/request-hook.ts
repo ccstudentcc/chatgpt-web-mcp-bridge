@@ -1,5 +1,5 @@
 import type { CatalogSource } from '@cwmb/protocol';
-import { chatgptConversationPaths } from './chatgpt-runtime-facts.js';
+import { chatgptConversationPaths, chatgptRequestPromptAttributes } from './chatgpt-runtime-facts.js';
 import {
   createEmptyRequestPromptSnapshot,
   normalizeRequestInjectionMode,
@@ -26,9 +26,10 @@ import {
   type RequestBodyInjectionResult
 } from '../../extension/src/injection-runtime/request-body-injection.js';
 
-const REQUEST_PROMPT_ATTRIBUTE = 'data-cwmb-request-prompt';
-const REQUEST_PROMPT_SOURCE_ATTRIBUTE = 'data-cwmb-request-prompt-source';
-const REQUEST_PROMPT_CATALOG_VERSION_ATTRIBUTE = 'data-cwmb-request-prompt-catalog-version';
+const REQUEST_PROMPT_ATTRIBUTE = chatgptRequestPromptAttributes.prompt;
+const REQUEST_PROMPT_MODE_ATTRIBUTE = chatgptRequestPromptAttributes.mode;
+const REQUEST_PROMPT_SOURCE_ATTRIBUTE = chatgptRequestPromptAttributes.source;
+const REQUEST_PROMPT_CATALOG_VERSION_ATTRIBUTE = chatgptRequestPromptAttributes.catalogVersion;
 const REQUEST_PROMPT_MESSAGE_TYPE = 'cwmb:update-request-prompt';
 const REQUEST_HOOK_STATUS_MESSAGE_TYPE = 'cwmb:request-hook-status';
 
@@ -110,7 +111,7 @@ function getPageWindow(): (Window & typeof globalThis) | undefined {
 
 function applyPromptSnapshotToDom(snapshot: RequestPromptSnapshot): void {
   document.documentElement.setAttribute(REQUEST_PROMPT_ATTRIBUTE, snapshot.prompt);
-  document.documentElement.setAttribute(`${REQUEST_PROMPT_ATTRIBUTE}-mode`, snapshot.mode);
+  document.documentElement.setAttribute(REQUEST_PROMPT_MODE_ATTRIBUTE, snapshot.mode);
   setOptionalPromptAttribute(REQUEST_PROMPT_SOURCE_ATTRIBUTE, snapshot.source);
   setOptionalPromptAttribute(REQUEST_PROMPT_CATALOG_VERSION_ATTRIBUTE, snapshot.catalogVersion);
 }
@@ -127,7 +128,7 @@ function setOptionalPromptAttribute(name: string, value: string | undefined): vo
 function readPromptSnapshotFromDom(): RequestPromptSnapshot {
   return {
     prompt: document.documentElement.getAttribute(REQUEST_PROMPT_ATTRIBUTE) || '',
-    mode: normalizeRequestInjectionMode(document.documentElement.getAttribute(`${REQUEST_PROMPT_ATTRIBUTE}-mode`)),
+    mode: normalizeRequestInjectionMode(document.documentElement.getAttribute(REQUEST_PROMPT_MODE_ATTRIBUTE)),
     source: normalizeCatalogSource(document.documentElement.getAttribute(REQUEST_PROMPT_SOURCE_ATTRIBUTE)),
     catalogVersion: document.documentElement.getAttribute(REQUEST_PROMPT_CATALOG_VERSION_ATTRIBUTE) || undefined
   };
@@ -253,6 +254,7 @@ function buildPageHookSource(): string {
     window.__cwmbRequestHookInstalled = true;
     const CHATGPT_CONVERSATION_PATHS = ${JSON.stringify(chatgptConversationPaths)};
     const REQUEST_PROMPT_ATTRIBUTE = ${JSON.stringify(REQUEST_PROMPT_ATTRIBUTE)};
+    const REQUEST_PROMPT_MODE_ATTRIBUTE = ${JSON.stringify(REQUEST_PROMPT_MODE_ATTRIBUTE)};
     const REQUEST_PROMPT_SOURCE_ATTRIBUTE = ${JSON.stringify(REQUEST_PROMPT_SOURCE_ATTRIBUTE)};
     const REQUEST_PROMPT_CATALOG_VERSION_ATTRIBUTE = ${JSON.stringify(REQUEST_PROMPT_CATALOG_VERSION_ATTRIBUTE)};
     const REQUEST_PROMPT_MESSAGE_TYPE = ${JSON.stringify(REQUEST_PROMPT_MESSAGE_TYPE)};
@@ -264,7 +266,7 @@ function buildPageHookSource(): string {
     const readPromptFromDom = () => document.documentElement.getAttribute(REQUEST_PROMPT_ATTRIBUTE) || '';
     ${normalizeRequestInjectionMode.toString()}
     const normalizeCatalogSource = (value) => value === 'cache' || value === 'live' ? value : undefined;
-    const readModeFromDom = () => normalizeRequestInjectionMode(document.documentElement.getAttribute(REQUEST_PROMPT_ATTRIBUTE + '-mode'));
+    const readModeFromDom = () => normalizeRequestInjectionMode(document.documentElement.getAttribute(REQUEST_PROMPT_MODE_ATTRIBUTE));
     const readPromptSourceFromDom = () => normalizeCatalogSource(document.documentElement.getAttribute(REQUEST_PROMPT_SOURCE_ATTRIBUTE));
     const readCatalogVersionFromDom = () => document.documentElement.getAttribute(REQUEST_PROMPT_CATALOG_VERSION_ATTRIBUTE) || undefined;
     const emitRequestHookStatus = (status, transport, url) => {
