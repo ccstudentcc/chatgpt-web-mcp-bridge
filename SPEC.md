@@ -8,7 +8,7 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is complete. Stages 7—18 (the Final Core extraction sequence plus `package-domain-extraction`) are now complete. No target-structure stage is currently active. Stages 19—21 (`extension-structure`, `gateway-structure`, `remove-compat-layers`) remain planned follow-on stages.
+Phase 1 shared-contract freeze is complete. Stages 7—18 (the Final Core extraction sequence plus `package-domain-extraction`) are now complete. Stage 19 `extension-structure` is now the active target-structure stage. Stages 20—21 (`gateway-structure`, `remove-compat-layers`) remain planned follow-on stages.
 
 Phase 2 exists so the repo can finish `apps/extension` and `apps/gateway` one module at a time, keeping each stage narrow enough to improve ownership, timing, logic, stability, and test coverage without reopening multiple modules at once.
 
@@ -86,9 +86,9 @@ Exit gate for any Phase 2 stage:
 
 ## Current Stage State
 
-Active module stage: none. The most recently closed stage is `package-domain-extraction` (Stage 18) on April 28, 2026. The next planned stage is `extension-structure` (Stage 19).
+Active module stage: `extension-structure` (Stage 19). The most recently closed stage is `package-domain-extraction` (Stage 18) on April 28, 2026. Stages 20-21 remain planned follow-on stages.
 
-Stages 19-21 remain defined in `IMPLEMENTATION_PLAN.md` with full owner surfaces, constraints, validation, and definitions of done. Do not activate them until `TASK_STATUS.md` explicitly declares the next stage.
+Stages 19-21 remain defined in `IMPLEMENTATION_PLAN.md` with full owner surfaces, constraints, validation, and definitions of done. Stage 19 is now explicitly activated in the root task-control docs; do not activate Stages 20-21 until `TASK_STATUS.md` declares the next slice.
 
 Most recently completed module-stage file surfaces:
 
@@ -108,7 +108,7 @@ Most recently completed stage intent:
 
 - replace the catch-all protocol package with explicit domain package boundaries visible in workspace dependencies
 - keep runtime behavior and contract shapes unchanged while rewiring imports, schemas, compat helpers, and constants into their focused owner packages
-- leave no active module stage after the package split completes; Stage 19 must be explicitly activated before extension-shell work begins
+- leave no active module stage after the package split completes; that gate is now closed because Stage 19 has been explicitly activated for extension-shell work
 
 ## In Scope
 

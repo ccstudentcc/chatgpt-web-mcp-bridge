@@ -12,6 +12,7 @@ const LOG_STREAM_SELECTOR = '.cwmb-log-stream';
 const DISCLOSURE_SELECTOR = 'details[data-cwmb-disclosure-key]';
 
 let root: HTMLDivElement | null = null;
+let mountTarget: HTMLElement | ShadowRoot | null = null;
 let dragState: { pointerId: number; offsetX: number; offsetY: number } | null = null;
 let onRunHandler: (() => void) | null = null;
 let onIgnoreHandler: (() => void) | null = null;
@@ -49,6 +50,13 @@ export function setUiHandlers(handlers: {
   onToggleSendHandler = handlers.onToggleSend;
   onToggleContinueBatchHandler = handlers.onToggleContinueBatch;
   onToggleCollapsedHandler = handlers.onToggleCollapsed;
+}
+
+export function configureUiMountTarget(target: HTMLElement | ShadowRoot | null | undefined): void {
+  mountTarget = target ?? null;
+  if (root && mountTarget && root.parentNode !== mountTarget) {
+    mountTarget.appendChild(root);
+  }
 }
 
 export function renderPanel(): void {
@@ -192,7 +200,7 @@ function ensureRoot(): void {
     'backdrop-filter: blur(18px)',
     'scrollbar-width: thin'
   ].join(';');
-  document.body.appendChild(root);
+  (mountTarget ?? document.body).appendChild(root);
 }
 
 function bindHandlers(

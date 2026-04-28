@@ -937,7 +937,12 @@ Completed on April 28, 2026:
 
 ## Stage 19: Execute Module Stage - Extension Structure
 
-Status: planned
+Status: active
+
+Current code-side status:
+
+- April 28, 2026: the extension package, manifest v3 shell, background service worker, content-script entrypoint, main-world request hook, and `apps/extension/src/main/` composition root are now landed in code.
+- Remaining close-out gate: manual Chrome load/unpacked verification plus real ChatGPT Web validation on the extension path before Stage 19 can be marked complete.
 
 Goal:
 
@@ -1119,7 +1124,7 @@ Definition of done:
 
 ## Risks
 
-- The codebase still implements the proven userscript-first runtime, so the target docs remain ahead of the structure.
+- The codebase now carries a dual browser-runtime shape: the extension-first mainline path is landed in code, while the userscript remains a required fallback until Stage 21 removes it. Stage 19 still cannot close until manual Chrome and real-page validation are recorded.
 - Hidden request-layer injection, invalid-turn enforcement, result delivery, and operator recovery are still real-page behaviors; browser-only regressions cannot be dismissed by passing unit tests alone.
 - Several target-state modules still do not yet exist as concrete directories (`extension-shell/`, `extension/main/`, `gateway/api/`, `gateway/proposal-engine/`, `gateway/external-mcp/`, `gateway/result-cache/`, `gateway/main/`, domain packages); Stages 18-21 must create direct owner tests instead of relying only on route or monolith regressions.
 - Follow-on work can still sprawl if a new slice is opened without first declaring its owner boundary and supporting seams in the task-control docs.

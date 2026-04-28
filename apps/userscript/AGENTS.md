@@ -7,6 +7,7 @@
 ## Role
 
 - `apps/userscript` is the live compatibility carrier and behavior reference baseline until Stage 21 archives it; it is not the target v0.9 long-term owner.
+- Stage 19 moved the shared browser-runtime composition root to `apps/extension/src/main/*`. Keep `src/chatgpt-mcp-bridge.user.ts` as a thin bootstrap into that owner rather than regrowing a second primary runtime loop here.
 - When logic already has a v0.9 owner under `apps/extension/src/chatgpt-adapter/`, `injection-runtime/`, `operator-panel/`, `result-delivery/`, or `turn-runtime/`, keep userscript edits limited to compat wiring, runtime-shell orchestration, and reference tests.
 
 ## Validation Order

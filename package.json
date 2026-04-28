@@ -5,7 +5,8 @@
   "description": "A safe local tool bridge for ChatGPT Web on Windows + Chrome.",
   "type": "module",
   "scripts": {
-    "dev": "pnpm --parallel --filter @cwmb/gateway --filter @cwmb/userscript dev",
+    "dev": "pnpm --parallel --filter @cwmb/gateway --filter @cwmb/extension --filter @cwmb/userscript dev",
+    "dev:extension": "pnpm --filter @cwmb/extension dev",
     "dev:gateway": "pnpm --filter @cwmb/gateway dev",
     "dev:userscript": "pnpm --filter @cwmb/userscript dev",
     "build": "pnpm -r build",

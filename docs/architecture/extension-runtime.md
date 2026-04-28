@@ -35,6 +35,13 @@ apps/extension/src/
 └─ main/
 ```
 
+Current Stage 19 progress:
+
+- `apps/extension/src/main/extension-runtime.ts` now owns the shared browser-runtime composition root used by both the real extension shell and the fallback userscript bootstrap.
+- `apps/extension/src/extension-shell/*` now owns the Chrome-extension host layer: manifest-driven entrypoints, background lifecycle ping, gateway messaging bridge, main-world request hook, content-script bootstrap, and panel mount isolation.
+- `apps/userscript/src/chatgpt-mcp-bridge.user.ts` is now a thin fallback bootstrap into that extension-owned composition root rather than the primary owner of the runtime loop.
+- Local Stage 19 verification is green for `pnpm --filter @cwmb/extension lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build`; unpacked-Chrome and real ChatGPT Web extension-path validation remain the open close-out gate.
+
 ## 3. Module Boundaries
 
 ### 3.1 `chatgpt-adapter`
@@ -158,6 +165,7 @@ Current Phase 2 progress:
 - `apps/extension/src/operator-panel/runtime-snapshot.ts` now owns the pure browser-side runtime-snapshot helper semantics used by current userscript compat state
 - `apps/extension/src/operator-panel/capabilities.ts` now owns pending-tool capability assessment plus manual-versus-auto action gating for the current operator panel
 - `apps/extension/src/operator-panel/panel-state.ts` now owns operator-facing runtime stat assembly, injection diagnostics summary copy, action visibility, and collapsed-toggle availability while current userscript `ui.ts` remains the DOM/render shell
+- Stage 19 keeps those operator-panel owner semantics intact while letting the extension content script mount the rendered panel inside an isolated shadow-root host.
 
 Does not own:
 

@@ -12,7 +12,9 @@
 - Phase 2 is now open as a module-by-module Final Core refactor program for completing `apps/extension` and `apps/gateway`.
 - Phase 2 execution rule is now explicit: one stage equals one module, and only one module stage may be active at a time.
 - Phase 2 may still use larger rewrites when they improve efficiency, timing, logic clarity, stability, or test coverage, but only inside the currently active module stage.
-- Phase 2 has now advanced through the full declared Stage 7-17 extraction sequence, including the gateway-side diagnostics owner shift. Stages 18-21 (package-domain-extraction, extension-structure, gateway-structure, remove-compat-layers) are defined in `IMPLEMENTATION_PLAN.md` and `SPEC.md` but not yet active.
+- Phase 2 has now advanced through the full declared Stage 7-18 extraction sequence. `package-domain-extraction` is closed, `extension-structure` (Stage 19) is now the active module stage, and Stages 20-21 (`gateway-structure`, `remove-compat-layers`) remain planned follow-on stages.
+- Stage 19 code-side extraction is now landed: `apps/extension/` has a real package boundary, manifest v3 shell, background service worker, content-script bootstrap, main-world request hook entrypoint, and `apps/extension/src/main/extension-runtime.ts` composition root, while `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now acts as a thin fallback bootstrap into that owner path.
+- Stage 19 is not yet complete: local lint/test/build verification is green, but unpacked-Chrome load, service-worker/content-script smoke checks, and real ChatGPT Web extension-path validation still need to be recorded before the stage can close.
 - Stage 3 slice-definition work is complete; Stage 4 compat-preserving execution is complete on the same Phase 1 boundary.
 - Stage 5 execution-model definition is now complete, and the Phase 2 stage-definition pack is now explicit enough for execution: every declared module stage now has owner surfaces, supporting surfaces, optimization targets, validation expectations, and a definition of done in `IMPLEMENTATION_PLAN.md`.
 - Stage 6 module ordering and rationale are now also explicit; Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, 10 `operator-panel`, 11 `execution-kernel`, 12 `tool-registry`, 13 `tool-policy`, 14 `builtin-tools`, 15 `shell-runtime`, 16 `audit-log`, and 17 `diagnostics` are complete, and no new code-side extraction gate has been declared yet beyond that sequence.
@@ -176,8 +178,9 @@
 ## Active Stop Line
 
 - The v0.1 stop line is closed as of April 27, 2026.
-- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, 10 `operator-panel`, 11 `execution-kernel`, 12 `tool-registry`, 13 `tool-policy`, 14 `builtin-tools`, 15 `shell-runtime`, 16 `audit-log`, and 17 `diagnostics` are complete. No next code-side extraction gate is active until the task-control docs deliberately declare one.
+- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, 10 `operator-panel`, 11 `execution-kernel`, 12 `tool-registry`, 13 `tool-policy`, 14 `builtin-tools`, 15 `shell-runtime`, 16 `audit-log`, 17 `diagnostics`, and 18 `package-domain-extraction` are complete. Stage 19 `extension-structure` is now the active code-side extraction gate.
 - Any Phase 2 stage completion claim now requires direct owner-level tests, adjacent compat-path regression checks, root `pnpm lint` / `test` / `build`, and real ChatGPT Web validation whenever browser runtime timing or DOM behavior changed.
+- Stage 19 can only move from active to complete after the extension path is manually loaded in Chrome and the real ChatGPT Web runtime floor is re-verified there.
 - Until explicitly migrated, the active compatibility floor includes:
   - `/health`
   - `/tools`
@@ -191,8 +194,8 @@
 
 - Active program: Phase 2 module-by-module Final Core refactor
 - Battleground: Final Core
-- Primary axis: no active extraction gate; the declared Final Core Stage 7-17 sequence is closed. Stages 18-21 (package-domain-extraction, extension-structure, gateway-structure, remove-compat-layers) are defined and planned as the target-structure completion sequence; activation requires explicit declaration in `TASK_STATUS.md` before code work begins.
-- Active module stage: none. Most recently completed stage: `diagnostics`
+- Primary axis: target-structure completion through the active `extension-structure` stage. Stage 19 now owns the browser-shell migration boundary; Stages 20-21 remain planned follow-on slices.
+- Active module stage: `extension-structure`. Most recently completed stage: `package-domain-extraction`
 - Phase 1 completed implementation surfaces:
   - `packages/protocol/*`
   - narrow gateway route adapters
@@ -216,7 +219,7 @@
   - `audit-log` (Stage 16, complete)
   - `diagnostics` (Stage 17, complete)
   - `package-domain-extraction` (Stage 18, complete)
-  - `extension-structure` (Stage 19, planned)
+  - `extension-structure` (Stage 19, active)
   - `gateway-structure` (Stage 20, planned)
   - `remove-compat-layers` (Stage 21, planned)
 - Phase 2 stage-completion rubric now requires:
@@ -280,10 +283,16 @@
 - The Stage 17 `diagnostics` module stage is now closed. Gateway health shaping, config-derived runtime facts, and redacted diagnostics bundle assembly now route through `apps/gateway/src/diagnostics/*`, while the current `/health` route remains a thin compat adapter and the public health floor stays stable.
 - The Stage 18 `package-domain-extraction` module stage is now closed. `packages/protocol/` has been deleted, `packages/shared/` has been renamed to `packages/shared-utils/`, the new domain packages plus `packages/test-fixtures/` now own the shared contract surfaces, and all gateway/userscript/extension consumers now import from the focused packages instead of the legacy protocol package.
 - The following items remain planned follow-on stages (full definitions in `IMPLEMENTATION_PLAN.md`) and are not active yet:
-  - Stage 19: extension shell migration to full Chrome Extension (manifest v3, service worker, content script, `main/` composition root)
   - Stage 20: gateway structure completion (`api/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, `main/`)
   - Stage 21: removal of all compat layers (`routes/`, `tools/`, `security/`, `shell/`, `utils/`), archive `apps/userscript/`
-- Stage 18 verification passed on April 28, 2026:
+- Stage 19 code-side validation passed on April 28, 2026; manual browser validation remains open:
+  - `pnpm --filter @cwmb/extension lint`, `test`, `build`
+  - root `pnpm lint`, `pnpm test`, `pnpm build`
+- Userscript fallback validation remains green alongside the new extension shell:
+  - root `pnpm test` includes `pnpm --filter @cwmb/userscript test`
+  - root `pnpm build` includes `pnpm --filter @cwmb/userscript build`
+  - root `pnpm lint` includes `pnpm --filter @cwmb/userscript lint`
+- Stage 18 verification passed on April 28, 2026, and the workspace remained green after Stage 19 shell landing:
   - `pnpm --filter @cwmb/shared-utils build`
   - `pnpm --filter @cwmb/turn-model build`
   - `pnpm --filter @cwmb/policy-model build`
@@ -304,8 +313,8 @@
 ## Caveats
 
 - The repo still lacks browser-driven end-to-end automation, so browser-runtime transitions will continue to need real ChatGPT Web verification.
-- The active codebase is still userscript-first today; the v0.9 architecture and protocol docs are active target truth, not evidence that the refactor already happened.
-- That userscript-first reality is an implementation fact, not a migration obligation: future work may rewrite directly in extension + gateway rather than preserving userscript structure for symmetry.
+- The active codebase now carries both the landed extension shell and the userscript fallback. That is a deliberate Stage 19 / Stage 21 overlap, not a signal that userscript should keep regrowing as a long-term primary path.
+- The Stage 19 code shift is landed, but the browser-runtime migration is still pending manual Chrome and real ChatGPT Web verification. Do not claim the extension path is complete until that evidence is recorded.
 - The unified ChatGPT Web runtime evidence doc exists now, but it is not yet a fully populated evidence pack; DOM-heavy work should refresh or add evidence there before expanding.
 - Phase 2 may span many commits and substantial refactors, but the control rule is now stage isolation, not “one big package”: progress should come from completing one module cleanly before activating the next.
 - Later-scope capabilities remain target-state work rather than shipped behavior:
@@ -313,13 +322,12 @@
   - full proposal workflow
   - `run_pwsh` as a shipped capability
   - external/custom MCP as a shipped extension ring
-  - Chrome Extension as the primary browser shell
 
 ## Next Handoff
 
 - Use `docs/v0.9-entrypoint.md` first when deciding where new v0.9 truth belongs.
 - Use `docs/prd.md` only as the closed reference baseline for the current proven runtime.
-- Do not reopen Phase 1 implicitly. The declared Stage 7-18 Phase 2 extraction sequence is already complete. There is no active module stage right now; do not start Stage 19-21 work until the task-control docs explicitly activate the next slice.
+- Do not reopen Phase 1 implicitly. The declared Stage 7-18 extraction sequence is already complete, and Stage 19 `extension-structure` is now the active slice. Do not start Stage 20-21 work until the task-control docs explicitly activate the next stage.
 - If a change depends on ChatGPT Web DOM/request-shape/selectors facts, put the raw evidence in `docs/operations/chatgpt-web-runtime-evidence.md` instead of scattering it through task docs.
 - If code needs ChatGPT Web page facts, add or update them in `apps/extension/src/chatgpt-adapter/` first, then adapt current userscript consumers through compat wiring.
 - When a cleaner direct implementation exists in `apps/extension` or `apps/gateway`, prefer landing there over recreating new long-term logic in userscript-shaped files.

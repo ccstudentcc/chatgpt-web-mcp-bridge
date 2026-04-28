@@ -21,6 +21,31 @@ importers:
         specifier: ^2.0.5
         version: 2.1.9(@types/node@20.19.39)
 
+  apps/extension:
+    dependencies:
+      '@cwmb/result-model':
+        specifier: workspace:*
+        version: link:../../packages/result-model
+      '@cwmb/shared-utils':
+        specifier: workspace:*
+        version: link:../../packages/shared-utils
+      '@cwmb/tool-contracts':
+        specifier: workspace:*
+        version: link:../../packages/tool-contracts
+      '@cwmb/turn-model':
+        specifier: workspace:*
+        version: link:../../packages/turn-model
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^20.12.12
+        version: 20.19.39
+      esbuild:
+        specifier: ^0.23.0
+        version: 0.23.1
+
   apps/gateway:
     dependencies:
       '@cwmb/policy-model':

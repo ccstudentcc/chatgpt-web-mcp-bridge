@@ -12,11 +12,12 @@
 
 ## Working Rule
 
-- `apps/extension` is not a standalone app package yet. Keep it focused on target ownership boundaries and reusable pure/runtime helpers; do not add a second browser bootstrap shell, manifest, or composition root before Stage 19 `extension-structure` is explicitly activated in the task-control docs.
+- Stage 19 `extension-structure` is now the active slice. `apps/extension` may now own the real browser shell: manifest v3, background service worker, content-script entrypoints, main-world request-hook entrypoint, and `src/main/*` composition root.
+- Keep `src/extension-shell/*` focused on Chrome-extension host concerns such as lifecycle, messaging, page-world bridging, and mount boundaries. Do not move page facts, turn parsing, result semantics, or operator-panel view-state truth out of their existing owner modules just because the shell is now real.
 - Before promoting a new selector, request-shape assumption, prompt-contract text dependency, or DOM timing fact here, record or refresh the matching evidence in `docs/operations/chatgpt-web-runtime-evidence.md` first.
 
 ## Validation
 
-- `apps/extension` has no local `package.json`; until Stage 19 makes it a real package with its own scripts, validate changes through the current consumers.
-- If a change is consumed by userscript, run `pnpm --filter @cwmb/userscript lint`, `test`, and `build`, then run root `pnpm lint`, `pnpm test`, and `pnpm build`.
+- Validate Stage 19 shell work with `pnpm --filter @cwmb/extension lint`, `test`, and `build`.
+- If a change is also consumed by userscript compat paths, run `pnpm --filter @cwmb/userscript lint`, `test`, and `build`, then run root `pnpm lint`, `pnpm test`, and `pnpm build`.
 - If browser runtime timing, DOM interaction, injection, insertion, send behavior, or operator-visible recovery changes, real ChatGPT Web validation is still required before calling the slice complete.

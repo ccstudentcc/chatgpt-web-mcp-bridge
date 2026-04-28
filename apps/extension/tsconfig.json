@@ -1,10 +1,22 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src",
+    "rootDir": "..",
     "outDir": "dist",
     "lib": ["ES2022", "DOM"],
-    "types": []
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      "@cwmb/result-model": ["../../packages/result-model/dist/index.d.ts"],
+      "@cwmb/shared-utils": ["../../packages/shared-utils/dist/index.d.ts"],
+      "@cwmb/tool-contracts": ["../../packages/tool-contracts/dist/index.d.ts"],
+      "@cwmb/turn-model": ["../../packages/turn-model/dist/index.d.ts"]
+    }
   },
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "../userscript/src/**/*.ts",
+    "../userscript/src/types.d.ts"
+  ]
 }
