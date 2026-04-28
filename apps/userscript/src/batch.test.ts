@@ -164,6 +164,94 @@ describe('executeBatch', () => {
     });
     expect(result.items[2]).toMatchObject({ index: 2, tool: 'list_directory', ok: true });
   });
+
+  it('keeps batch aggregation stable when `/call-tool` returns live execute metadata on each call', async () => {
+    const blocks = createBlocks(3);
+    const executeTool = vi.fn<(_: ToolCallRequest) => Promise<ToolCallResponse>>().mockImplementation(async (request) => {
+      if (request.tool === 'grep_files') {
+        return {
+          ok: false,
+          tool: request.tool,
+          error: {
+            code: 'BLOCKED_PATH',
+            message: 'Blocked path.'
+          },
+          warnings: [],
+          durationMs: 3,
+          execute: {
+            requestId: `legacy-${request.source.callId}`,
+            executionId: `legacy-${request.source.callId}.exec`,
+            decisions: [
+              {
+                callId: request.source.callId,
+                action: 'deny',
+                reasonCode: 'BLOCKED_PATH',
+                risk: 'low',
+                message: 'Blocked path.'
+              }
+            ],
+            result: {
+              type: 'execution_error',
+              error: {
+                code: 'BLOCKED_PATH',
+                summary: 'Blocked path.',
+                retryable: false
+              }
+            }
+          }
+        };
+      }
+
+      return {
+        ok: true,
+        tool: request.tool,
+        result: { echoed: request.tool },
+        warnings: [],
+        durationMs: 2,
+        execute: {
+          requestId: `legacy-${request.source.callId}`,
+          executionId: `legacy-${request.source.callId}.exec`,
+          decisions: [
+            {
+              callId: request.source.callId,
+              action: 'execute',
+              reasonCode: 'ALLOWED_CURRENT_TOOL',
+              risk: 'low',
+              message: 'Allowed by the current gateway policy.'
+            }
+          ],
+          result: {
+            type: 'inline_tool_result',
+            callId: request.source.callId,
+            tool: request.tool,
+            ok: true,
+            output: { echoed: request.tool },
+            summary: `Tool ${request.tool} completed successfully.`
+          }
+        }
+      };
+    });
+
+    const result = await executeBatch({
+      batchId: 'batch-live',
+      messageId: 'assistant-live',
+      blocks,
+      executeTool
+    });
+
+    expect(result.summary).toEqual({
+      total: 3,
+      completed: 1,
+      failed: 1,
+      skipped: 1,
+      stoppedOnFailure: true
+    });
+    expect(result.items).toMatchObject([
+      { index: 0, tool: 'read_file', ok: true },
+      { index: 1, tool: 'grep_files', ok: false, error: { code: 'BLOCKED_PATH' } },
+      { index: 2, tool: 'list_directory', status: 'skipped' }
+    ]);
+  });
 });
 
 function createBlocks(count = 2): ParsedMcpBlock[] {
