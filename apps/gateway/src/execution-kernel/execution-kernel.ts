@@ -4,7 +4,6 @@ import {
   createExecuteResponse,
   createExecutionErrorEnvelopeFromLegacyResponse,
   createInlineToolResultEnvelopeFromLegacyResponse,
-  createToolDecision,
   type BatchResultItem,
   type ExecuteRequest,
   type ExecuteResponse,
@@ -18,6 +17,7 @@ import {
 import { AppError, truncateText } from '@cwmb/shared';
 import type { GatewayConfig } from '../config.js';
 import type { Logger } from '../logger.js';
+import { assessToolCall, createFailureDecision, createSuccessDecision } from '../tool-policy/index.js';
 import { createToolRegistry, type LocalTool } from '../tools/index.js';
 import { failure } from '../utils/errors.js';
 
@@ -148,14 +148,36 @@ async function executeCall(options: ExecuteCallOptions): Promise<ExecutionKernel
   const { call, config, logger, registry, now } = options;
   const started = now();
   let toolRisk: RiskLevel = 'low';
-  let executionAllowed = false;
+  const assessment = assessToolCall(call, registry);
+
+  if (assessment.kind === 'deny') {
+    const durationMs = now() - started;
+    const legacyResponse = failure(call.tool, assessment.error, durationMs);
+
+    await logger.write({
+      ts: new Date().toISOString(),
+      callId: call.callId,
+      tool: call.tool,
+      ok: false,
+      durationMs,
+      warnings: legacyResponse.warnings,
+      resultSummary: legacyResponse.error.code
+    });
+
+    return {
+      kind: 'failure',
+      index: options.index,
+      callId: call.callId,
+      tool: call.tool,
+      legacyResponse,
+      decision: createFailureDecision(call.callId, assessment.risk, assessment.error, false)
+    };
+  }
 
   try {
-    const resolvedTool = resolveToolCall(call, registry);
-    toolRisk = resolvedTool.tool.risk;
-    executionAllowed = true;
+    toolRisk = assessment.risk;
 
-    const result = await resolvedTool.tool.run(resolvedTool.args, { config, logger });
+    const result = await assessment.tool.run(assessment.args, { config, logger });
     const safeResult = toSafeResult(result, config.maxGatewayResultChars);
     const warnings = collectWarnings(result, safeResult.truncationWarning);
     const durationMs = now() - started;
@@ -164,7 +186,7 @@ async function executeCall(options: ExecuteCallOptions): Promise<ExecutionKernel
       ts: new Date().toISOString(),
       callId: call.callId,
       tool: call.tool,
-      risk: resolvedTool.tool.risk,
+      risk: assessment.tool.risk,
       argsSummary: summarizeArgs(call.args),
       ok: true,
       durationMs,
@@ -185,13 +207,7 @@ async function executeCall(options: ExecuteCallOptions): Promise<ExecutionKernel
       callId: call.callId,
       tool: call.tool,
       legacyResponse,
-      decision: createToolDecision({
-        callId: call.callId,
-        action: 'execute',
-        reasonCode: 'ALLOWED_CURRENT_TOOL',
-        risk: resolvedTool.tool.risk,
-        message: 'Allowed by the current gateway policy.'
-      })
+      decision: createSuccessDecision(call.callId, assessment.tool.risk)
     };
   } catch (error) {
     const durationMs = now() - started;
@@ -213,33 +229,9 @@ async function executeCall(options: ExecuteCallOptions): Promise<ExecutionKernel
       callId: call.callId,
       tool: call.tool,
       legacyResponse,
-      decision: createToolDecision({
-        callId: call.callId,
-        action: inferDecisionAction(legacyResponse.error.code, executionAllowed),
-        reasonCode: legacyResponse.error.code,
-        risk: toolRisk,
-        message: legacyResponse.error.message
-      })
+      decision: createFailureDecision(call.callId, toolRisk, error, true)
     };
   }
-}
-
-function resolveToolCall(
-  call: ExecuteRequest['calls'][number],
-  registry: Map<string, LocalTool>
-): { tool: LocalTool; args: unknown } {
-  const tool = registry.get(call.tool);
-  if (!tool) {
-    throw new AppError('TOOL_NOT_FOUND', `Tool not found: ${call.tool}`);
-  }
-  if (!tool.enabled) {
-    throw new AppError(tool.name === 'run_pwsh' ? 'PWSH_DISABLED' : 'TOOL_DISABLED', `Tool disabled: ${call.tool}`);
-  }
-
-  return {
-    tool,
-    args: tool.argsSchema.parse(call.args)
-  };
 }
 
 function buildResultEnvelope(
@@ -357,26 +349,4 @@ function toSafeResult(
     },
     truncationWarning: `Result truncated from ${truncated.originalSizeChars} chars.`
   };
-}
-
-function inferDecisionAction(errorCode: string, executionAllowed: boolean): 'execute' | 'deny' {
-  if (isPolicyDeniedErrorCode(errorCode)) {
-    return 'deny';
-  }
-
-  return executionAllowed ? 'execute' : 'deny';
-}
-
-function isPolicyDeniedErrorCode(errorCode: string): boolean {
-  return [
-    'BINARY_FILE_REJECTED',
-    'BLOCKED_PATH',
-    'FILE_TOO_LARGE',
-    'INVALID_PATH',
-    'PATH_OUTSIDE_WORKSPACE',
-    'PWSH_DISABLED',
-    'SENSITIVE_CONTENT_BLOCKED',
-    'TOOL_DISABLED',
-    'WORKSPACE_NOT_CONFIGURED'
-  ].includes(errorCode);
 }

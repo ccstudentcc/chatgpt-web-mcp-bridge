@@ -17,6 +17,7 @@ At the current repo stage, important live facts include:
 - current live tool truth comes from `/tools`
 - the current shipped live route set is `/health`, `/tools`, and `/call-tool`
 - current write capability is still highly constrained relative to target-state plans
+- workspace hard-path enforcement now routes through `apps/gateway/src/tool-policy/path-policy.ts`
 
 Trusted local mode is not equivalent to trusting arbitrary webpages. It reduces local token friction for the intended ChatGPT Web flow, but it does not remove host binding, origin checks, or conservative policy boundaries.
 

@@ -509,7 +509,7 @@ Completed on April 28, 2026:
 
 ## Stage 12: Execute Module Stage - Tool Registry
 
-Status: in progress
+Status: completed
 
 Goal:
 
@@ -558,9 +558,17 @@ Definition of done:
 - `/tools`, `mcp_list`, and catalog metadata stay aligned without route-local duplication
 - registry concerns are separated cleanly from policy and execution concerns
 
+Completed on April 28, 2026:
+
+- `apps/gateway/src/tool-registry/{catalog,registry}.ts` now owns builtin aggregation plus materialized catalog generation.
+- `apps/gateway/src/routes/tools.ts` and `apps/gateway/src/tools/mcp-list.ts` now consume the same catalog owner seam instead of each materializing descriptors locally.
+- direct gateway owner tests now cover catalog metadata materialization and enabled-only filtering, while matching userscript regressions still validate `/tools` contract consumption.
+- `pnpm --filter @cwmb/gateway lint`, `pnpm --filter @cwmb/gateway test`, `pnpm --filter @cwmb/gateway build`, targeted userscript `/tools` regressions, and root `pnpm lint`, `pnpm test`, `pnpm build` succeeded again.
+- live browser-to-gateway `/tools` validation passed after the owner shift, so the stage can close without reopening adjacent browser-runtime scope.
+
 ## Stage 13: Execute Module Stage - Tool Policy
 
-Status: pending
+Status: completed
 
 Goal:
 
@@ -611,9 +619,18 @@ Definition of done:
 - route handlers and builtin tools consume explicit policy outputs instead of re-deriving decisions locally
 - the stage improves decision testability without widening product scope
 
+Completed on April 28, 2026:
+
+- `apps/gateway/src/tool-policy/{call-policy,path-policy}.ts` now owns pre-execution tool assessment, failure-to-decision mapping, workspace hard-path policy resolution, and blocked-path matching.
+- `apps/gateway/src/execution-kernel/execution-kernel.ts` now consumes explicit tool-policy helpers instead of resolving enabled state, argument parsing, and failure-decision attribution locally.
+- `apps/gateway/src/security/{path-policy,sensitive-paths}.ts` are now compat exports over the tool-policy owner, and `apps/gateway/src/tools/write-file.ts` now consumes write gating from the same policy owner instead of carrying that rule inline.
+- direct owner tests now cover pre-execution allow/deny assessment plus workspace path policy, while route and userscript regressions preserve current `/call-tool` consumer-visible decision and error behavior.
+- `pnpm --filter @cwmb/gateway lint`, `pnpm --filter @cwmb/gateway test`, `pnpm --filter @cwmb/gateway build`, targeted userscript `/call-tool` regressions, and root `pnpm lint`, `pnpm test`, `pnpm build` succeeded again.
+- no new live browser validation was required to close this stage because the shipped `/call-tool` behavior stayed compat-stable; the change was ownership and testability, not a new operator-visible decision model.
+
 ## Stage 14: Execute Module Stage - Builtin Tools
 
-Status: pending
+Status: in progress
 
 Goal:
 

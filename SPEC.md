@@ -8,7 +8,7 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage, the Stage 8 `result-delivery` module stage, the Stage 9 `injection-runtime` module stage, the Stage 10 `operator-panel` module stage, and the Stage 11 `execution-kernel` module stage are now complete. Phase 2 remains a module-by-module Final Core refactor program, and the current active module stage is `tool-registry`.
+Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage, the Stage 8 `result-delivery` module stage, the Stage 9 `injection-runtime` module stage, the Stage 10 `operator-panel` module stage, the Stage 11 `execution-kernel` module stage, the Stage 12 `tool-registry` module stage, and the Stage 13 `tool-policy` module stage are now complete. Phase 2 remains a module-by-module Final Core refactor program, and the next active module stage is `builtin-tools`.
 
 Phase 2 exists so the repo can finish `apps/extension` and `apps/gateway` one module at a time, keeping each stage narrow enough to improve ownership, timing, logic, stability, and test coverage without reopening multiple modules at once.
 
@@ -82,26 +82,31 @@ Exit gate for any Phase 2 stage:
 
 ## Current Active Stage
 
-Active module stage: `tool-registry`
+Active module stage: `builtin-tools`
 
 Current module-stage file surfaces:
 
-- `apps/gateway/src/tool-registry/*`
-- `apps/gateway/src/routes/tools.ts`
-- `apps/gateway/src/routes/tools.test.ts`
-- `apps/gateway/src/tools/index.ts`
+- `apps/gateway/src/builtin-tools/*`
+- `apps/gateway/src/tools/read-file.ts`
+- `apps/gateway/src/tools/read-file.test.ts`
+- `apps/gateway/src/tools/list-directory.ts`
+- `apps/gateway/src/tools/search-files.ts`
+- `apps/gateway/src/tools/search-files.test.ts`
+- `apps/gateway/src/tools/grep-files.ts`
+- `apps/gateway/src/tools/grep-files.test.ts`
+- `apps/gateway/src/tools/write-file.ts`
+- `apps/gateway/src/tools/write-file.test.ts`
+- `apps/gateway/src/tools/write-file-proposal.ts`
 - `apps/gateway/src/tools/mcp-list.ts`
 - `apps/gateway/src/tools/mcp-list.test.ts`
-- `apps/gateway/src/config.ts`
-- `packages/protocol/src/schemas.ts`
-- `packages/protocol/src/schemas.test.ts`
+- `apps/gateway/src/utils/find-rg.ts`
 - the root task-control docs
 
 Current stage intent:
 
-- make `apps/gateway/src/tool-registry/*` the owner for builtin and external tool aggregation, namespace resolution, and materialized catalog generation
-- keep `mcp_list`, `/tools`, and catalog metadata aligned from one owner path
-- keep browser-runtime behavior stable while later gateway modules gain one catalog seam to depend on
+- consolidate builtin tool implementations under `apps/gateway/src/builtin-tools/*` with cleaner shared execution conventions
+- separate tool implementation logic from route and orchestration concerns
+- reduce repeated filesystem and command-helper logic where a shared builtin-tools owner can keep it explicit
 
 ## In Scope
 

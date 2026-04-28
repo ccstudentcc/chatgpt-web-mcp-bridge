@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { AppError } from '@cwmb/shared';
 import type { LocalTool } from './index.js';
 import { resolveWorkspacePath } from '../security/path-policy.js';
+import { assertWriteEnabled } from '../tool-policy/index.js';
 
 const WriteFileArgsSchema = z.object({
   path: z.string().min(1),
@@ -34,9 +35,7 @@ export const writeFileTool: LocalTool<WriteFileArgs, WriteFileResult> = {
   },
   argsSchema: WriteFileArgsSchema,
   async run(args, ctx) {
-    if (!ctx.config.allowWrite) {
-      throw new AppError('TOOL_DISABLED', 'write_file requires allowWrite=true in gateway config.');
-    }
+    assertWriteEnabled(ctx.config.allowWrite);
 
     const resolved = await resolveWorkspacePath(args.path, {
       workspaceRoot: ctx.config.workspaceRoot,
