@@ -50,7 +50,7 @@ Current shipped v0.1 runtime truth still depends on these routes:
 
 - `/health`: gateway reachability, config-derived runtime status, and operator-visible health summary; the route is now a thin adapter over diagnostics-owned health shaping
 - `/tools`: canonical live catalog truth used by hidden injection, panel capability display, and `mcp_list` alignment
-- `/call-tool`: canonical live execution route for the current userscript flow
+- `/call-tool`: canonical live execution route for the current browser-runtime flow
 
 Operational rule:
 

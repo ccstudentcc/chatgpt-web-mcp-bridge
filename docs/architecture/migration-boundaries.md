@@ -27,7 +27,7 @@ Current top-level implementation shape:
 
 Important current facts:
 
-- Core runtime logic has been extracted from userscript into `apps/extension/src/*` modules (Stages 7-10), and Stage 19 now moves the primary runtime orchestration loop into `apps/extension/src/main/*` while userscript remains a fallback bootstrap.
+- Core runtime logic has been extracted from userscript into `apps/extension/src/*` modules (Stages 7-10), and Stages 19-21 moved the primary runtime orchestration loop into `apps/extension/src/main/*` and then archived the userscript fallback entirely.
 - Gateway is now fully modularized behind owner boundaries: Stages 11-17 extracted execution, registry, policy, builtin, shell, audit, and diagnostics; Stage 20 lands `api/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, and `main/`; Stage 21 then deletes `routes/`, `tools/`, `security/`, `shell/`, and `utils/`
 - Shared protocol and model layers now live in the focused domain packages introduced by Stage 18 instead of the former monolithic `packages/protocol/`.
 - The strongest currently verified behavior knowledge comes from real userscript runtime behavior, not from a future gateway abstraction
@@ -174,13 +174,13 @@ Target ownership mapping:
 | `shell-runtime` | extracted owner (Stage 15) | shell execution owner | ownership clear | complete |
 | `audit-log` | extracted owner (Stage 16) | audit truth owner | ownership clear | complete |
 | `diagnostics` | extracted owner (Stage 17) | read-only diagnostics owner | ownership clear | complete |
-| `extension-shell` | active Stage 19 implementation | Chrome Extension shell (Stage 19) | dual-runtime verification still required until Stage 21 | high |
-| `extension-main` | active Stage 19 implementation | composition root (Stage 19) | userscript fallback still imports the same owner | high |
-| `gateway-api` | complete Stage 20 implementation | HTTP adapter (Stage 20) | compat layer still exists until Stage 21 | medium |
+| `extension-shell` | active Stage 19 implementation | Chrome Extension shell (Stage 19) | extension-only live validation still required for formal Stage 21 close | high |
+| `extension-main` | active Stage 19 implementation | composition root (Stage 19) | extension-only runtime now carries the full live browser path | high |
+| `gateway-api` | complete Stage 20 implementation | HTTP adapter (Stage 20) | live route floor is stable after Stage 21 compat deletion | medium |
 | `proposal-engine` | complete Stage 20 implementation | typed interface + stub (Stage 20) | scope boundary clear (stub only) | low |
 | `external-mcp` | complete Stage 20 implementation | typed interface + stub (Stage 20) | scope boundary clear (stub only) | low |
 | `result-cache` | complete Stage 20 implementation | typed interface + in-memory impl (Stage 20) | not yet a shipped capability owner beyond the stub cache | low |
-| `gateway-main` | complete Stage 20 implementation | composition root (Stage 20) | compat entrypoints still present until Stage 21 | medium |
+| `gateway-main` | complete Stage 20 implementation | composition root (Stage 20) | live entrypoints now route directly through the structured owner layout | medium |
 | `domain-packages` | split and active after Stage 18 | 4 domain packages + shared-utils + test-fixtures | importer churn across apps still needs validation | medium |
 | `compat-layers` | deleted in Stage 21 | stay deleted | ownership drift if recreated | medium |
 
@@ -247,7 +247,7 @@ Full Phase 2 module order (Stages 7-21, see root `IMPLEMENTATION_PLAN.md` and `S
 12. `package-domain-extraction` (complete) — split `protocol/` into domain packages, rename `shared/`, create `test-fixtures/`
 13. `extension-structure` (complete) — full Chrome Extension shell + `main/`, extension becomes primary browser runtime
 14. `gateway-structure` (complete) — `api/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, `main/`
-15. `remove-compat-layers` (complete) — deleted all compat re-exports and archived `apps/userscript/`
+15. `remove-compat-layers` (code-complete, live validation pending) — deleted all compat re-exports and archived `apps/userscript/`
 
 Goals:
 

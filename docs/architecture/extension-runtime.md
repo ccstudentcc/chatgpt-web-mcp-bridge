@@ -98,10 +98,10 @@ Invariants:
 
 Current Phase 1 seed:
 
-- `apps/extension/src/injection-runtime/request-injection-state.ts` now owns the pure request-injection mode/status helper semantics used by current userscript compat state and request-hook diagnostics
+- `apps/extension/src/injection-runtime/request-injection-state.ts` now owns the pure request-injection mode/status helper semantics used by the extension-owned runtime state and request-hook diagnostics
 - `apps/extension/src/injection-runtime/catalog.ts` now owns hidden-versus-visible catalog prompt construction, the shared tool-guidance text consumed by both prompt wrappers, and bootstrap/live prompt-sync copy
 - `apps/extension/src/injection-runtime/catalog-cache.ts` now owns browser-local catalog bootstrap cache read/write semantics
-- `apps/extension/src/injection-runtime/request-body-injection.ts` now owns request-payload mutation for hidden prompt injection, while current userscript `request-hook.ts` remains the runtime shell that installs page hooks and forwards diagnostics
+- `apps/extension/src/injection-runtime/request-body-injection.ts` now owns request-payload mutation for hidden prompt injection, while `apps/extension/src/main/request-hook.ts` and `apps/extension/src/extension-shell/page-hook-runtime.ts` provide the live runtime shell that installs page hooks and forwards diagnostics
 
 ### 3.3 `turn-runtime`
 
@@ -128,7 +128,7 @@ Invariants:
 
 Current Phase 1 seed:
 
-- `apps/extension/src/turn-runtime/*` now owns the pure invalid-turn state, pending-selection identity, and auto-round guard helper semantics used by current userscript compat code
+- `apps/extension/src/turn-runtime/*` now owns the pure invalid-turn state, pending-selection identity, and auto-round guard helper semantics used by the extension-owned browser runtime
 
 ### 3.4 `result-delivery`
 
@@ -162,10 +162,10 @@ Owns:
 
 Current Phase 2 progress:
 
-- `apps/extension/src/operator-panel/runtime-snapshot.ts` now owns the pure browser-side runtime-snapshot helper semantics used by current userscript compat state
+- `apps/extension/src/operator-panel/runtime-snapshot.ts` now owns the pure browser-side runtime-snapshot helper semantics used by the extension-owned runtime state
 - `apps/extension/src/operator-panel/capabilities.ts` now owns pending-tool capability assessment plus manual-versus-auto action gating for the current operator panel
-- `apps/extension/src/operator-panel/panel-state.ts` now owns operator-facing runtime stat assembly, injection diagnostics summary copy, action visibility, and collapsed-toggle availability while current userscript `ui.ts` remains the DOM/render shell
-- Stage 19 keeps those operator-panel owner semantics intact while letting the extension content script mount the rendered panel inside an isolated shadow-root host.
+- `apps/extension/src/operator-panel/panel-state.ts` now owns operator-facing runtime stat assembly, injection diagnostics summary copy, action visibility, and collapsed-toggle availability while `apps/extension/src/main/ui.ts` remains the live DOM/render shell
+- Stage 19 established those operator-panel owner semantics, and Stage 21 keeps them intact while the extension content script mounts the rendered panel inside an isolated shadow-root host.
 
 Does not own:
 

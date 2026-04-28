@@ -8,7 +8,7 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is complete. Stages 7—21 (the Final Core extraction sequence plus `package-domain-extraction`, `extension-structure`, `gateway-structure`, and `remove-compat-layers`) are now complete.
+Phase 1 shared-contract freeze is complete. Stages 7—20 are complete. Stage 21 `remove-compat-layers` is code-complete and still waiting on real ChatGPT Web extension-only validation before formal close.
 
 Phase 2 exists so the repo can finish `apps/extension` and `apps/gateway` one module at a time, keeping each stage narrow enough to improve ownership, timing, logic, stability, and test coverage without reopening multiple modules at once.
 
@@ -86,9 +86,9 @@ Exit gate for any Phase 2 stage:
 
 ## Current Stage State
 
-Active module stage: none. The most recently closed stage is `remove-compat-layers` (Stage 21) on April 28, 2026, after compat imports were removed, `apps/userscript/` was archived, and root verification returned green.
+Active module stage: `remove-compat-layers` (Stage 21, code-complete and live-validation pending). The most recently fully closed stage is `gateway-structure` (Stage 20).
 
-Stages 20-21 remain defined in `IMPLEMENTATION_PLAN.md` for auditability, and Stage 21 is now closed in the root task-control docs. Do not infer any follow-on slice until `TASK_STATUS.md` explicitly activates it.
+Stages 20-21 remain defined in `IMPLEMENTATION_PLAN.md` for auditability. Do not infer any follow-on slice until Stage 21 is formally closed in the root task-control docs or `TASK_STATUS.md` explicitly activates a new stage.
 
 Most recently completed module-stage file surfaces:
 
@@ -137,7 +137,7 @@ Most recently completed stage intent:
   - Split `packages/protocol/` into domain packages (`turn-model`, `tool-contracts`, `policy-model`, `result-model`), rename `shared/` to `shared-utils/`, create `test-fixtures/`, and delete `protocol/` (Stage 18).
   - Complete the Chrome Extension shell with manifest v3, background service worker, content script, and `main/` composition root, making `apps/extension/` the primary browser runtime (Stage 19).
   - Complete the gateway module layout: `api/` (replacing `routes/`), `proposal-engine/` (typed interface + stub), `external-mcp/` (typed interface + stub), `result-cache/` (typed interface + in-memory impl), and `main/` composition root (Stage 20).
-  - Delete all compat re-exports (`routes/`, `tools/`, `security/`, `shell/`, `utils/`) and archive `apps/userscript/` as a legacy reference, leaving the target structure as the only structure (Stage 21, complete).
+  - Delete all compat re-exports (`routes/`, `tools/`, `security/`, `shell/`, `utils/`) and archive `apps/userscript/` as a legacy reference, leaving the target structure as the only structure (Stage 21, code-complete; live validation still pending).
 
 ## Out Of Scope
 

@@ -31,9 +31,10 @@
 - Turn-runtime helper truth now also has a narrow v0.9 target owner at `apps/extension/src/turn-runtime/`; the archived userscript invalid-turn and guard code is historical evidence only, not a live owner path.
 - Phase 1 implementation has started in code, not only in docs: the shared contract surfaces for `CatalogContract`, `TurnContext`, `ExecuteRequest`, `ExecuteResponse`, `ToolDecision`, and `ResultEnvelope` now live in the focused domain packages with matching schemas/tests.
 - Those shared contract surfaces now also include `GatewayHealthContract` and browser-local `GatewayRuntimeSnapshot`, so gateway reachability/config truth can live beside catalog truth without userscript-only field drift.
+- The Stage 7-17 milestone bullets below are retained as audit history from the pre-Stage-21 compat path. Any `apps/userscript/src/*` references there now point to archived material under `apps/userscript/legacy/src/*`, not to current live runtime owners.
 - `/tools` now materializes Phase 1 catalog metadata (`catalogVersion`, `generatedAt`, `workspaceRoot`) while preserving the existing `tools` array that the browser runtime still expects.
-- `/health` is now validated through the shared contract before userscript applies automation defaults; the earlier local `shell: string` typing drift is gone, and shell diagnostics now stay structured end-to-end.
-- `/call-tool` now attaches compatibility execution metadata under a nested `execute` object, so current userscript code keeps the legacy top-level `result` while Phase 1 consumers can still read `requestId`, `executionId`, `decisions`, and structured result-envelope metadata.
+- `/health` is now validated through the shared contract before the browser runtime applies automation defaults; the earlier local `shell: string` typing drift is gone, and shell diagnostics now stay structured end-to-end.
+- `/call-tool` now attaches compatibility execution metadata under a nested `execute` object, so the archived userscript baseline keeps the legacy top-level `result` while Phase 1 consumers can still read `requestId`, `executionId`, `decisions`, and structured result-envelope metadata.
 - Shared compat parsing no longer accepts the earlier flat top-level `requestId` / `executionId` / `decisions` / `result` execute shape; that transition-only form was not part of the live runtime floor and is now intentionally inert.
 - Userscript-side request construction now goes through shared protocol compat helpers instead of repeating local `ToolCallRequest` assembly in multiple files.
 - Userscript-side gateway handling now reads `execute` compat metadata through shared helpers on both success and failure paths.
@@ -43,10 +44,10 @@
 - Userscript cache/bootstrap/runtime state now retain the full catalog contract instead of only `tools[]`, so `catalogVersion` and `workspaceRoot` are available for diagnostics without another shape migration later.
 - Userscript panel/runtime state now also tracks whether the visible catalog came from the live gateway or cached bootstrap, so diagnostics can distinguish “catalog known” from “catalog freshly synced”.
 - Userscript runtime state now stores one shared runtime snapshot for validated `/health` plus current catalog truth, while still distinguishing live catalog sync from cached bootstrap catalog warmup.
-- Pure request-injection mode/status semantics now live under `apps/extension/src/injection-runtime/request-injection-state.ts`, while userscript keeps only thin compat re-exports and runtime-shell request-hook logic.
-- Catalog prompt construction, bootstrap/live prompt-sync copy, and request-payload injection helpers now also live under `apps/extension/src/injection-runtime/{catalog,catalog-cache,request-body-injection}.ts`, while userscript `catalog*.ts` and `request-hook.ts` are reduced to compat exports or runtime transport shells.
-- The pure runtime-snapshot helper semantics have been lifted out of userscript-local state code into `apps/extension/src/operator-panel/runtime-snapshot.ts`, while `apps/userscript/src/runtime-snapshot.ts` remains a thin compat re-export.
-- Operator-panel owner truth now also lives in `apps/extension/src/operator-panel/capabilities.ts` and `panel-state.ts`, so capability gating, operator-facing runtime stats, injection diagnostics summary copy, and collapsed-toggle availability no longer drift inside userscript-local panel conditionals.
+- Pure request-injection mode/status semantics now live under `apps/extension/src/injection-runtime/request-injection-state.ts`; before Stage 21 archival the userscript compat path consumed them through thin re-exports and request-hook wiring.
+- Catalog prompt construction, bootstrap/live prompt-sync copy, and request-payload injection helpers now also live under `apps/extension/src/injection-runtime/{catalog,catalog-cache,request-body-injection}.ts`; the archived userscript `catalog*.ts` and `request-hook.ts` files are reference-only compat shells now.
+- The pure runtime-snapshot helper semantics have been lifted out of userscript-local state code into `apps/extension/src/operator-panel/runtime-snapshot.ts`; the old `apps/userscript/src/runtime-snapshot.ts` survives only in the legacy archive.
+- Operator-panel owner truth now also lives in `apps/extension/src/operator-panel/capabilities.ts` and `panel-state.ts`, so capability gating, operator-facing runtime stats, injection diagnostics summary copy, and collapsed-toggle availability no longer drift inside the archived userscript-local panel conditionals.
 - The Stage 10 `operator-panel` module stage is now closed. On April 28, 2026, real ChatGPT Web validation passed for operator-visible runtime statuses, collapsed `Execute` / `Insert` / `Send` / `Continue` actions, and manual recovery affordances after the panel owner shift.
 - The Stage 11 `execution-kernel` code extraction is now in local code: `apps/gateway/src/execution-kernel/execution-kernel.ts` owns batch-first execution orchestration, executor selection, per-call decision assembly, inline-versus-batch result shaping, and legacy `/call-tool` compat response assembly, while `apps/gateway/src/routes/call-tool.ts` is reduced to auth, request validation, and kernel delegation.
 - Direct gateway owner tests now cover single-call legacy compat behavior plus multi-call batch coordination at the kernel seam, and userscript batch regression coverage confirms live `/call-tool` consumer aggregation still holds when each per-call payload carries nested `execute` metadata.
@@ -202,7 +203,7 @@
 - Phase 1 completed implementation surfaces:
   - `packages/protocol/*`
   - narrow gateway route adapters
-  - current userscript protocol consumers
+  - legacy userscript protocol consumers before Stage 21 archival
   - `apps/extension/src/chatgpt-adapter/*`
   - `apps/extension/src/injection-runtime/*`
   - `apps/extension/src/operator-panel/*`
@@ -224,7 +225,7 @@
   - `package-domain-extraction` (Stage 18, complete)
   - `extension-structure` (Stage 19, complete)
   - `gateway-structure` (Stage 20, complete)
-  - `remove-compat-layers` (Stage 21, complete)
+  - `remove-compat-layers` (Stage 21, code-complete; live validation pending)
 - Phase 2 stage-completion rubric now requires:
   - one explicit long-term owner for the active module
   - supporting seams kept translation-only
