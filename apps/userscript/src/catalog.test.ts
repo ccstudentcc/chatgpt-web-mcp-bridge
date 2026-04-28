@@ -11,8 +11,8 @@ import {
 describe('summarizeToolCatalog', () => {
   it('counts enabled and disabled tools', () => {
     expect(summarizeToolCatalog(createTools())).toEqual({
-      total: 4,
-      enabled: 3,
+      total: 6,
+      enabled: 5,
       disabled: 1
     });
   });
@@ -36,8 +36,12 @@ describe('buildToolCatalogPrompt', () => {
     expect(prompt).toContain('You may add brief natural-language context before the first fenced `mcp` block when it helps frame the next local action.');
     expect(prompt).toContain('"tool": "mcp_list"');
     expect(prompt).toContain('"tool": "read_file"');
-    expect(prompt).toContain('`grep_files` defaults to literal search');
-    expect(prompt).toContain('do not put `a|b|c` into a literal `query` and expect alternation');
+    expect(prompt).toContain('Use `mcp_list` to refresh the enabled-tool catalog when the right bridge tool is unclear.');
+    expect(prompt).toContain('Use `read_file` when you already know the exact relative path and need file contents, not file discovery.');
+    expect(prompt).toContain('Use `list_directory` to inspect folder structure; start at the narrowest relevant path and keep `maxDepth` small.');
+    expect(prompt).toContain('Use `search_files` to find candidate paths by filename or relative path; it does not search file contents.');
+    expect(prompt).toContain('Use `grep_files` for file-content search. It defaults to literal matching: `query` for one term, `patterns` for multiple terms.');
+    expect(prompt).toContain('Set `mode: "regex"` explicitly for anchors or operators such as `^`, `$`, `.`, `[]`, `()`, or alternation like `a|b|c`.');
     expect(prompt).toContain('Disabled tools (do not call): run_pwsh');
     expect(prompt).toContain('instead of saying that no local bridge tools are available');
   });
@@ -69,6 +73,12 @@ describe('buildInjectedToolPrompt', () => {
     expect(prompt).toContain('After the first fenced `mcp` block appears, do not add prose, analysis, or thinking text between or after tool-call blocks.');
     expect(prompt).toContain('"tool": "mcp_list"');
     expect(prompt).toContain('"tool": "read_file"');
+    expect(prompt).toContain('Use `mcp_list` to refresh the enabled-tool catalog when the right bridge tool is unclear.');
+    expect(prompt).toContain('Use `read_file` when you already know the exact relative path and need file contents, not file discovery.');
+    expect(prompt).toContain('Use `list_directory` to inspect folder structure; start at the narrowest relevant path and keep `maxDepth` small.');
+    expect(prompt).toContain('Use `search_files` to find candidate paths by filename or relative path; it does not search file contents.');
+    expect(prompt).toContain('Use `grep_files` for file-content search. It defaults to literal matching: `query` for one term, `patterns` for multiple terms.');
+    expect(prompt).toContain('Set `mode: "regex"` explicitly for anchors or operators such as `^`, `$`, `.`, `[]`, `()`, or alternation like `a|b|c`.');
     expect(prompt).toContain('Disabled tools (do not call): run_pwsh');
   });
 });
@@ -96,7 +106,7 @@ describe('request prompt snapshot ownership', () => {
       reason: 'bootstrap'
     })).toEqual({
       level: 'info',
-      message: 'Seeded hidden request injection from cached bootstrap catalog (3/4 enabled, phase1.shared-contract-freeze.v1) while waiting for live /tools sync.'
+      message: 'Seeded hidden request injection from cached bootstrap catalog (5/6 enabled, phase1.shared-contract-freeze.v1) while waiting for live /tools sync.'
     });
     expect(describeRequestPromptSync({
       catalog,
@@ -104,7 +114,7 @@ describe('request prompt snapshot ownership', () => {
       reason: 'refresh'
     })).toEqual({
       level: 'success',
-      message: 'Live /tools catalog (3/4 enabled, phase1.shared-contract-freeze.v1) is now driving hidden request injection.'
+      message: 'Live /tools catalog (5/6 enabled, phase1.shared-contract-freeze.v1) is now driving hidden request injection.'
     });
   });
 });
@@ -128,6 +138,24 @@ function createTools(): ToolDescriptor[] {
       requiresConfirmation: false,
       enabled: true,
       exampleArgs: { path: 'README.md' }
+    },
+    {
+      name: 'list_directory',
+      title: 'List directory',
+      description: 'Inspect directory contents.',
+      risk: 'low',
+      requiresConfirmation: false,
+      enabled: true,
+      exampleArgs: { path: 'docs', maxDepth: 2 }
+    },
+    {
+      name: 'search_files',
+      title: 'Search files',
+      description: 'Search file paths.',
+      risk: 'low',
+      requiresConfirmation: false,
+      enabled: true,
+      exampleArgs: { query: 'catalog', maxResults: 20 }
     },
     {
       name: 'grep_files',

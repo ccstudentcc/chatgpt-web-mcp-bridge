@@ -71,7 +71,7 @@ vNext 不把会话管理作为主产品线。
 - 当前主路径是 hidden request-layer injection
 - 当前 live catalog truth 来自 `/tools`
 - 当前 canonical gateway route set 是 `/health`、`/tools`、`/call-tool`
-- 当前 `mcp_list`、注入 prompt、catalog truth 必须对齐
+- 当前 `mcp_list`、visible/hidden 注入 prompt、共享 tool guidance、catalog truth 必须对齐
 - 当前非原生 MCP 边界必须保留
 - 当前 invalid-turn enforcement 必须保留
 - 当前 startup/history rescan 规则必须保留

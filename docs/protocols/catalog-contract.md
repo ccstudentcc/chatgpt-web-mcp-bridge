@@ -64,11 +64,14 @@ The extension must not synthesize a second local catalog truth. It may cache or 
 At the current v0.1 stage, the following must remain aligned:
 
 - `/tools`
+- shared tool-usage guidance owned by the extension injection runtime
 - hidden request-layer injected capability prompt
 - `mcp_list`
 - manual fallback catalog display
 
 If those diverge, the system will teach the model one thing and enforce another.
+
+The visible/manual catalog prompt and the hidden injected prompt may wrap that guidance differently, but they must consume the same tool-guidance owner text instead of maintaining separate copies.
 
 ### 4.3 External Tools Must Arrive Normalized
 

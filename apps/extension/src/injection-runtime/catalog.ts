@@ -21,7 +21,6 @@ export function summarizeToolCatalog(tools: ToolDescriptor[]): ToolCatalogSummar
 export function buildToolCatalogPrompt(tools: ToolDescriptor[]): string {
   const enabledTools = tools.filter((tool) => tool.enabled);
   const disabledTools = tools.filter((tool) => !tool.enabled);
-  const grepFilesTool = enabledTools.find((tool) => tool.name === 'grep_files');
   const summary = summarizeToolCatalog(tools);
   const lines = [
     'Role: Use Local MCP Bridge tools for workspaceRoot tasks in this conversation.',
@@ -48,29 +47,10 @@ export function buildToolCatalogPrompt(tools: ToolDescriptor[]): string {
     '- Do not reveal intermediate reasoning, chain-of-thought, step-by-step planning, or any other thinking text while issuing tool calls.',
     '- Do not claim that a tool failed, was unavailable, was not executed, or already returned data unless a real `tool_result` shows that.',
     '- After emitting any `mcp` block, stop and wait for the later bridge result message before continuing.',
-    '- Never invent, simulate, restate, or paraphrase `tool_result` or `tool_result_batch` payloads yourself.',
-    '',
-    'Enabled tools:'
+    '- Never invent, simulate, restate, or paraphrase `tool_result` or `tool_result_batch` payloads yourself.'
   ];
 
-  if (grepFilesTool) {
-    lines.splice(18, 0,
-      '- `grep_files` defaults to literal search: use `query` for one term or `patterns` for multiple literal terms.',
-      '- Use `mode: "regex"` only when you intentionally need regex semantics; do not put `a|b|c` into a literal `query` and expect alternation.',
-      ''
-    );
-  }
-
-  for (const tool of enabledTools) {
-    lines.push(`- ${tool.name}: ${tool.description}`);
-    lines.push('```mcp');
-    lines.push(JSON.stringify({ tool: tool.name, args: tool.exampleArgs }, null, 2));
-    lines.push('```');
-  }
-
-  if (disabledTools.length > 0) {
-    lines.push('', `Disabled tools (do not call): ${disabledTools.map((tool) => tool.name).join(', ')}`);
-  }
+  appendCatalogToolSections(lines, enabledTools, disabledTools);
 
   lines.push(
     '',
@@ -124,21 +104,10 @@ export function buildInjectedToolPrompt(tools: ToolDescriptor[]): string {
     '- Do not reveal intermediate reasoning, chain-of-thought, step-by-step planning, or any other thinking text while issuing tool calls.',
     '- Do not claim that a tool failed, was unavailable, was not executed, or already returned data unless a real `tool_result` shows that.',
     '- After emitting any `mcp` block, stop and wait for the later bridge result message before continuing.',
-    '- Never invent, simulate, restate, or paraphrase `tool_result` or `tool_result_batch` payloads yourself.',
-    '',
-    'Enabled tools:'
+    '- Never invent, simulate, restate, or paraphrase `tool_result` or `tool_result_batch` payloads yourself.'
   ];
 
-  for (const tool of enabledTools) {
-    lines.push(`- ${tool.name}: ${tool.description}`);
-    lines.push('```mcp');
-    lines.push(JSON.stringify({ tool: tool.name, args: tool.exampleArgs }, null, 2));
-    lines.push('```');
-  }
-
-  if (disabledTools.length > 0) {
-    lines.push('', `Disabled tools (do not call): ${disabledTools.map((tool) => tool.name).join(', ')}`);
-  }
+  appendCatalogToolSections(lines, enabledTools, disabledTools);
 
   lines.push(
     '',
@@ -197,4 +166,77 @@ export function describeRequestPromptSync(detail: {
       ? `Live /tools catalog (${catalogDescriptor}) was ready before the first request-hook warmup window closed.`
       : `Live /tools catalog (${catalogDescriptor}) is now driving hidden request injection.`
   };
+}
+
+function appendCatalogToolSections(
+  lines: string[],
+  enabledTools: ToolDescriptor[],
+  disabledTools: ToolDescriptor[]
+): void {
+  lines.push('', 'Enabled tools:');
+  appendSharedToolGuidance(lines, enabledTools);
+
+  for (const tool of enabledTools) {
+    lines.push(`- ${tool.name}: ${tool.description}`);
+    lines.push('```mcp');
+    lines.push(JSON.stringify({ tool: tool.name, args: tool.exampleArgs }, null, 2));
+    lines.push('```');
+  }
+
+  if (disabledTools.length > 0) {
+    lines.push('', `Disabled tools (do not call): ${disabledTools.map((tool) => tool.name).join(', ')}`);
+  }
+}
+
+function appendSharedToolGuidance(lines: string[], enabledTools: ToolDescriptor[]): void {
+  for (const tool of enabledTools) {
+    const guidance = getToolUsageGuidance(tool.name);
+    if (guidance.length > 0) {
+      lines.push(...guidance);
+    }
+  }
+
+  if (lines[lines.length - 1] !== '') {
+    lines.push('');
+  }
+}
+
+function getToolUsageGuidance(toolName: string): string[] {
+  switch (toolName) {
+    case 'mcp_list':
+      return [
+        '- Use `mcp_list` to refresh the enabled-tool catalog when the right bridge tool is unclear.'
+      ];
+    case 'read_file':
+      return [
+        '- Use `read_file` when you already know the exact relative path and need file contents, not file discovery.'
+      ];
+    case 'list_directory':
+      return [
+        '- Use `list_directory` to inspect folder structure; start at the narrowest relevant path and keep `maxDepth` small.'
+      ];
+    case 'search_files':
+      return [
+        '- Use `search_files` to find candidate paths by filename or relative path; it does not search file contents.'
+      ];
+    case 'grep_files':
+      return [
+        '- Use `grep_files` for file-content search. It defaults to literal matching: `query` for one term, `patterns` for multiple terms.',
+        '- Set `mode: "regex"` explicitly for anchors or operators such as `^`, `$`, `.`, `[]`, `()`, or alternation like `a|b|c`.'
+      ];
+    case 'write_file':
+      return [
+        '- Use `write_file` for direct text edits only after read/search/list steps have already confirmed the target path and intended content.'
+      ];
+    case 'write_file_proposal':
+      return [
+        '- Use `write_file_proposal` to propose a patch-shaped edit before any direct write path is approved or enabled.'
+      ];
+    case 'run_pwsh':
+      return [
+        '- Use `run_pwsh` only for explicitly enabled host-side PowerShell execution, not normal workspace file inspection.'
+      ];
+    default:
+      return [];
+  }
 }
