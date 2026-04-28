@@ -46,6 +46,7 @@ import {
 import { renderPanel, setUiHandlers } from './ui.js';
 import {
   addLogEntry,
+  clearRequestPromptObserver,
   clearGatewayCatalog,
   clearGatewayRuntime,
   getCatalogTools,
@@ -55,6 +56,8 @@ import {
   restorePersistedUndeliveredResultSession,
   setGatewayCatalog,
   setGatewayHealth,
+  setLastRequestHookObserver,
+  setRequestPromptObserver,
   syncPersistedUndeliveredResultSession,
   type BridgeStatus,
   type StoredBatch,
@@ -97,6 +100,7 @@ async function refreshGatewayStatus(): Promise<void> {
     if (errorCode === 'UNAUTHORIZED') {
       state.status = 'unauthorized';
       clearGatewayCatalog();
+      clearRequestPromptObserver();
       lastRequestPromptSyncKey = '';
       syncRequestPrompt(createEmptyRequestPromptSnapshot(state.requestInjectionMode));
       state.lastError = err instanceof Error ? err.message : 'Gateway authorization failed.';
@@ -104,6 +108,7 @@ async function refreshGatewayStatus(): Promise<void> {
     } else {
       state.status = 'disconnected';
       clearGatewayRuntime();
+      clearRequestPromptObserver();
       lastRequestPromptSyncKey = '';
       syncRequestPrompt(createEmptyRequestPromptSnapshot(state.requestInjectionMode));
       state.lastError = err instanceof Error ? err.message : 'Gateway disconnected';
@@ -506,6 +511,10 @@ function applyCatalogPrompt(
 ): void {
   setGatewayCatalog(catalog, source);
   const snapshot = createRequestPromptSnapshot(catalog, state.requestInjectionMode, source);
+  setRequestPromptObserver({
+    source,
+    catalogVersion: snapshot.catalogVersion
+  });
   syncRequestPrompt(snapshot);
 
   const syncKey = `${reason}:${source}:${snapshot.catalogVersion ?? ''}`;
@@ -551,6 +560,12 @@ function installRequestHookDiagnostics(): void {
     }
     lastRequestHookStatusKey = key;
     const nextLog = describeRequestHookStatus({
+      status: hookStatus,
+      transport: detail.transport,
+      source: detail.source,
+      catalogVersion: detail.catalogVersion
+    });
+    setLastRequestHookObserver({
       status: hookStatus,
       transport: detail.transport,
       source: detail.source,

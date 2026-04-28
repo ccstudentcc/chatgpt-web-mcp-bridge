@@ -13,6 +13,7 @@ import {
 import {
   cycleRequestInjectionMode as getNextRequestInjectionMode,
   normalizeRequestInjectionMode,
+  type RequestHookStatus,
   type RequestInjectionMode
 } from './request-injection-state.js';
 
@@ -57,6 +58,18 @@ export interface PanelPosition {
   top: number;
 }
 
+export interface RequestPromptObserver {
+  source: CatalogSource;
+  catalogVersion?: string;
+}
+
+export interface RequestHookObserver {
+  status: RequestHookStatus;
+  transport?: string;
+  source?: CatalogSource;
+  catalogVersion?: string;
+}
+
 export interface BridgeState {
   status: BridgeStatus;
   token: string;
@@ -91,6 +104,8 @@ export interface BridgeState {
   lastDeliveryRecovery?: DeliveryRecoveryNotice;
   logs: ActivityLogEntry[];
   requestInjectionMode: RequestInjectionMode;
+  requestPrompt?: RequestPromptObserver;
+  lastRequestHook?: RequestHookObserver;
 }
 
 type PersistedUndeliveredResultStatus = Extract<
@@ -257,6 +272,18 @@ export function cycleRequestInjectionMode(): void {
 export function togglePanelCollapsed(): void {
   state.panelCollapsed = !state.panelCollapsed;
   GM_setValue('cwmb_panel_collapsed', String(state.panelCollapsed));
+}
+
+export function setRequestPromptObserver(observer: RequestPromptObserver | undefined): void {
+  state.requestPrompt = observer;
+}
+
+export function clearRequestPromptObserver(): void {
+  state.requestPrompt = undefined;
+}
+
+export function setLastRequestHookObserver(observer: RequestHookObserver): void {
+  state.lastRequestHook = observer;
 }
 
 export function savePanelPosition(position: PanelPosition): void {

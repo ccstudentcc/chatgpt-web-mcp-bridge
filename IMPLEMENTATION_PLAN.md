@@ -411,6 +411,7 @@ Expected current source and compat surfaces:
 - `apps/userscript/src/preview.test.ts`
 - `apps/userscript/src/runtime-snapshot.test.ts`
 - `apps/userscript/src/capabilities.test.ts`
+- `apps/userscript/src/operator-panel.test.ts`
 
 Optimization targets:
 

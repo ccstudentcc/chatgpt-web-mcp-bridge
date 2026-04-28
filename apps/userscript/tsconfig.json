@@ -13,6 +13,7 @@
   "include": [
     "src/**/*.ts",
     "../extension/src/chatgpt-adapter/chatgpt-runtime-facts.ts",
+    "../extension/src/operator-panel/**/*.ts",
     "../extension/src/result-delivery/**/*.ts"
   ]
 }

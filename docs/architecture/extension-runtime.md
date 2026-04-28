@@ -153,9 +153,11 @@ Owns:
 - diagnostics copy entrypoints
 - conversation-scoped execution-profile control
 
-Current Phase 1 seed:
+Current Phase 2 progress:
 
 - `apps/extension/src/operator-panel/runtime-snapshot.ts` now owns the pure browser-side runtime-snapshot helper semantics used by current userscript compat state
+- `apps/extension/src/operator-panel/capabilities.ts` now owns pending-tool capability assessment plus manual-versus-auto action gating for the current operator panel
+- `apps/extension/src/operator-panel/panel-state.ts` now owns operator-facing runtime stat assembly, injection diagnostics summary copy, action visibility, and collapsed-toggle availability while current userscript `ui.ts` remains the DOM/render shell
 
 Does not own:
 

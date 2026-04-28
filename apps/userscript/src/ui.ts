@@ -1,13 +1,11 @@
-import type { GatewayShellInfo } from '@cwmb/protocol';
-import { buildToolCatalogPrompt, summarizeToolCatalog } from './catalog.js';
-import { assessPendingTools, formatCapabilityLabel } from './capabilities.js';
 import {
-  deriveDeliveryPanelState,
-  getDeliveryPanelCopy,
-  getDeliveryStatusLabel,
-  getDeliveryStatusTone,
-  summarizePendingBlock
-} from './result-delivery.js';
+  deriveOperatorPanelViewState,
+  type OperatorPanelButtonView,
+  type OperatorPanelNoticeView,
+  type OperatorPanelPendingItemView,
+  type OperatorPanelToggleView
+} from '../../extension/src/operator-panel/index.js';
+import { buildToolCatalogPrompt } from './catalog.js';
 import { getCatalogTools, hasLiveCatalog, saveBaseUrl, savePanelPosition, saveToken, state } from './state.js';
 
 const LOG_STREAM_SELECTOR = '.cwmb-log-stream';
@@ -61,81 +59,57 @@ export function renderPanel(): void {
   root!.style.maxHeight = state.panelCollapsed ? 'none' : 'min(82vh, 820px)';
   root!.style.overflow = state.panelCollapsed ? 'hidden' : 'auto';
 
-  const pending = state.pending[0];
-  const deliveryPanel = deriveDeliveryPanelState({
-    status: state.status,
+  const tools = getCatalogTools();
+  const toolCatalogPrompt = buildToolCatalogPrompt(tools);
+  const view = deriveOperatorPanelViewState({
+    autoExecuteEnabled: state.autoExecuteEnabled,
+    autoInsertResult: state.autoInsertResult,
+    autoSendResult: state.autoSendResult,
+    baseUrl: state.baseUrl,
+    catalogTools: tools,
+    continueBatchOnError: state.continueBatchOnError,
+    gatewayRuntime: state.gatewayRuntime,
+    hasLiveCatalog: hasLiveCatalog(),
+    lastDeliveryRecovery: state.lastDeliveryRecovery,
+    lastError: state.lastError,
+    lastRequestHook: state.lastRequestHook,
     lastResult: state.lastResult,
+    logs: state.logs,
+    panelCollapsed: state.panelCollapsed,
     pending: state.pending,
     pendingBatchId: state.pendingBatchId,
-    retryableBatch: state.retryableBatch
+    progress: state.progress,
+    requestInjectionMode: state.requestInjectionMode,
+    requestPromptCatalogVersion: state.requestPrompt?.catalogVersion,
+    requestPromptSource: state.requestPrompt?.source,
+    retryableBatch: state.retryableBatch,
+    status: state.status,
+    token: state.token,
+    trustedLocalMode: state.trustedLocalMode
   });
-  const isBatch = deliveryPanel.isPendingBatch;
-  const visibleBatch = deliveryPanel.visibleBatch;
-  const hasRetryableBatch = deliveryPanel.hasRetryableBatch;
-  const activeBlocks = deliveryPanel.activeBlocks;
-  const tools = getCatalogTools();
-  const toolCatalogLoaded = hasLiveCatalog();
-  const runtimeSnapshot = state.gatewayRuntime;
-  const capability = assessPendingTools(activeBlocks, tools, toolCatalogLoaded);
-  const manualRunReason = state.autoExecuteEnabled && capability.runnable && !capability.autoRunnable
-    ? capability.autoBlockedReason
-    : '';
-  const canInsertResult = deliveryPanel.canInsertResult;
-  const canRunPending = state.pending.length > 0 && capability.runnable;
-  const canRetryBatch = hasRetryableBatch && capability.runnable;
-  const capabilityHint = capability.blockedReason ? `<div class="cwmb-callout cwmb-callout-danger">${escapeHtml(capability.blockedReason)}</div>` : '';
-  const manualRunHint = manualRunReason ? `<div class="cwmb-callout cwmb-callout-info">${escapeHtml(manualRunReason)}</div>` : '';
-  const progress = state.progress ? `<div class="cwmb-callout cwmb-callout-info">Running ${state.progress.current}/${state.progress.total}: <code>${escapeHtml(state.progress.tool)}</code></div>` : '';
-  const catalogSummary = summarizeToolCatalog(tools);
-  const toolCatalogPrompt = buildToolCatalogPrompt(tools);
-  const catalogVersionLabel = runtimeSnapshot?.catalog?.catalogVersion ?? 'Unavailable';
-  const workspaceRootLabel = runtimeSnapshot?.catalog?.workspaceRoot ?? runtimeSnapshot?.health?.workspaceRoot ?? 'Unknown';
-  const catalogSourceLabel = runtimeSnapshot?.catalogSource === 'live'
-    ? 'Live gateway'
-    : runtimeSnapshot?.catalogSource === 'cache'
-      ? 'Cached bootstrap'
-      : 'Unavailable';
-  const shellLabel = formatShellLabel(runtimeSnapshot?.health?.shell);
-  const statusTone = getDeliveryStatusTone(state.status);
-  const statusLabel = getDeliveryStatusLabel(state.status);
-  const deliveryCopy = getDeliveryPanelCopy({
-    activeCount: activeBlocks.length,
-    hasRetryableBatch,
-    canInsertResult,
-    hasError: Boolean(state.lastError),
-    recoveryKind: state.lastDeliveryRecovery?.kind,
-    recoveryMessage: state.lastDeliveryRecovery?.message
-  });
-  const tokenLabel = state.trustedLocalMode ? 'Trusted local' : state.token ? 'Token set' : 'Token missing';
-  const injectionModeLabel = state.requestInjectionMode === 'synthetic_system' ? 'Synthetic system' : 'Prepend user';
-  const headerButtonLabel = state.panelCollapsed ? 'Expand' : 'Collapse';
-  const latestLog = state.logs[state.logs.length - 1];
-  const detectedLine = pending
-    ? (isBatch
-      ? `<div class="cwmb-detected-line">Detected <strong>${state.pending.length}</strong> tool calls in one reply</div>${renderPendingList(visibleBatch, capability)}`
-      : `<div class="cwmb-detected-line">Detected <code>${escapeHtml(pending.block.tool)}</code></div>`)
-    : !pending && hasRetryableBatch
-      ? `<div class="cwmb-detected-line">Retryable batch with <strong>${visibleBatch.length}</strong> tools</div>${renderPendingList(visibleBatch, capability)}`
-      : '<div class="cwmb-empty-state">No pending tool calls in the current chat.</div>';
-  const pendingDetails = renderPendingDetails(activeBlocks, capability);
-  const resultDetails = state.lastResult
-    ? `<pre>${escapeHtml(state.lastResult)}</pre>`
-    : `<div class="cwmb-empty-state">${escapeHtml(deliveryCopy.resultEmptyState)}</div>`;
+  const detectionLine = renderDetectionLine(view.detectionMode, view.detectionText, view.detectionListItems);
+  const pendingDetails = renderPendingDetails(view.detailItems);
+  const resultDetails = view.resultPayload
+    ? `<pre>${escapeHtml(view.resultPayload)}</pre>`
+    : `<div class="cwmb-empty-state">${escapeHtml(view.resultEmptyState)}</div>`;
   const logsHtml = state.logs.length > 0
     ? [...state.logs].reverse().map((entry) => (
       `<div class="cwmb-log-row cwmb-log-${entry.level}"><div class="cwmb-log-meta"><span class="cwmb-log-time">${escapeHtml(entry.timestamp)}</span><span class="cwmb-log-level">${escapeHtml(entry.level)}</span></div><div class="cwmb-log-message">${escapeHtml(entry.message)}</div></div>`
     )).join('')
     : '<div class="cwmb-empty-state">No events yet.</div>';
-  const collapsedActionHtml = [
-    pending
-      ? `${((!state.autoExecuteEnabled && canRunPending) || (state.autoExecuteEnabled && canRunPending && !capability.autoRunnable)) ? renderButton('run', isBatch ? 'Run all' : 'Run', 'primary') : ''}${renderButton('ignore', isBatch ? 'Ignore batch' : 'Ignore', 'danger')}`
-      : '',
-    !pending && canRetryBatch ? renderButton('retry-batch', deliveryCopy.retryBatchLabel, 'primary') : '',
-    canInsertResult ? renderButton('insert-result', deliveryCopy.insertResultLabel, 'primary') : ''
-  ].filter(Boolean).join('');
+  const collapsedActionHtml = renderButtonGroup(view.collapsedActions);
+  const runtimeSummary = renderMiniStates(view.toggles);
 
   root!.innerHTML = state.panelCollapsed
-    ? renderCollapsedPanel(statusTone, statusLabel, headerButtonLabel, deliveryCopy.collapsedSummary, latestLog?.message, collapsedActionHtml)
+    ? renderCollapsedPanel(
+      view.statusTone,
+      view.statusLabel,
+      view.headerButtonLabel,
+      view.collapsedSummary,
+      view.latestLogMessage,
+      runtimeSummary,
+      collapsedActionHtml
+    )
     : `
       <style>${panelStyles()}</style>
       <div class="cwmb-shell">
@@ -146,99 +120,44 @@ export function renderPanel(): void {
             <div class="cwmb-subtitle">Security-first tool relay for ChatGPT Web</div>
           </div>
           <div class="cwmb-header-actions">
-            <div class="cwmb-badge ${statusTone}">${statusLabel}</div>
-            <button class="cwmb-collapse-btn" data-cwmb="toggle-collapsed">${headerButtonLabel}</button>
+            <div class="cwmb-badge ${view.statusTone}">${view.statusLabel}</div>
+            <button class="cwmb-collapse-btn" data-cwmb="toggle-collapsed">${view.headerButtonLabel}</button>
           </div>
         </div>
 
         <div class="cwmb-section">
           <div class="cwmb-section-label">Runtime</div>
-          <div class="cwmb-stats">
-            <div class="cwmb-stat">
-              <div class="cwmb-stat-label">Gateway</div>
-              <div class="cwmb-stat-value">${escapeHtml(state.baseUrl)}</div>
-            </div>
-            <div class="cwmb-stat">
-              <div class="cwmb-stat-label">Catalog</div>
-              <div class="cwmb-stat-value">${toolCatalogLoaded ? `${catalogSummary.enabled} / ${catalogSummary.total}` : 'Unavailable'}</div>
-            </div>
-            <div class="cwmb-stat">
-              <div class="cwmb-stat-label">Catalog ver</div>
-              <div class="cwmb-stat-value">${escapeHtml(catalogVersionLabel)}</div>
-            </div>
-            <div class="cwmb-stat">
-              <div class="cwmb-stat-label">Catalog src</div>
-              <div class="cwmb-stat-value">${escapeHtml(catalogSourceLabel)}</div>
-            </div>
-            <div class="cwmb-stat">
-              <div class="cwmb-stat-label">Auth</div>
-              <div class="cwmb-stat-value">${escapeHtml(tokenLabel)}</div>
-            </div>
-            <div class="cwmb-stat">
-              <div class="cwmb-stat-label">Shell</div>
-              <div class="cwmb-stat-value">${escapeHtml(shellLabel)}</div>
-            </div>
-            <div class="cwmb-stat">
-              <div class="cwmb-stat-label">Risk</div>
-              <div class="cwmb-stat-value">${escapeHtml(capability.highestRisk ?? 'Low')}</div>
-            </div>
-            <div class="cwmb-stat">
-              <div class="cwmb-stat-label">Injection</div>
-              <div class="cwmb-stat-value">${escapeHtml(injectionModeLabel)}</div>
-            </div>
-            <div class="cwmb-stat">
-              <div class="cwmb-stat-label">Workspace</div>
-              <div class="cwmb-stat-value">${escapeHtml(workspaceRootLabel)}</div>
-            </div>
-          </div>
+          <div class="cwmb-stats">${renderRuntimeStats(view.runtimeStats)}</div>
         </div>
 
         <div class="cwmb-section">
           <div class="cwmb-section-label">Automation</div>
-          <div class="cwmb-toggle-grid">
-            ${renderToggle('toggle-execute', 'Execute', state.autoExecuteEnabled)}
-            ${renderToggle('toggle-insert', 'Insert', state.autoInsertResult)}
-            ${renderToggle('toggle-send', 'Send', state.autoSendResult)}
-            ${renderToggle('toggle-continue-batch', 'Continue on error', state.continueBatchOnError)}
-          </div>
-          ${toolCatalogLoaded
-            ? `<div class="cwmb-callout cwmb-callout-muted">Request injection is currently using <strong>${escapeHtml(injectionModeLabel)}</strong>. Insert/Copy MCP list remains fallback only.</div>`
-            : runtimeSnapshot?.catalogSource === 'cache'
-              ? '<div class="cwmb-callout cwmb-callout-muted">Using cached catalog bootstrap until the next successful live gateway sync.</div>'
-              : ''}
+          <div class="cwmb-toggle-grid">${view.toggles.map((toggle) => renderToggle(toggle.action, toggle.label, toggle.enabled)).join('')}</div>
+          ${renderCallout(view.automationNotice)}
         </div>
 
         <div class="cwmb-section">
           <div class="cwmb-section-label">Detection</div>
-          ${detectedLine}
-          ${progress}
-          ${capabilityHint}
-          ${manualRunHint}
-          ${state.lastError ? `<div class="cwmb-callout cwmb-callout-danger">${escapeHtml(state.lastError)}</div>` : ''}
-          ${deliveryCopy.recoveryCallout ? `<div class="cwmb-callout cwmb-callout-warn">${escapeHtml(deliveryCopy.recoveryCallout)}</div>` : ''}
+          ${detectionLine}
+          ${renderCallout(view.progressNotice)}
+          ${renderCallout(view.capabilityNotice)}
+          ${renderCallout(view.manualRunNotice)}
+          ${renderCallout(view.errorNotice)}
+          ${renderCallout(view.recoveryNotice)}
           <details class="cwmb-disclosure" data-cwmb-disclosure-key="pending-details">
-            <summary>${escapeHtml(deliveryCopy.pendingDisclosureLabel)}</summary>
+            <summary>${escapeHtml(view.pendingDisclosureLabel)}</summary>
             <div class="cwmb-disclosure-body">${pendingDetails}</div>
           </details>
           <details class="cwmb-disclosure" data-cwmb-disclosure-key="last-result">
-            <summary>${escapeHtml(deliveryCopy.resultDisclosureLabel)}</summary>
+            <summary>${escapeHtml(view.resultDisclosureLabel)}</summary>
             <div class="cwmb-disclosure-body">${resultDetails}</div>
           </details>
         </div>
 
         <div class="cwmb-section">
           <div class="cwmb-section-label">Actions</div>
-          <div class="cwmb-actions">
-            ${state.trustedLocalMode ? '' : renderButton('token', 'Set token')}
-            ${renderButton('base-url', 'Gateway URL')}
-            ${toolCatalogLoaded ? `${renderButton('insert-catalog', 'Insert MCP list')}${renderButton('copy-catalog', 'Copy MCP list', 'ghost')}` : ''}
-          </div>
-          <div class="cwmb-actions">
-            ${pending ? `${((!state.autoExecuteEnabled && canRunPending) || (state.autoExecuteEnabled && canRunPending && !capability.autoRunnable)) ? renderButton('run', isBatch ? 'Run all' : 'Run', 'primary') : ''}${renderButton('ignore', isBatch ? 'Ignore batch' : 'Ignore', 'danger')}${renderButton('copy-json', isBatch ? 'Copy first JSON' : 'Copy JSON', 'ghost')}` : ''}
-            ${!pending && canRetryBatch ? renderButton('retry-batch', deliveryCopy.retryBatchLabel, 'primary') : ''}
-            ${canInsertResult ? renderButton('insert-result', deliveryCopy.insertResultLabel, 'primary') : ''}
-            ${state.lastResult ? renderButton('copy-result', deliveryCopy.copyResultLabel, 'ghost') : ''}
-          </div>
+          <div class="cwmb-actions">${renderButtonGroup(view.configActions)}</div>
+          <div class="cwmb-actions">${renderButtonGroup(view.intentActions)}</div>
         </div>
 
         <div class="cwmb-section">
@@ -249,7 +168,7 @@ export function renderPanel(): void {
     `;
 
   restoreDisclosureSnapshot(disclosureSnapshot);
-  bindHandlers(toolCatalogPrompt, pending);
+  bindHandlers(toolCatalogPrompt, view.copyJsonPayload, view.copyResultPayload);
   restoreScrollSnapshot(scrollSnapshot);
 }
 
@@ -276,7 +195,11 @@ function ensureRoot(): void {
   document.body.appendChild(root);
 }
 
-function bindHandlers(toolCatalogPrompt: string, pending: typeof state.pending[0] | undefined): void {
+function bindHandlers(
+  toolCatalogPrompt: string,
+  copyJsonPayload: string | undefined,
+  copyResultPayload: string | undefined
+): void {
   applyPanelPosition();
   root?.querySelector('[data-cwmb="token"]')?.addEventListener('click', () => {
     const token = prompt('Pairing token', state.token);
@@ -298,8 +221,8 @@ function bindHandlers(toolCatalogPrompt: string, pending: typeof state.pending[0
   root?.querySelector('[data-cwmb="insert-result"]')?.addEventListener('click', () => onInsertHandler?.());
   root?.querySelector('[data-cwmb="insert-catalog"]')?.addEventListener('click', () => onInsertCatalogHandler?.());
   root?.querySelector('[data-cwmb="copy-catalog"]')?.addEventListener('click', () => GM_setClipboard(toolCatalogPrompt));
-  root?.querySelector('[data-cwmb="copy-json"]')?.addEventListener('click', () => pending && GM_setClipboard(pending.raw));
-  root?.querySelector('[data-cwmb="copy-result"]')?.addEventListener('click', () => state.lastResult && GM_setClipboard(state.lastResult));
+  root?.querySelector('[data-cwmb="copy-json"]')?.addEventListener('click', () => copyJsonPayload && GM_setClipboard(copyJsonPayload));
+  root?.querySelector('[data-cwmb="copy-result"]')?.addEventListener('click', () => copyResultPayload && GM_setClipboard(copyResultPayload));
   root?.querySelector('[data-cwmb="toggle-execute"]')?.addEventListener('click', () => onToggleExecuteHandler?.());
   root?.querySelector('[data-cwmb="toggle-insert"]')?.addEventListener('click', () => onToggleInsertHandler?.());
   root?.querySelector('[data-cwmb="toggle-send"]')?.addEventListener('click', () => onToggleSendHandler?.());
@@ -403,17 +326,6 @@ function restoreScrollSnapshot(snapshot: ScrollSnapshot): void {
   logStream.scrollTop = computeRestoredLogScrollTop(snapshot.log.scrollTop, snapshot.log.scrollHeight, logStream.scrollHeight, false);
 }
 
-function formatShellLabel(shell: GatewayShellInfo | undefined): string {
-  if (!shell) {
-    return 'Unknown';
-  }
-  if (!shell.available || !shell.resolved) {
-    return 'Unavailable';
-  }
-
-  return shell.version ? `${shell.resolved} ${shell.version}` : shell.resolved;
-}
-
 export function computeRestoredLogScrollTop(
   previousScrollTop: number,
   previousScrollHeight: number,
@@ -498,23 +410,36 @@ function clampPanelPosition(left: number, top: number): { left: number; top: num
   };
 }
 
-function renderPendingList(blocks: typeof state.pending, capability: ReturnType<typeof assessPendingTools>): string {
-  return `<ol class="cwmb-pending-list">${blocks.map((item, index) => {
-    const capabilityItem = capability.items[index];
-    const suffix = capabilityItem ? ` <span class="cwmb-pending-meta">[${escapeHtml(formatCapabilityLabel(capabilityItem))}]</span>` : '';
-    return `<li><code>${escapeHtml(summarizePendingBlock(item))}</code>${suffix}</li>`;
+function renderDetectionLine(
+  mode: 'empty' | 'single_pending' | 'batch_pending' | 'retryable_batch',
+  text: string,
+  items: OperatorPanelPendingItemView[]
+): string {
+  if (mode === 'empty') {
+    return `<div class="cwmb-empty-state">${escapeHtml(text)}</div>`;
+  }
+
+  if (mode === 'single_pending') {
+    return `<div class="cwmb-detected-line">Detected <code>${escapeHtml(text.replace(/^Detected /, ''))}</code></div>`;
+  }
+
+  return `<div class="cwmb-detected-line">${escapeHtml(text)}</div>${renderPendingList(items)}`;
+}
+
+function renderPendingList(items: OperatorPanelPendingItemView[]): string {
+  return `<ol class="cwmb-pending-list">${items.map((item) => {
+    const suffix = item.capabilityLabel ? ` <span class="cwmb-pending-meta">[${escapeHtml(item.capabilityLabel)}]</span>` : '';
+    return `<li><code>${escapeHtml(item.summary)}</code>${suffix}</li>`;
   }).join('')}</ol>`;
 }
 
-function renderPendingDetails(blocks: typeof state.pending, capability: ReturnType<typeof assessPendingTools>): string {
-  if (blocks.length === 0) {
+function renderPendingDetails(items: OperatorPanelPendingItemView[]): string {
+  if (items.length === 0) {
     return '<div class="cwmb-empty-state">No pending MCP blocks.</div>';
   }
 
-  return blocks.map((item, index) => {
-    const capabilityItem = capability.items[index];
-    const meta = capabilityItem ? formatCapabilityLabel(capabilityItem) : 'unknown';
-    return `<div class="cwmb-detail-block"><div class="cwmb-detail-title">${escapeHtml(item.block.tool)} <span class="cwmb-detail-meta">${escapeHtml(meta)}</span></div><pre>${escapeHtml(item.raw)}</pre></div>`;
+  return items.map((item) => {
+    return `<div class="cwmb-detail-block"><div class="cwmb-detail-title">${escapeHtml(item.tool)} <span class="cwmb-detail-meta">${escapeHtml(item.capabilityLabel)}</span></div><pre>${escapeHtml(item.raw)}</pre></div>`;
   }).join('');
 }
 
@@ -524,15 +449,9 @@ function renderCollapsedPanel(
   headerButtonLabel: string,
   collapsedSummary: string,
   latestLogMessage: string | undefined,
+  runtimeSummary: string,
   actionHtml: string
 ): string {
-  const runtimeSummary = [
-    renderMiniState('Execute', state.autoExecuteEnabled),
-    renderMiniState('Insert', state.autoInsertResult),
-    renderMiniState('Send', state.autoSendResult),
-    renderMiniState('Continue', state.continueBatchOnError)
-  ].join('');
-
   return `
     <style>${collapsedStyles()}</style>
     <div class="cwmb-shell">
@@ -836,6 +755,7 @@ function panelStyles(): string {
       border: 1px solid transparent;
     }
     #cwmb-panel .cwmb-callout-info { background: rgba(14,116,144,0.14); border-color: rgba(14,116,144,0.35); color: #bae6fd; }
+    #cwmb-panel .cwmb-callout-warn { background: rgba(120,53,15,0.24); border-color: rgba(245,158,11,0.34); color: #fde68a; }
     #cwmb-panel .cwmb-callout-danger { background: rgba(127,29,29,0.24); border-color: rgba(220,38,38,0.34); color: #fecaca; }
     #cwmb-panel .cwmb-callout-muted { background: rgba(30,41,59,0.72); border-color: rgba(71,85,105,0.66); color: #94a3b8; }
     #cwmb-panel .cwmb-actions {
@@ -975,6 +895,22 @@ function collapsedStyles(): string {
       font: 600 10px/1 "JetBrains Mono", "Cascadia Code", monospace;
       text-transform: uppercase;
     }
+    #cwmb-panel button.cwmb-mini-state {
+      appearance: none;
+      cursor: pointer;
+      min-height: 0;
+      background: rgba(15,23,42,0.82);
+      justify-content: flex-start;
+      transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+    #cwmb-panel button.cwmb-mini-state:hover {
+      background: rgba(30,41,59,0.92);
+      border-color: rgba(100,116,139,0.82);
+    }
+    #cwmb-panel button.cwmb-mini-state:focus-visible {
+      outline: 2px solid #38bdf8;
+      outline-offset: 2px;
+    }
     #cwmb-panel .cwmb-mini-state.is-on {
       border-color: rgba(34,197,94,0.38);
       color: #dcfce7;
@@ -1043,6 +979,27 @@ function escapeHtml(input: string): string {
   return input.replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char] ?? char));
 }
 
+function renderRuntimeStats(stats: { label: string; value: string }[]): string {
+  return stats.map((stat) => `
+    <div class="cwmb-stat">
+      <div class="cwmb-stat-label">${escapeHtml(stat.label)}</div>
+      <div class="cwmb-stat-value">${escapeHtml(stat.value)}</div>
+    </div>
+  `).join('');
+}
+
+function renderCallout(notice: OperatorPanelNoticeView | undefined): string {
+  if (!notice) {
+    return '';
+  }
+
+  return `<div class="cwmb-callout cwmb-callout-${notice.tone}">${escapeHtml(notice.message)}</div>`;
+}
+
+function renderButtonGroup(buttons: OperatorPanelButtonView[]): string {
+  return buttons.map((button) => renderButton(button.action, button.label, button.tone)).join('');
+}
+
 function renderButton(action: string, label: string, tone: 'default' | 'primary' | 'danger' | 'ghost' = 'default'): string {
   const toneClass = tone === 'default' ? '' : ` cwmb-btn-${tone}`;
   return `<button class="${toneClass.trim()}" data-cwmb="${action}">${escapeHtml(label)}</button>`;
@@ -1054,4 +1011,12 @@ function renderToggle(action: string, label: string, enabled: boolean): string {
 
 function renderMiniState(label: string, enabled: boolean): string {
   return `<div class="cwmb-mini-state ${enabled ? 'is-on' : 'is-off'}"><span class="cwmb-mini-dot"></span><span>${escapeHtml(label)}</span></div>`;
+}
+
+function renderMiniStates(toggles: OperatorPanelToggleView[]): string {
+  return toggles.map((toggle) => renderMiniToggle(toggle)).join('');
+}
+
+function renderMiniToggle(toggle: OperatorPanelToggleView): string {
+  return `<button class="cwmb-mini-state ${toggle.enabled ? 'is-on' : 'is-off'}" data-cwmb="${toggle.action}"><span class="cwmb-mini-dot"></span><span>${escapeHtml(toggle.label)}</span></button>`;
 }
