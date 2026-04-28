@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CatalogContract } from '@cwmb/protocol';
-import { readStoredToolCatalog, writeStoredToolCatalog } from './catalog-cache.js';
+import { readStoredToolCatalog, writeStoredToolCatalog } from '../../extension/src/injection-runtime/catalog-cache.js';
 
 const sampleCatalog: CatalogContract = {
   catalogVersion: 'phase1.shared-contract-freeze.v1',

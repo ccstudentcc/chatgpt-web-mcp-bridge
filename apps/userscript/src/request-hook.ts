@@ -1,29 +1,48 @@
-import { chatgptConversationPaths, isKnownChatGptConversationPath } from './chatgpt-runtime-facts.js';
-import { normalizeRequestInjectionMode, type RequestHookStatus, type RequestInjectionMode } from './request-injection-state.js';
+import type { CatalogSource } from '@cwmb/protocol';
+import { chatgptConversationPaths } from './chatgpt-runtime-facts.js';
+import {
+  createEmptyRequestPromptSnapshot,
+  normalizeRequestInjectionMode,
+  type RequestHookStatus,
+  type RequestInjectionMode,
+  type RequestPromptSnapshot
+} from './request-injection-state.js';
+import {
+  createSyntheticContent,
+  createSyntheticSystemMessage,
+  extractPromptMarker,
+  injectCatalogIntoPayload,
+  injectCatalogIntoRequestBody,
+  isUserMessage,
+  messageContainsPrompt,
+  prependPrompt,
+  tryInjectIntoContentParts,
+  tryInjectIntoMessage,
+  tryInjectIntoMessageContent,
+  tryInjectIntoMessageList,
+  tryInjectIntoRootFields,
+  tryInjectIntoTypedContent,
+  tryInjectSyntheticSystemMessage,
+  type RequestBodyInjectionResult
+} from '../../extension/src/injection-runtime/request-body-injection.js';
 
 const REQUEST_PROMPT_ATTRIBUTE = 'data-cwmb-request-prompt';
+const REQUEST_PROMPT_SOURCE_ATTRIBUTE = 'data-cwmb-request-prompt-source';
+const REQUEST_PROMPT_CATALOG_VERSION_ATTRIBUTE = 'data-cwmb-request-prompt-catalog-version';
 const REQUEST_PROMPT_MESSAGE_TYPE = 'cwmb:update-request-prompt';
 const REQUEST_HOOK_STATUS_MESSAGE_TYPE = 'cwmb:request-hook-status';
 
 declare const unsafeWindow: (Window & typeof globalThis) | undefined;
+declare const CHATGPT_CONVERSATION_PATHS: readonly string[] | undefined;
 
-let directHookPrompt = '';
-let directHookMode: RequestInjectionMode = 'synthetic_system';
+let directHookSnapshot = createEmptyRequestPromptSnapshot('synthetic_system');
 
-export interface RequestBodyInjectionResult {
-  bodyText: string;
-  injected: boolean;
-}
-
-export type { RequestHookStatus, RequestInjectionMode } from './request-injection-state.js';
+export type { RequestBodyInjectionResult, RequestHookStatus, RequestInjectionMode, RequestPromptSnapshot };
 
 export function installPageRequestHook(): void {
   const pageWindow = getPageWindow();
   if (pageWindow) {
-    installRequestHookOnTarget(pageWindow, () => ({
-      prompt: directHookPrompt || readPromptFromDom(),
-      mode: directHookMode || readModeFromDom()
-    }));
+    installRequestHookOnTarget(pageWindow, () => directHookSnapshot.prompt ? directHookSnapshot : readPromptSnapshotFromDom());
     return;
   }
 
@@ -39,16 +58,16 @@ export function installPageRequestHook(): void {
   document.documentElement.dataset.cwmbRequestHookInstalled = 'true';
 }
 
-export function syncRequestPrompt(prompt: string, mode: RequestInjectionMode): void {
-  directHookPrompt = prompt;
-  directHookMode = mode;
-  document.documentElement.setAttribute(REQUEST_PROMPT_ATTRIBUTE, prompt);
-  document.documentElement.setAttribute(`${REQUEST_PROMPT_ATTRIBUTE}-mode`, mode);
+export function syncRequestPrompt(snapshot: RequestPromptSnapshot): void {
+  directHookSnapshot = snapshot;
+  applyPromptSnapshotToDom(snapshot);
   window.postMessage({
     source: 'cwmb-userscript',
     type: REQUEST_PROMPT_MESSAGE_TYPE,
-    prompt,
-    mode
+    prompt: snapshot.prompt,
+    mode: snapshot.mode,
+    promptSource: snapshot.source,
+    catalogVersion: snapshot.catalogVersion
   }, window.location.origin);
 }
 
@@ -66,41 +85,19 @@ export function isChatGptConversationRequest(url: string, method: string): boole
 }
 
 function matchesConversationPath(pathname: string): boolean {
-  return isKnownChatGptConversationPath(pathname);
+  return getConversationPaths().includes(pathname);
 }
 
 function matchConversationUrlFallback(url: string): boolean {
-  return chatgptConversationPaths.some((path) => {
+  return getConversationPaths().some((path) => {
     const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const pattern = new RegExp(`(^|https?:\\/\\/[^/]+)${escaped}(?:$|[?#])`);
     return pattern.test(url);
   });
 }
 
-export function injectCatalogIntoRequestBody(
-  bodyText: string,
-  prompt: string,
-  mode: RequestInjectionMode = 'prepend_user'
-): RequestBodyInjectionResult {
-  if (!bodyText || !prompt.trim()) {
-    return { bodyText, injected: false };
-  }
-
-  let payload: unknown;
-  try {
-    payload = JSON.parse(bodyText);
-  } catch {
-    return { bodyText, injected: false };
-  }
-
-  if (!payload || typeof payload !== 'object') {
-    return { bodyText, injected: false };
-  }
-
-  const injected = injectCatalogIntoPayload(payload as Record<string, unknown>, prompt, mode);
-  return injected
-    ? { bodyText: JSON.stringify(payload), injected: true }
-    : { bodyText, injected: false };
+function getConversationPaths(): readonly string[] {
+  return typeof CHATGPT_CONVERSATION_PATHS !== 'undefined' ? CHATGPT_CONVERSATION_PATHS : chatgptConversationPaths;
 }
 
 function getPageWindow(): (Window & typeof globalThis) | undefined {
@@ -111,27 +108,55 @@ function getPageWindow(): (Window & typeof globalThis) | undefined {
   }
 }
 
-function readPromptFromDom(): string {
-  return document.documentElement.getAttribute(REQUEST_PROMPT_ATTRIBUTE) || '';
+function applyPromptSnapshotToDom(snapshot: RequestPromptSnapshot): void {
+  document.documentElement.setAttribute(REQUEST_PROMPT_ATTRIBUTE, snapshot.prompt);
+  document.documentElement.setAttribute(`${REQUEST_PROMPT_ATTRIBUTE}-mode`, snapshot.mode);
+  setOptionalPromptAttribute(REQUEST_PROMPT_SOURCE_ATTRIBUTE, snapshot.source);
+  setOptionalPromptAttribute(REQUEST_PROMPT_CATALOG_VERSION_ATTRIBUTE, snapshot.catalogVersion);
 }
 
-function readModeFromDom(): RequestInjectionMode {
-  return normalizeRequestInjectionMode(document.documentElement.getAttribute(`${REQUEST_PROMPT_ATTRIBUTE}-mode`));
+function setOptionalPromptAttribute(name: string, value: string | undefined): void {
+  if (value) {
+    document.documentElement.setAttribute(name, value);
+    return;
+  }
+
+  document.documentElement.removeAttribute(name);
 }
 
-function emitRequestHookStatus(status: RequestHookStatus, transport: 'fetch' | 'xhr', url: string): void {
+function readPromptSnapshotFromDom(): RequestPromptSnapshot {
+  return {
+    prompt: document.documentElement.getAttribute(REQUEST_PROMPT_ATTRIBUTE) || '',
+    mode: normalizeRequestInjectionMode(document.documentElement.getAttribute(`${REQUEST_PROMPT_ATTRIBUTE}-mode`)),
+    source: normalizeCatalogSource(document.documentElement.getAttribute(REQUEST_PROMPT_SOURCE_ATTRIBUTE)),
+    catalogVersion: document.documentElement.getAttribute(REQUEST_PROMPT_CATALOG_VERSION_ATTRIBUTE) || undefined
+  };
+}
+
+function normalizeCatalogSource(value: string | null | undefined): CatalogSource | undefined {
+  return value === 'cache' || value === 'live' ? value : undefined;
+}
+
+function emitRequestHookStatus(
+  status: RequestHookStatus,
+  transport: 'fetch' | 'xhr',
+  url: string,
+  snapshot: RequestPromptSnapshot
+): void {
   window.postMessage({
     source: 'cwmb-page-hook',
     type: REQUEST_HOOK_STATUS_MESSAGE_TYPE,
     status,
     transport,
-    url
+    url,
+    promptSource: snapshot.source,
+    catalogVersion: snapshot.catalogVersion
   }, window.location.origin);
 }
 
 function installRequestHookOnTarget(
   targetWindow: Window & typeof globalThis,
-  readInjectionState: () => { prompt: string; mode: RequestInjectionMode }
+  readInjectionState: () => RequestPromptSnapshot
 ): void {
   if ((targetWindow as Window & { __cwmbRequestHookInstalled?: boolean }).__cwmbRequestHookInstalled) {
     return;
@@ -152,9 +177,9 @@ function installRequestHookOnTarget(
         return originalFetch.apply(this, arguments as unknown as [input: RequestInfo | URL, init?: RequestInit]);
       }
 
-      const { prompt, mode } = readInjectionState();
-      if (!prompt) {
-        emitRequestHookStatus('missing_prompt', 'fetch', url);
+      const snapshot = readInjectionState();
+      if (!snapshot.prompt) {
+        emitRequestHookStatus('missing_prompt', 'fetch', url, snapshot);
         return originalFetch.apply(this, arguments as unknown as [input: RequestInfo | URL, init?: RequestInit]);
       }
 
@@ -162,29 +187,29 @@ function installRequestHookOnTarget(
         try {
           const cloned = input.clone();
           const bodyText = await cloned.text();
-          const next = injectCatalogIntoRequestBody(bodyText, prompt, mode);
+          const next = injectCatalogIntoRequestBody(bodyText, snapshot.prompt, snapshot.mode);
           if (next.injected) {
-            emitRequestHookStatus('injected', 'fetch', url);
+            emitRequestHookStatus('injected', 'fetch', url, snapshot);
             const request = new targetWindow.Request(input, { body: next.bodyText });
             return originalFetch.call(this, request);
           }
-          emitRequestHookStatus('matched_without_injection', 'fetch', url);
+          emitRequestHookStatus('matched_without_injection', 'fetch', url, snapshot);
         } catch {
-          emitRequestHookStatus('matched_without_injection', 'fetch', url);
+          emitRequestHookStatus('matched_without_injection', 'fetch', url, snapshot);
         }
         return originalFetch.apply(this, arguments as unknown as [input: RequestInfo | URL, init?: RequestInit]);
       }
 
       if (init && typeof init.body === 'string') {
-        const next = injectCatalogIntoRequestBody(init.body, prompt, mode);
+        const next = injectCatalogIntoRequestBody(init.body, snapshot.prompt, snapshot.mode);
         if (next.injected) {
-          emitRequestHookStatus('injected', 'fetch', url);
+          emitRequestHookStatus('injected', 'fetch', url, snapshot);
           init.body = next.bodyText;
         } else {
-          emitRequestHookStatus('matched_without_injection', 'fetch', url);
+          emitRequestHookStatus('matched_without_injection', 'fetch', url, snapshot);
         }
       } else {
-        emitRequestHookStatus('matched_without_injection', 'fetch', url);
+        emitRequestHookStatus('matched_without_injection', 'fetch', url, snapshot);
       }
 
       return originalFetch.call(this, input, init);
@@ -203,308 +228,23 @@ function installRequestHookOnTarget(
   targetWindow.XMLHttpRequest.prototype.send = function(body?: XMLHttpRequestBodyInit | Document | null) {
     const meta = requestMeta.get(this);
     if (meta && isChatGptConversationRequest(meta.url, meta.method)) {
-      const { prompt, mode } = readInjectionState();
-      if (!prompt) {
-        emitRequestHookStatus('missing_prompt', 'xhr', meta.url);
+      const snapshot = readInjectionState();
+      if (!snapshot.prompt) {
+        emitRequestHookStatus('missing_prompt', 'xhr', meta.url, snapshot);
       } else if (typeof body === 'string') {
-        const next = injectCatalogIntoRequestBody(body, prompt, mode);
+        const next = injectCatalogIntoRequestBody(body, snapshot.prompt, snapshot.mode);
         if (next.injected) {
-          emitRequestHookStatus('injected', 'xhr', meta.url);
+          emitRequestHookStatus('injected', 'xhr', meta.url, snapshot);
           body = next.bodyText;
         } else {
-          emitRequestHookStatus('matched_without_injection', 'xhr', meta.url);
+          emitRequestHookStatus('matched_without_injection', 'xhr', meta.url, snapshot);
         }
       } else {
-        emitRequestHookStatus('matched_without_injection', 'xhr', meta.url);
+        emitRequestHookStatus('matched_without_injection', 'xhr', meta.url, snapshot);
       }
     }
     return originalSend.call(this, body);
   };
-}
-
-function injectCatalogIntoPayload(payload: Record<string, unknown>, prompt: string, mode: RequestInjectionMode): boolean {
-  if (mode === 'synthetic_system' && Array.isArray(payload.messages)) {
-    const systemInjection = tryInjectSyntheticSystemMessage(payload.messages, prompt);
-    if (systemInjection === 'inserted') {
-      return true;
-    }
-    if (systemInjection === 'present') {
-      return false;
-    }
-  }
-
-  if (Array.isArray(payload.messages) && tryInjectIntoMessageList(payload.messages, prompt)) {
-    return true;
-  }
-
-  return tryInjectIntoRootFields(payload, prompt);
-}
-
-function tryInjectIntoMessageList(messages: unknown[], prompt: string): boolean {
-  const preferred = messages
-    .map((message, index) => ({ message, index }))
-    .filter(({ message }) => isUserMessage(message))
-    .reverse();
-
-  for (const { message } of preferred) {
-    if (tryInjectIntoMessage(message, prompt)) {
-      return true;
-    }
-  }
-
-  for (const message of [...messages].reverse()) {
-    if (tryInjectIntoMessage(message, prompt)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function tryInjectSyntheticSystemMessage(messages: unknown[], prompt: string): 'inserted' | 'present' | 'failed' {
-  const promptMarker = extractPromptMarker(prompt);
-  if (messages.some((message) => messageContainsPrompt(message, prompt, promptMarker))) {
-    return 'present';
-  }
-
-  const firstUserIndex = messages.findIndex((message) => isUserMessage(message));
-  const reference = messages[firstUserIndex] ?? messages[0];
-  const syntheticMessage = createSyntheticSystemMessage(reference, prompt);
-  if (!syntheticMessage) {
-    return 'failed';
-  }
-
-  messages.splice(firstUserIndex >= 0 ? firstUserIndex : 0, 0, syntheticMessage);
-  return 'inserted';
-}
-
-function messageContainsPrompt(message: unknown, prompt: string, promptMarker: string): boolean {
-  if (!message || typeof message !== 'object') {
-    return false;
-  }
-
-  const record = message as Record<string, unknown>;
-  const content = record.content;
-  if (typeof content === 'string') {
-    return content.includes(prompt) || (promptMarker ? content.includes(promptMarker) : false);
-  }
-  if (Array.isArray(content)) {
-    return content.some((part) => part && typeof part === 'object'
-      && typeof (part as Record<string, unknown>).text === 'string'
-      && (((part as Record<string, unknown>).text as string).includes(prompt)
-        || (promptMarker ? ((part as Record<string, unknown>).text as string).includes(promptMarker) : false)));
-  }
-  if (content && typeof content === 'object') {
-    const contentRecord = content as Record<string, unknown>;
-    if (typeof contentRecord.text === 'string' && (contentRecord.text.includes(prompt) || (promptMarker ? contentRecord.text.includes(promptMarker) : false))) {
-      return true;
-    }
-    if (Array.isArray(contentRecord.parts)) {
-      return contentRecord.parts.some((part) => typeof part === 'string' && (part.includes(prompt) || (promptMarker ? part.includes(promptMarker) : false)));
-    }
-  }
-  return false;
-}
-
-function createSyntheticSystemMessage(reference: unknown, prompt: string): Record<string, unknown> {
-  if (reference && typeof reference === 'object') {
-    const record = reference as Record<string, unknown>;
-    if (typeof record.role === 'string') {
-      return {
-        role: 'system',
-        content: createSyntheticContent(record.content, prompt),
-        metadata: { cwmbSyntheticSystem: true }
-      };
-    }
-
-    if (record.author && typeof record.author === 'object') {
-      return {
-        author: { role: 'system' },
-        content: createSyntheticContent(record.content, prompt),
-        metadata: { cwmbSyntheticSystem: true }
-      };
-    }
-  }
-
-  return {
-    role: 'system',
-    content: prompt,
-    metadata: { cwmbSyntheticSystem: true }
-  };
-}
-
-function createSyntheticContent(content: unknown, prompt: string): unknown {
-  if (typeof content === 'string') {
-    return prompt;
-  }
-  if (Array.isArray(content)) {
-    return [{ type: 'text', text: prompt }];
-  }
-  if (content && typeof content === 'object') {
-    const record = content as Record<string, unknown>;
-    if (Array.isArray(record.parts)) {
-      return {
-        ...record,
-        parts: [prompt]
-      };
-    }
-    if (typeof record.text === 'string') {
-      return {
-        ...record,
-        text: prompt
-      };
-    }
-  }
-
-  return {
-    content_type: 'text',
-    parts: [prompt]
-  };
-}
-
-function isUserMessage(message: unknown): boolean {
-  if (!message || typeof message !== 'object') {
-    return false;
-  }
-
-  const record = message as Record<string, unknown>;
-  const role = record.role;
-  if (typeof role === 'string') {
-    return role === 'user';
-  }
-
-  const author = record.author;
-  if (!author || typeof author !== 'object') {
-    return false;
-  }
-
-  return (author as Record<string, unknown>).role === 'user';
-}
-
-function tryInjectIntoMessage(message: unknown, prompt: string): boolean {
-  if (!message || typeof message !== 'object') {
-    return false;
-  }
-
-  const record = message as Record<string, unknown>;
-  if (typeof record.content === 'string') {
-    const next = prependPrompt(record.content, prompt);
-    if (!next.modified) {
-      return false;
-    }
-    record.content = next.value;
-    return true;
-  }
-
-  if (!record.content || typeof record.content !== 'object') {
-    return false;
-  }
-
-  return tryInjectIntoMessageContent(record.content as Record<string, unknown>, prompt);
-}
-
-function tryInjectIntoMessageContent(content: Record<string, unknown>, prompt: string): boolean {
-  if (tryInjectIntoContentParts(content, prompt)) {
-    return true;
-  }
-
-  if (typeof content.text === 'string') {
-    const next = prependPrompt(content.text, prompt);
-    if (!next.modified) {
-      return false;
-    }
-    content.text = next.value;
-    return true;
-  }
-
-  if (Array.isArray(content.parts)) {
-    return tryInjectIntoTypedContent(content.parts, prompt);
-  }
-
-  return Array.isArray(content)
-    ? tryInjectIntoTypedContent(content, prompt)
-    : false;
-}
-
-function tryInjectIntoContentParts(content: Record<string, unknown>, prompt: string): boolean {
-  const parts = content.parts;
-  if (!Array.isArray(parts)) {
-    return false;
-  }
-
-  for (let index = 0; index < parts.length; index += 1) {
-    const part = parts[index];
-    if (typeof part !== 'string') {
-      continue;
-    }
-
-    const next = prependPrompt(part, prompt);
-    if (!next.modified) {
-      return false;
-    }
-    parts[index] = next.value;
-    return true;
-  }
-
-  return tryInjectIntoTypedContent(parts, prompt);
-}
-
-function tryInjectIntoTypedContent(contentParts: unknown[], prompt: string): boolean {
-  for (const part of contentParts) {
-    if (!part || typeof part !== 'object') {
-      continue;
-    }
-
-    const record = part as Record<string, unknown>;
-    if (record.type !== 'text' || typeof record.text !== 'string') {
-      continue;
-    }
-
-    const next = prependPrompt(record.text, prompt);
-    if (!next.modified) {
-      return false;
-    }
-    record.text = next.value;
-    return true;
-  }
-
-  return false;
-}
-
-function tryInjectIntoRootFields(payload: Record<string, unknown>, prompt: string): boolean {
-  for (const field of ['prompt', 'input']) {
-    const current = payload[field];
-    if (typeof current !== 'string') {
-      continue;
-    }
-
-    const next = prependPrompt(current, prompt);
-    if (!next.modified) {
-      return false;
-    }
-    payload[field] = next.value;
-    return true;
-  }
-
-  return false;
-}
-
-function prependPrompt(target: string, prompt: string): { value: string; modified: boolean } {
-  const promptMarker = extractPromptMarker(prompt);
-  if (!target.trim()) {
-    return { value: prompt, modified: true };
-  }
-  if ((promptMarker && target.includes(promptMarker)) || target.includes(prompt)) {
-    return { value: target, modified: false };
-  }
-  return {
-    value: `${prompt}\n\n---\n\n${target}`,
-    modified: true
-  };
-}
-
-function extractPromptMarker(prompt: string): string {
-  return prompt.split('\n', 1)[0]?.trim() ?? '';
 }
 
 function buildPageHookSource(): string {
@@ -513,22 +253,34 @@ function buildPageHookSource(): string {
     window.__cwmbRequestHookInstalled = true;
     const CHATGPT_CONVERSATION_PATHS = ${JSON.stringify(chatgptConversationPaths)};
     const REQUEST_PROMPT_ATTRIBUTE = ${JSON.stringify(REQUEST_PROMPT_ATTRIBUTE)};
+    const REQUEST_PROMPT_SOURCE_ATTRIBUTE = ${JSON.stringify(REQUEST_PROMPT_SOURCE_ATTRIBUTE)};
+    const REQUEST_PROMPT_CATALOG_VERSION_ATTRIBUTE = ${JSON.stringify(REQUEST_PROMPT_CATALOG_VERSION_ATTRIBUTE)};
     const REQUEST_PROMPT_MESSAGE_TYPE = ${JSON.stringify(REQUEST_PROMPT_MESSAGE_TYPE)};
     const REQUEST_HOOK_STATUS_MESSAGE_TYPE = ${JSON.stringify(REQUEST_HOOK_STATUS_MESSAGE_TYPE)};
     let currentPrompt = '';
     let currentMode = 'synthetic_system';
+    let currentPromptSource;
+    let currentCatalogVersion;
     const readPromptFromDom = () => document.documentElement.getAttribute(REQUEST_PROMPT_ATTRIBUTE) || '';
     ${normalizeRequestInjectionMode.toString()}
+    const normalizeCatalogSource = (value) => value === 'cache' || value === 'live' ? value : undefined;
     const readModeFromDom = () => normalizeRequestInjectionMode(document.documentElement.getAttribute(REQUEST_PROMPT_ATTRIBUTE + '-mode'));
+    const readPromptSourceFromDom = () => normalizeCatalogSource(document.documentElement.getAttribute(REQUEST_PROMPT_SOURCE_ATTRIBUTE));
+    const readCatalogVersionFromDom = () => document.documentElement.getAttribute(REQUEST_PROMPT_CATALOG_VERSION_ATTRIBUTE) || undefined;
     const emitRequestHookStatus = (status, transport, url) => {
       window.postMessage({
         source: 'cwmb-page-hook',
         type: REQUEST_HOOK_STATUS_MESSAGE_TYPE,
         status,
         transport,
-        url
+        url,
+        promptSource: currentPromptSource,
+        catalogVersion: currentCatalogVersion
       }, window.location.origin);
     };
+    ${getConversationPaths.toString()}
+    ${matchesConversationPath.toString()}
+    ${matchConversationUrlFallback.toString()}
     ${isChatGptConversationRequest.toString()}
     ${injectCatalogIntoRequestBody.toString()}
     ${injectCatalogIntoPayload.toString()}
@@ -547,6 +299,8 @@ function buildPageHookSource(): string {
     ${extractPromptMarker.toString()}
     currentPrompt = readPromptFromDom();
     currentMode = readModeFromDom();
+    currentPromptSource = readPromptSourceFromDom();
+    currentCatalogVersion = readCatalogVersionFromDom();
     window.addEventListener('message', (event) => {
       if (event.source !== window) return;
       const data = event.data;
@@ -554,6 +308,8 @@ function buildPageHookSource(): string {
       if (data.source !== 'cwmb-userscript' || data.type !== REQUEST_PROMPT_MESSAGE_TYPE) return;
       currentPrompt = typeof data.prompt === 'string' ? data.prompt : '';
       currentMode = normalizeRequestInjectionMode(data.mode);
+      currentPromptSource = normalizeCatalogSource(data.promptSource);
+      currentCatalogVersion = typeof data.catalogVersion === 'string' && data.catalogVersion ? data.catalogVersion : undefined;
     });
     const originalFetch = window.fetch;
     if (typeof originalFetch === 'function') {
@@ -582,7 +338,9 @@ function buildPageHookSource(): string {
               return originalFetch.call(this, request);
             }
             emitRequestHookStatus('matched_without_injection', 'fetch', url);
-          } catch {}
+          } catch {
+            emitRequestHookStatus('matched_without_injection', 'fetch', url);
+          }
           return originalFetch.apply(this, arguments);
         }
         if (init && typeof init.body === 'string') {

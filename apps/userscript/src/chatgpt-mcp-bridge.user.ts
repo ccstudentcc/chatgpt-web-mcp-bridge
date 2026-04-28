@@ -1,4 +1,4 @@
-import { buildInjectedToolPrompt, buildToolCatalogPrompt } from './catalog.js';
+import { buildToolCatalogPrompt, createRequestPromptSnapshot, describeRequestPromptSync } from './catalog.js';
 import { readStoredToolCatalog, writeStoredToolCatalog } from './catalog-cache.js';
 import { assessPendingTools } from './capabilities.js';
 import {
@@ -6,6 +6,8 @@ import {
   createInlineToolResultEnvelopeFromLegacyResponse,
   createLegacyToolCallRequest,
   getExecuteResponseCompat,
+  type CatalogContract,
+  type CatalogSource,
   type BatchResultItem,
   type ToolCallFailure
 } from '@cwmb/protocol';
@@ -14,7 +16,7 @@ import { callTool, health, listCatalog } from './gateway-client.js';
 import { extractVisibleText, findLatestOpenAssistantMessage, findLatestUserMessage, onChatMutation } from './dom.js';
 import { sha256Normalized } from './hash.js';
 import { insertIntoChatInput, isChatInputSubmitting, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
-import { describeRequestHookStatus } from './request-injection-state.js';
+import { createEmptyRequestPromptSnapshot, describeRequestHookStatus } from './request-injection-state.js';
 import {
   deriveBatchDeliveryOutcome,
   deliverResult,
@@ -70,6 +72,7 @@ bootstrapRequestPrompt();
 void warmRequestPromptFromGateway();
 
 let lastRequestHookStatusKey = '';
+let lastRequestPromptSyncKey = '';
 let requestHookConversationEventCount = 0;
 let turnScanState = createAssistantTurnScanState();
 const INVALID_TURN_GRACE_MS = 2_000;
@@ -94,13 +97,15 @@ async function refreshGatewayStatus(): Promise<void> {
     if (errorCode === 'UNAUTHORIZED') {
       state.status = 'unauthorized';
       clearGatewayCatalog();
-      syncRequestPrompt('', state.requestInjectionMode);
+      lastRequestPromptSyncKey = '';
+      syncRequestPrompt(createEmptyRequestPromptSnapshot(state.requestInjectionMode));
       state.lastError = err instanceof Error ? err.message : 'Gateway authorization failed.';
       addLogEntry('error', `Gateway unauthorized: ${state.lastError}`);
     } else {
       state.status = 'disconnected';
       clearGatewayRuntime();
-      syncRequestPrompt('', state.requestInjectionMode);
+      lastRequestPromptSyncKey = '';
+      syncRequestPrompt(createEmptyRequestPromptSnapshot(state.requestInjectionMode));
       state.lastError = err instanceof Error ? err.message : 'Gateway disconnected';
       addLogEntry('error', `Gateway disconnected: ${state.lastError}`);
     }
@@ -467,10 +472,8 @@ async function deliverLastResult(
 
 async function refreshToolCatalog(): Promise<void> {
   const catalog = await listCatalog();
-  setGatewayCatalog(catalog, 'live');
-  const prompt = buildInjectedToolPrompt(catalog.tools);
+  applyCatalogPrompt(catalog, 'live', 'refresh');
   writeStoredToolCatalog(catalog);
-  syncRequestPrompt(prompt, state.requestInjectionMode);
 }
 
 function bootstrapRequestPrompt(): void {
@@ -479,8 +482,7 @@ function bootstrapRequestPrompt(): void {
     return;
   }
 
-  setGatewayCatalog(cachedCatalog, 'cache');
-  syncRequestPrompt(buildInjectedToolPrompt(cachedCatalog.tools), state.requestInjectionMode);
+  applyCatalogPrompt(cachedCatalog, 'cache', 'bootstrap');
 }
 
 async function warmRequestPromptFromGateway(): Promise<void> {
@@ -490,12 +492,30 @@ async function warmRequestPromptFromGateway(): Promise<void> {
       return;
     }
 
-    setGatewayCatalog(catalog, 'live');
+    applyCatalogPrompt(catalog, 'live', 'bootstrap');
     writeStoredToolCatalog(catalog);
-    syncRequestPrompt(buildInjectedToolPrompt(catalog.tools), state.requestInjectionMode);
   } catch {
     // Keep the cached bootstrap prompt until the regular UI-driven sync runs.
   }
+}
+
+function applyCatalogPrompt(
+  catalog: CatalogContract,
+  source: CatalogSource,
+  reason: 'bootstrap' | 'refresh'
+): void {
+  setGatewayCatalog(catalog, source);
+  const snapshot = createRequestPromptSnapshot(catalog, state.requestInjectionMode, source);
+  syncRequestPrompt(snapshot);
+
+  const syncKey = `${reason}:${source}:${snapshot.catalogVersion ?? ''}`;
+  if (syncKey === lastRequestPromptSyncKey) {
+    return;
+  }
+
+  lastRequestPromptSyncKey = syncKey;
+  const syncLog = describeRequestPromptSync({ catalog, source, reason });
+  addLogEntry(syncLog.level, syncLog.message);
 }
 
 function installRequestHookDiagnostics(): void {
@@ -506,6 +526,8 @@ function installRequestHookDiagnostics(): void {
       status?: RequestHookStatus;
       transport?: string;
       url?: string;
+      promptSource?: CatalogSource;
+      catalogVersion?: string;
     } | undefined;
     if (!data || data.source !== 'cwmb-page-hook' || data.type !== 'cwmb:request-hook-status') {
       return;
@@ -513,14 +535,16 @@ function installRequestHookDiagnostics(): void {
     const detail = {
       status: data.status,
       transport: data.transport,
-      url: data.url
+      url: data.url,
+      source: data.promptSource,
+      catalogVersion: data.catalogVersion
     };
     const hookStatus = detail.status;
     if (!hookStatus) {
       return;
     }
 
-    const key = `${hookStatus}:${detail.transport ?? 'unknown'}:${detail.url ?? ''}`;
+    const key = `${hookStatus}:${detail.transport ?? 'unknown'}:${detail.source ?? 'none'}:${detail.catalogVersion ?? ''}:${detail.url ?? ''}`;
     requestHookConversationEventCount += 1;
     if (key === lastRequestHookStatusKey) {
       return;
@@ -528,7 +552,9 @@ function installRequestHookDiagnostics(): void {
     lastRequestHookStatusKey = key;
     const nextLog = describeRequestHookStatus({
       status: hookStatus,
-      transport: detail.transport
+      transport: detail.transport,
+      source: detail.source,
+      catalogVersion: detail.catalogVersion
     });
     addLogEntry(nextLog.level, nextLog.message);
     renderPanel();

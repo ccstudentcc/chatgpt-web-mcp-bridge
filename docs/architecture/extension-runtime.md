@@ -92,6 +92,9 @@ Invariants:
 Current Phase 1 seed:
 
 - `apps/extension/src/injection-runtime/request-injection-state.ts` now owns the pure request-injection mode/status helper semantics used by current userscript compat state and request-hook diagnostics
+- `apps/extension/src/injection-runtime/catalog.ts` now owns hidden-versus-visible catalog prompt construction plus bootstrap/live prompt-sync copy
+- `apps/extension/src/injection-runtime/catalog-cache.ts` now owns browser-local catalog bootstrap cache read/write semantics
+- `apps/extension/src/injection-runtime/request-body-injection.ts` now owns request-payload mutation for hidden prompt injection, while current userscript `request-hook.ts` remains the runtime shell that installs page hooks and forwards diagnostics
 
 ### 3.3 `turn-runtime`
 

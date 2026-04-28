@@ -1,6 +1,12 @@
-import type { ToolDescriptor } from '@cwmb/protocol';
+import type { CatalogContract, ToolDescriptor } from '@cwmb/protocol';
 import { describe, expect, it } from 'vitest';
-import { buildInjectedToolPrompt, buildToolCatalogPrompt, summarizeToolCatalog } from './catalog.js';
+import {
+  buildInjectedToolPrompt,
+  buildToolCatalogPrompt,
+  createRequestPromptSnapshot,
+  describeRequestPromptSync,
+  summarizeToolCatalog
+} from '../../extension/src/injection-runtime/catalog.js';
 
 describe('summarizeToolCatalog', () => {
   it('counts enabled and disabled tools', () => {
@@ -67,6 +73,42 @@ describe('buildInjectedToolPrompt', () => {
   });
 });
 
+describe('request prompt snapshot ownership', () => {
+  it('captures live or cached prompt provenance without inventing a second catalog shape', () => {
+    const catalog = createCatalog();
+    expect(createRequestPromptSnapshot(catalog, 'synthetic_system', 'cache')).toMatchObject({
+      mode: 'synthetic_system',
+      source: 'cache',
+      catalogVersion: 'phase1.shared-contract-freeze.v1'
+    });
+    expect(createRequestPromptSnapshot(catalog, 'prepend_user', 'live')).toMatchObject({
+      mode: 'prepend_user',
+      source: 'live',
+      catalogVersion: 'phase1.shared-contract-freeze.v1'
+    });
+  });
+
+  it('describes bootstrap-versus-live prompt timing explicitly', () => {
+    const catalog = createCatalog();
+    expect(describeRequestPromptSync({
+      catalog,
+      source: 'cache',
+      reason: 'bootstrap'
+    })).toEqual({
+      level: 'info',
+      message: 'Seeded hidden request injection from cached bootstrap catalog (3/4 enabled, phase1.shared-contract-freeze.v1) while waiting for live /tools sync.'
+    });
+    expect(describeRequestPromptSync({
+      catalog,
+      source: 'live',
+      reason: 'refresh'
+    })).toEqual({
+      level: 'success',
+      message: 'Live /tools catalog (3/4 enabled, phase1.shared-contract-freeze.v1) is now driving hidden request injection.'
+    });
+  });
+});
+
 function createTools(): ToolDescriptor[] {
   return [
     {
@@ -106,4 +148,17 @@ function createTools(): ToolDescriptor[] {
       exampleArgs: { command: 'pnpm test' }
     }
   ];
+}
+
+function createCatalog(): CatalogContract {
+  return {
+    catalogVersion: 'phase1.shared-contract-freeze.v1',
+    generatedAt: '2026-04-28T08:00:00.000Z',
+    workspaceRoot: '/workspace',
+    tools: createTools().map((tool) => ({
+      ...tool,
+      displayName: tool.title,
+      source: 'builtin' as const
+    }))
+  };
 }

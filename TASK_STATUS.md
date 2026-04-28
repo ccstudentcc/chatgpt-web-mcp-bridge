@@ -19,7 +19,7 @@
 - Draft v0.9 docs and draft contract shapes are reference truth only. They are not separate compatibility targets; compatibility work in the current slice applies to the proven live runtime floor and the still-live routes/behaviors it depends on.
 - ChatGPT Web DOM/request-shape/selectors evidence now has one intended home: `docs/operations/chatgpt-web-runtime-evidence.md`.
 - ChatGPT Web page-fact code truth now targets one v0.9 owner: `apps/extension/src/chatgpt-adapter/`; current userscript code should only consume or compat-re-export that truth.
-- Request-injection mode/status helper truth now also has a narrow v0.9 target owner at `apps/extension/src/injection-runtime/`; current userscript request-hook and state code should consume it through compat wiring rather than duplicate local owner semantics.
+- Injection-runtime helper truth now has a wider v0.9 target owner at `apps/extension/src/injection-runtime/`; current userscript catalog, cache, request-hook, and state code should consume that logic through compat wiring or runtime-shell orchestration rather than duplicate local owner semantics.
 - Browser-runtime snapshot helper truth now also has a narrow v0.9 target owner at `apps/extension/src/operator-panel/`; current userscript state code should consume it through compat wiring rather than remain the long-term owner.
 - Turn-runtime helper truth now also has a narrow v0.9 target owner at `apps/extension/src/turn-runtime/`; current userscript invalid-turn state, pending-selection identity, and auto-round guard code should consume it through compat wiring rather than remain the long-term owner.
 - Phase 1 implementation has started in code, not only in docs: `@cwmb/protocol` now exports the first shared `CatalogContract`, `TurnContext`, `ExecuteRequest`, `ExecuteResponse`, `ToolDecision`, and `ResultEnvelope` surfaces with matching schemas/tests.
@@ -36,7 +36,8 @@
 - Userscript cache/bootstrap/runtime state now retain the full catalog contract instead of only `tools[]`, so `catalogVersion` and `workspaceRoot` are available for diagnostics without another shape migration later.
 - Userscript panel/runtime state now also tracks whether the visible catalog came from the live gateway or cached bootstrap, so diagnostics can distinguish “catalog known” from “catalog freshly synced”.
 - Userscript runtime state now stores one shared runtime snapshot for validated `/health` plus current catalog truth, while still distinguishing live catalog sync from cached bootstrap catalog warmup.
-- Pure request-injection mode/status semantics now live under `apps/extension/src/injection-runtime/request-injection-state.ts`, while userscript keeps only thin compat re-exports and algorithm-local request-hook logic.
+- Pure request-injection mode/status semantics now live under `apps/extension/src/injection-runtime/request-injection-state.ts`, while userscript keeps only thin compat re-exports and runtime-shell request-hook logic.
+- Catalog prompt construction, bootstrap/live prompt-sync copy, and request-payload injection helpers now also live under `apps/extension/src/injection-runtime/{catalog,catalog-cache,request-body-injection}.ts`, while userscript `catalog*.ts` and `request-hook.ts` are reduced to compat exports or runtime transport shells.
 - The pure runtime-snapshot helper semantics have been lifted out of userscript-local state code into `apps/extension/src/operator-panel/runtime-snapshot.ts`, while `apps/userscript/src/runtime-snapshot.ts` remains a thin compat re-export.
 - Pure invalid-turn state, pending-selection identity, and auto-round guard semantics now live under `apps/extension/src/turn-runtime/*`, while userscript `detection-state.ts`, `round-guard.ts`, and `turn-runtime.ts` only provide compat wiring or local type adaptation.
 - Parser-level turn normalization is now a compat concern only in `apps/userscript/src/parser.ts`, while the latest-open-turn and startup/history rescan decision pipeline now lives under extension-owned turn-runtime helpers.
@@ -107,6 +108,7 @@
 - After surfacing live-vs-cache catalog provenance in userscript state/UI, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After introducing the shared `/health` contract and runtime snapshot state, `pnpm --filter @cwmb/protocol test`, `build`, `pnpm --filter @cwmb/gateway test`, and `pnpm --filter @cwmb/userscript lint`, `test`, `build` succeeded again.
 - After seeding the extension `injection-runtime` request-injection state owner and switching userscript to compat re-exports, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
+- After moving injection-runtime catalog prompt construction, bootstrap cache IO, prompt-sync diagnostics, and request-payload mutation into extension-owned helpers, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After seeding the extension `operator-panel` runtime-snapshot owner and switching userscript to a compat re-export, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After seeding the extension `turn-runtime` helper owner and switching userscript invalid-turn / round-guard helpers to compat wiring, root `pnpm lint`, `pnpm test`, and `pnpm build` succeeded again.
 - After moving MCP turn analysis ownership into `apps/extension/src/turn-runtime/mcp-turn-analysis.ts`, `pnpm --filter @cwmb/userscript lint`, `test`, and `build` succeeded again.
@@ -204,6 +206,9 @@
   - `docs/operations/chatgpt-web-runtime-evidence.md`
   - root task-control docs
 - Phase 2 progress landed so far:
+  - `apps/extension/src/injection-runtime/catalog.ts` is now the long-term owner for visible fallback catalog prompt construction, hidden request prompt snapshots, and bootstrap-versus-live prompt-sync diagnostics copy
+  - `apps/extension/src/injection-runtime/catalog-cache.ts` is now the long-term owner for browser-local catalog bootstrap cache read/write semantics
+  - `apps/extension/src/injection-runtime/request-body-injection.ts` is now the long-term owner for hidden request-payload mutation helpers shared by direct request-hook wiring and injected page-hook fallback
   - `apps/extension/src/turn-runtime/mcp-turn-analysis.ts` is now the long-term owner for MCP turn parsing / normalization
   - `apps/extension/src/turn-runtime/pending-turn-detection.ts` is now the long-term owner for latest-open-turn identity and pending-turn detection semantics
   - `apps/extension/src/turn-runtime/assistant-turn-scan.ts` is now the long-term owner for startup/history rescan scan-state decisions across clear, pending, invalid-waiting, and invalid outcomes
@@ -221,7 +226,10 @@
   - `apps/extension/src/result-delivery/operator-panel-copy.ts` is now the long-term owner for collapsed-panel summary text plus delivery-specific retry/insert/copy/disclosure labels and delivery-recovery callout copy on the current operator panel
   - `apps/extension/src/result-delivery/startup-recovery.ts` is now the long-term owner for startup undelivered-result restore probing plus delivery-specific startup composer normalization
   - `apps/userscript/src/parser.ts` remains only as a compat wrapper for hashed `callId` output
+  - `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now also delegates injection prompt construction, bootstrap/live sync copy, and request-hook diagnostics wording while continuing to own runtime orchestration, gateway fetch timing, and panel updates
   - `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now delegates request identity resolution, latest turn-source orchestration, pending-turn classification, live turn analysis, message-identity tracking, pending-selection mutations, scan-state decisions, scan-result runtime effects, result-delivery timing semantics, ready-status fallback, and unsent-result refresh restore instead of owning those pure decision paths locally
+  - `apps/userscript/src/catalog.ts`, `catalog-cache.ts`, and `request-injection-state.ts` now act only as compat re-export seams for extension-owned injection-runtime helpers
+  - `apps/userscript/src/request-hook.ts` now acts as the runtime shell for page-hook installation, prompt snapshot transport, and request-match wiring while consuming extension-owned request-payload mutation helpers
   - `apps/userscript/src/preview.ts`, the delivery-specific status/collapsed/action-copy path in `apps/userscript/src/ui.ts`, and the current batch-failure copy path in `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now act only as compat consumption points for extension-owned result-delivery presentation helpers
   - userscript bundling now explicitly resolves `@cwmb/protocol` for extension-owned turn-runtime imports
 - The Stage 7 `turn-runtime` module stage is now closed. Userscript files touched there remain reference or temporary bridge surfaces, not target-state ownership destinations by themselves.
@@ -262,5 +270,6 @@
 - Do not add or keep adapters only to preserve draft-only field names, draft wording, or other reference-only shapes. Keep compatibility only where current live runtime behavior still depends on it.
 - Treat nested `execute` as the only active `/call-tool` execution-metadata compat surface unless a future task doc explicitly reopens that decision with live runtime evidence.
 - The next required live verification now moves to `injection-runtime`: exercise bootstrap-versus-live catalog timing, hidden request-hook injection on first send, fallback visible injection behavior, and injection diagnostics timing on the real ChatGPT page before claiming the next stage complete.
+- The remaining code-side gap inside `injection-runtime` is no longer prompt/copy ownership drift; it is live-page evidence that the new extension-owned prompt snapshots and hook diagnostics behave correctly on the first send, on cached-bootstrap warmup, and on visible fallback recovery.
 - Use the expanded `IMPLEMENTATION_PLAN.md` stage contract as the execution source of truth for module boundaries, allowed supporting surfaces, validation, and stage exit conditions; do not re-invent those rules ad hoc in code review.
 - If a change tries to activate a second Phase 2 module at the same time, stop and either narrow it back to the active module stage or first update the task-control docs to resequence the program.

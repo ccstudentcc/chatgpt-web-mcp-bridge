@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { injectCatalogIntoRequestBody, isChatGptConversationRequest } from './request-hook.js';
+import { injectCatalogIntoRequestBody } from '../../extension/src/injection-runtime/request-body-injection.js';
+import { isChatGptConversationRequest } from './request-hook.js';
 
 const prompt = [
   'Local MCP bridge tools are available in this chat.',

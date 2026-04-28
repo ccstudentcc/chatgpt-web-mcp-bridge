@@ -358,6 +358,13 @@ Optimization targets:
 - keep hidden injection as the primary path while making fallback behavior intentional and testable
 - expose injection diagnostics without duplicating a second catalog truth
 
+Current progress on April 28, 2026:
+
+- `apps/extension/src/injection-runtime/catalog.ts` now owns hidden and visible prompt construction plus bootstrap/live prompt-sync diagnostics copy
+- `apps/extension/src/injection-runtime/catalog-cache.ts` now owns browser-local bootstrap cache IO
+- `apps/extension/src/injection-runtime/request-body-injection.ts` now owns request-payload mutation helpers, while current userscript request-hook code is reduced to a runtime transport shell
+- remaining gate for this stage is real ChatGPT Web validation of first-send hidden injection, cached-bootstrap warmup, visible fallback behavior, and request-hook diagnostics timing
+
 Stage constraints:
 
 - current live catalog truth must remain grounded in `/tools`
