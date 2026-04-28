@@ -1000,14 +1000,14 @@ Definition of done:
 
 ## Stage 20: Execute Module Stage - Gateway Structure
 
-Status: active
+Status: completed
 
 Current code-side status:
 
 - April 28, 2026: `apps/gateway/src/api/*`, `proposal-engine/*`, `external-mcp/*`, `result-cache/*`, and `main/*` are now landed in code, with `routes/*`, `server.ts`, and `index.ts` reduced to compatibility shells over the new owners.
 - April 28, 2026: `pnpm --filter @cwmb/gateway lint`, `test`, and `build` all passed after the Stage 20 structure slice landed.
 - April 28, 2026: root `pnpm lint`, `pnpm test`, and `pnpm build` also passed after the Stage 20 structure slice landed.
-- Remaining close-out gate: one manual browser-to-gateway validation pass for `/health`, `/tools`, and `/call-tool` through the new `api/` adapters before Stage 20 can be marked complete.
+- April 28, 2026: the user confirmed manual browser-to-gateway validation for `/health`, `/tools`, and `/call-tool` through the new `api/` adapters, so Stage 20 can close.
 
 Goal:
 
@@ -1133,7 +1133,7 @@ Definition of done:
 
 - The codebase now carries a dual browser-runtime shape: the extension-first mainline path is landed in code, while the userscript remains a required fallback until Stage 21 removes it. Stage 19 is now dialogue-closed, but repo-local real-page evidence is still stronger for the userscript path than for the extension path.
 - Hidden request-layer injection, invalid-turn enforcement, result delivery, and operator recovery are still real-page behaviors; browser-only regressions cannot be dismissed by passing unit tests alone.
-- Stage 20 now creates `gateway/api/`, `gateway/proposal-engine/`, `gateway/external-mcp/`, `gateway/result-cache/`, and `gateway/main/`, but the live browser-to-gateway path still needs one manual validation pass before the stage can close.
+- Stage 20 now creates `gateway/api/`, `gateway/proposal-engine/`, `gateway/external-mcp/`, `gateway/result-cache/`, and `gateway/main/`, and the live browser-to-gateway path has now been manually validated before close-out.
 - Follow-on work can still sprawl if a new slice is opened without first declaring its owner boundary and supporting seams in the task-control docs.
 - The repo still lacks browser-driven end-to-end automation, so major browser-runtime transitions will continue to depend on real ChatGPT Web manual verification.
 - Stage 18 (package-domain-extraction) is a high-risk atomic operation: splitting `protocol/` into 4 domain packages + renaming `shared/` + creating `test-fixtures` + updating every consumer import must succeed in one stage or the build breaks. The only valid intermediate state is "all imports updated and build passing."

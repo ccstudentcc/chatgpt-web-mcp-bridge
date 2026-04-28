@@ -185,11 +185,11 @@ Target ownership mapping:
 | `diagnostics` | extracted owner (Stage 17) | read-only diagnostics owner | ownership clear | complete |
 | `extension-shell` | active Stage 19 implementation | Chrome Extension shell (Stage 19) | dual-runtime verification still required until Stage 21 | high |
 | `extension-main` | active Stage 19 implementation | composition root (Stage 19) | userscript fallback still imports the same owner | high |
-| `gateway-api` | active Stage 20 implementation | HTTP adapter (Stage 20) | live browser-to-gateway validation still pending before close | medium |
-| `proposal-engine` | active Stage 20 implementation | typed interface + stub (Stage 20) | scope boundary clear (stub only) | low |
-| `external-mcp` | active Stage 20 implementation | typed interface + stub (Stage 20) | scope boundary clear (stub only) | low |
-| `result-cache` | active Stage 20 implementation | typed interface + in-memory impl (Stage 20) | not yet exercised on the live route path | low |
-| `gateway-main` | active Stage 20 implementation | composition root (Stage 20) | compat entrypoints still present until Stage 21 | medium |
+| `gateway-api` | complete Stage 20 implementation | HTTP adapter (Stage 20) | compat layer still exists until Stage 21 | medium |
+| `proposal-engine` | complete Stage 20 implementation | typed interface + stub (Stage 20) | scope boundary clear (stub only) | low |
+| `external-mcp` | complete Stage 20 implementation | typed interface + stub (Stage 20) | scope boundary clear (stub only) | low |
+| `result-cache` | complete Stage 20 implementation | typed interface + in-memory impl (Stage 20) | not yet a shipped capability owner beyond the stub cache | low |
+| `gateway-main` | complete Stage 20 implementation | composition root (Stage 20) | compat entrypoints still present until Stage 21 | medium |
 | `domain-packages` | split and active after Stage 18 | 4 domain packages + shared-utils + test-fixtures | importer churn across apps still needs validation | medium |
 | `compat-layers` | routes/tools/security/shell/utils still exist | deleted (Stage 21) | indirection and hidden ownership | high |
 
@@ -255,7 +255,7 @@ Full Phase 2 module order (Stages 7-21, see root `IMPLEMENTATION_PLAN.md` and `S
 11. `diagnostics` (complete)
 12. `package-domain-extraction` (complete) — split `protocol/` into domain packages, rename `shared/`, create `test-fixtures/`
 13. `extension-structure` (complete) — full Chrome Extension shell + `main/`, extension becomes primary browser runtime
-14. `gateway-structure` (active) — `api/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, `main/`
+14. `gateway-structure` (complete) — `api/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, `main/`
 15. `remove-compat-layers` (planned) — delete all compat re-exports, archive `apps/userscript/`
 
 Goals:

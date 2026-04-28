@@ -11,9 +11,10 @@
 
 ## Working Rules
 
-- Stage 20 `gateway-structure` is active. Land new gateway HTTP adaptation or composition work under `api/` and `main/`, and keep `routes/` plus flat entrypoints as compat shells only until Stage 21 deletes them.
+- Stage 20 `gateway-structure` is complete. `api/`, `main/`, `proposal-engine/`, `external-mcp/`, and `result-cache/` are now the active owner paths, while `routes/` plus flat entrypoints remain compat shells until Stage 21 deletes them.
 - `proposal-engine/` and `external-mcp/` remain interface-plus-stub surfaces in Stage 20; do not smuggle real proposal workflow or external MCP lifecycle rollout into those directories yet.
 - `result-cache/` may provide only the Stage 20 in-memory TTL implementation; do not add persistent storage, distributed coordination, or a second execution-truth path there.
+- Do not start Stage 21 cleanup from this subtree by default. Treat `no active module stage` as a real stop state until the root task-control docs explicitly activate the next slice.
 - When a change affects `/health`, `/tools`, or `/call-tool`, keep the matching gateway tests and userscript consumer-path tests aligned in the same pass.
 - Diagnostics should stay an observer of gateway state, config, audit, and runtime facts. Do not turn diagnostics code into a second execution-control path.
 

@@ -12,12 +12,12 @@
 - Phase 2 is now open as a module-by-module Final Core refactor program for completing `apps/extension` and `apps/gateway`.
 - Phase 2 execution rule is now explicit: one stage equals one module, and only one module stage may be active at a time.
 - Phase 2 may still use larger rewrites when they improve efficiency, timing, logic clarity, stability, or test coverage, but only inside the currently active module stage.
-- Phase 2 has now advanced through the full declared Stage 7-19 extraction sequence. `package-domain-extraction` and `extension-structure` are closed, `gateway-structure` (Stage 20) is now the active module stage, and Stage 21 `remove-compat-layers` remains the planned follow-on stage.
+- Phase 2 has now advanced through the full declared Stage 7-20 extraction sequence. `package-domain-extraction`, `extension-structure`, and `gateway-structure` are closed, and Stage 21 `remove-compat-layers` remains the planned follow-on stage.
 - Stage 19 code-side extraction is now landed: `apps/extension/` has a real package boundary, manifest v3 shell, background service worker, content-script bootstrap, main-world request hook entrypoint, and `apps/extension/src/main/extension-runtime.ts` composition root, while `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now acts as a thin fallback bootstrap into that owner path.
 - Stage 19 is now closed. On April 28, 2026, the user confirmed that the remaining extension-path issue had been fixed in the latest commit and approved ending `extension-structure` so Stage 20 could begin.
 - The Stage 19 extension path now also carries an explicit gateway trust bridge: extension-background proxy requests assert the underlying ChatGPT page origin, and the gateway accepts extension-origin calls only when that assertion matches the allowed ChatGPT Web origins. This fixes extension-path `ORIGIN_NOT_ALLOWED` failures without widening the localhost trust boundary to arbitrary webpages.
 - Stage 20 code-side extraction is now landed: `apps/gateway/src/api/*` owns HTTP adaptation, `proposal-engine/*`, `external-mcp/*`, and `result-cache/*` now exist as direct Stage 20 owner directories, `apps/gateway/src/main/*` is the explicit gateway composition root, and `routes/*`, `server.ts`, plus `index.ts` now act as compat shells over those owners.
-- Stage 20 is not yet complete: local gateway and root workspace verification are green, but one manual browser-to-gateway validation pass for `/health`, `/tools`, and `/call-tool` through the new `api/` adapters is still required before the stage can close.
+- Stage 20 is now closed. On April 28, 2026, the user confirmed manual browser-to-gateway validation for `/health`, `/tools`, and `/call-tool` through the new `api/` adapters, so the structure slice can end without inferring Stage 21 automatically.
 - Stage 3 slice-definition work is complete; Stage 4 compat-preserving execution is complete on the same Phase 1 boundary.
 - Stage 5 execution-model definition is now complete, and the Phase 2 stage-definition pack is now explicit enough for execution: every declared module stage now has owner surfaces, supporting surfaces, optimization targets, validation expectations, and a definition of done in `IMPLEMENTATION_PLAN.md`.
 - Stage 6 module ordering and rationale are now also explicit; Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, 10 `operator-panel`, 11 `execution-kernel`, 12 `tool-registry`, 13 `tool-policy`, 14 `builtin-tools`, 15 `shell-runtime`, 16 `audit-log`, and 17 `diagnostics` are complete, and no new code-side extraction gate has been declared yet beyond that sequence.
@@ -181,9 +181,9 @@
 ## Active Stop Line
 
 - The v0.1 stop line is closed as of April 27, 2026.
-- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, 10 `operator-panel`, 11 `execution-kernel`, 12 `tool-registry`, 13 `tool-policy`, 14 `builtin-tools`, 15 `shell-runtime`, 16 `audit-log`, 17 `diagnostics`, 18 `package-domain-extraction`, and 19 `extension-structure` are complete. Stage 20 `gateway-structure` is now the active code-side extraction gate.
+- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, 10 `operator-panel`, 11 `execution-kernel`, 12 `tool-registry`, 13 `tool-policy`, 14 `builtin-tools`, 15 `shell-runtime`, 16 `audit-log`, 17 `diagnostics`, 18 `package-domain-extraction`, 19 `extension-structure`, and 20 `gateway-structure` are complete. There is currently no active code-side extraction gate.
 - Any Phase 2 stage completion claim now requires direct owner-level tests, adjacent compat-path regression checks, root `pnpm lint` / `test` / `build`, and real ChatGPT Web validation whenever browser runtime timing or DOM behavior changed.
-- Stage 20 can only move from active to complete after the gateway structure slice lands with direct owner tests and at least one browser-to-gateway validation pass for `/health`, `/tools`, and `/call-tool` through the new `api/` adapters.
+- Stage 20 close-out now includes direct owner tests plus manual browser-to-gateway validation for `/health`, `/tools`, and `/call-tool` through the new `api/` adapters.
 - Until explicitly migrated, the active compatibility floor includes:
   - `/health`
   - `/tools`
@@ -197,8 +197,8 @@
 
 - Active program: Phase 2 module-by-module Final Core refactor
 - Battleground: Final Core
-- Primary axis: target-structure completion through the active `gateway-structure` stage. Stage 20 now owns the gateway module-layout boundary; Stage 21 remains the planned follow-on slice.
-- Active module stage: `gateway-structure`. Most recently completed stage: `extension-structure`
+- Primary axis: no active module stage. Stage 20 `gateway-structure` is closed, and Stage 21 remains the planned follow-on slice until explicitly activated.
+- Active module stage: none. Most recently completed stage: `gateway-structure`
 - Phase 1 completed implementation surfaces:
   - `packages/protocol/*`
   - narrow gateway route adapters
@@ -223,7 +223,7 @@
   - `diagnostics` (Stage 17, complete)
   - `package-domain-extraction` (Stage 18, complete)
   - `extension-structure` (Stage 19, complete)
-  - `gateway-structure` (Stage 20, active)
+  - `gateway-structure` (Stage 20, complete)
   - `remove-compat-layers` (Stage 21, planned)
 - Phase 2 stage-completion rubric now requires:
   - one explicit long-term owner for the active module
@@ -287,7 +287,7 @@
 - The Stage 16 `audit-log` module stage is now closed. Durable gateway audit truth now routes through explicit execution, policy, and lifecycle event owners plus redacted summaries under `apps/gateway/src/audit-log/*`, while the current kernel path consumes that owner directly without reopening diagnostics or panel formatting concerns.
 - The Stage 17 `diagnostics` module stage is now closed. Gateway health shaping, config-derived runtime facts, and redacted diagnostics bundle assembly now route through `apps/gateway/src/diagnostics/*`, while the current `/health` route remains a thin compat adapter and the public health floor stays stable.
 - The Stage 18 `package-domain-extraction` module stage is now closed. `packages/protocol/` has been deleted, `packages/shared/` has been renamed to `packages/shared-utils/`, the new domain packages plus `packages/test-fixtures/` now own the shared contract surfaces, and all gateway/userscript/extension consumers now import from the focused packages instead of the legacy protocol package.
-- Stage 20 is now the active target-structure slice:
+- The most recently closed target-structure slice is:
   - Stage 20: gateway structure completion (`api/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, `main/`)
 - Stage 20 code-side verification passed on April 28, 2026:
   - `pnpm --filter @cwmb/gateway lint`
@@ -296,6 +296,10 @@
   - root `pnpm lint`
   - root `pnpm test`
   - root `pnpm build`
+- Stage 20 manual close-out verification also passed on April 28, 2026:
+  - browser-to-gateway `/health` through `apps/gateway/src/api/*`
+  - browser-to-gateway `/tools` through `apps/gateway/src/api/*`
+  - browser-to-gateway `/call-tool` through `apps/gateway/src/api/*`
 - The following item remains the planned follow-on stage (full definition in `IMPLEMENTATION_PLAN.md`) and is not active yet:
   - Stage 21: removal of all compat layers (`routes/`, `tools/`, `security/`, `shell/`, `utils/`), archive `apps/userscript/`
 - Stage 19 code-side validation passed on April 28, 2026 before close-out:
@@ -328,7 +332,7 @@
 - The repo still lacks browser-driven end-to-end automation, so browser-runtime transitions will continue to need real ChatGPT Web verification.
 - The active codebase now carries both the landed extension shell and the userscript fallback. That is a deliberate Stage 19 / Stage 21 overlap, not a signal that userscript should keep regrowing as a long-term primary path.
 - The Stage 19 code shift is now treated as complete by user confirmation, but repository evidence remains stronger for the userscript fallback path than for the extension path because the close-out was dialogue-confirmed rather than re-recorded in repo docs.
-- Stage 20 already has direct owner tests, gateway verification, and root workspace verification, but it still lacks the required manual browser-to-gateway validation pass through the new `api/` layer, so the stage is active rather than complete.
+- Stage 20 now has direct owner tests, gateway verification, root workspace verification, and manual browser-to-gateway validation through the new `api/` layer, so the stage is complete even though Stage 21 has not been activated yet.
 - The unified ChatGPT Web runtime evidence doc exists now, but it is not yet a fully populated evidence pack; DOM-heavy work should refresh or add evidence there before expanding.
 - Phase 2 may span many commits and substantial refactors, but the control rule is now stage isolation, not “one big package”: progress should come from completing one module cleanly before activating the next.
 - Later-scope capabilities remain target-state work rather than shipped behavior:
@@ -341,7 +345,7 @@
 
 - Use `docs/v0.9-entrypoint.md` first when deciding where new v0.9 truth belongs.
 - Use `docs/prd.md` only as the closed reference baseline for the current proven runtime.
-- Do not reopen Phase 1 implicitly. The declared Stage 7-19 extraction sequence is already complete, and Stage 20 `gateway-structure` is now the active slice. Do not start Stage 21 work until the task-control docs explicitly activate the next stage.
+- Do not reopen Phase 1 implicitly. The declared Stage 7-20 extraction sequence is already complete, and there is currently no active module slice. Do not start Stage 21 work until the task-control docs explicitly activate the next stage.
 - If a change depends on ChatGPT Web DOM/request-shape/selectors facts, put the raw evidence in `docs/operations/chatgpt-web-runtime-evidence.md` instead of scattering it through task docs.
 - If code needs ChatGPT Web page facts, add or update them in `apps/extension/src/chatgpt-adapter/` first, then adapt current userscript consumers through compat wiring.
 - When a cleaner direct implementation exists in `apps/extension` or `apps/gateway`, prefer landing there over recreating new long-term logic in userscript-shaped files.
@@ -350,4 +354,4 @@
 - `diagnostics` is no longer an open gate. Do not assume a next extraction stage until the task-control docs deliberately declare one.
 - Use the expanded `IMPLEMENTATION_PLAN.md` stage contract as the execution source of truth for module boundaries, allowed supporting surfaces, validation, and stage exit conditions; do not re-invent those rules ad hoc in code review.
 - If a change would activate a new Phase 2 or follow-on module stage, first update the task-control docs to declare that slice explicitly rather than assuming the old diagnostics gate still applies.
-- For the current Stage 20 slice, the remaining close-out work is one manual browser-to-gateway pass for `/health`, `/tools`, and `/call-tool` through `apps/gateway/src/api/*`; do not open Stage 21 cleanup before that evidence exists.
+- The next possible follow-on slice is Stage 21 `remove-compat-layers`, but it is not active yet. Do not open that cleanup until the task-control docs explicitly declare it.
