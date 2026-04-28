@@ -242,6 +242,6 @@ The bullets below are the older v0.1-era incremental roadmap and are kept only a
 - v0.3: restricted `run_pwsh` with strong confirmation
 - v0.4: real MCP stdio adapter with gateway permission mapping
 
-## 友情链接
+## Related Links
 
 - [Linuxdo](https://linux.do/)
