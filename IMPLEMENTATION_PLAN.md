@@ -749,7 +749,7 @@ Completed on April 28, 2026:
 
 ## Stage 16: Execute Module Stage - Audit Log
 
-Status: pending
+Status: completed
 
 Goal:
 
@@ -792,6 +792,16 @@ Definition of done:
 - audit events have one gateway owner
 - event shapes are explicit enough for later diagnostics to consume without reverse-engineering route behavior
 - logging truth is more structured and more stable than before the stage
+
+Completed on April 28, 2026:
+
+- `apps/gateway/src/audit-log/*` now owns structured execution, policy, and lifecycle audit event types, durable event shaping, redacted argument/result summaries, and JSONL persistence.
+- `apps/gateway/src/logger.ts` now acts only as a compat re-export seam, while direct gateway ownership moved behind `apps/gateway/src/audit-log/index.ts`.
+- `apps/gateway/src/execution-kernel/execution-kernel.ts` now emits audit owner events instead of assembling route-local log payloads inline, and each execution now records a request-level lifecycle summary in addition to per-call policy or execution events.
+- direct audit-log tests now cover event shaping, result and argument redaction, and request-level lifecycle summaries, while kernel tests verify the live gateway path emits the new owner events in-place.
+- `docs/operations/security.md` and `docs/operations/gateway.md` now treat durable audit truth as redacted execution, policy, and lifecycle concepts rather than raw route-local fragments or panel-facing formatting.
+- `pnpm --filter @cwmb/gateway lint`, `pnpm --filter @cwmb/gateway test`, `pnpm --filter @cwmb/gateway build`, and root `pnpm lint`, `pnpm test`, `pnpm build` succeeded again after the owner shift.
+- no new live browser validation was required to close this stage because the change stayed inside gateway-local audit ownership and did not alter browser runtime timing, DOM behavior, or the live `/health` floor.
 
 ## Stage 17: Execute Module Stage - Diagnostics
 

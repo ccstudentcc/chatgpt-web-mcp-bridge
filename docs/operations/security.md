@@ -18,6 +18,7 @@ At the current repo stage, important live facts include:
 - the current shipped live route set is `/health`, `/tools`, and `/call-tool`
 - current write capability is still highly constrained relative to target-state plans
 - workspace hard-path enforcement now routes through `apps/gateway/src/tool-policy/path-policy.ts`
+- durable gateway audit truth now routes through `apps/gateway/src/audit-log/*` with redacted summaries rather than raw payload persistence
 
 Trusted local mode is not equivalent to trusting arbitrary webpages. It reduces local token friction for the intended ChatGPT Web flow, but it does not remove host binding, origin checks, or conservative policy boundaries.
 
@@ -45,6 +46,7 @@ If a change weakens host binding, origin checks, blocked-path enforcement, or wr
 - fallback paths do not bypass policy or audit
 - external MCP must stay more conservative by default than builtin local workflow tools
 - diagnostics must be redacted by default
+- durable audit entries must stay redacted and concept-stable before diagnostics aggregates them
 - current host/origin/token/workspace restrictions must be preserved during gateway modularization unless an approved migration plan says otherwise
 
 ## 4. Current Gateway Boundary That Refactors Must Preserve
@@ -67,6 +69,7 @@ Important current-state reminders:
 - `write_file` is still optional, off by default, and manual-only when enabled
 - `run_pwsh` remains outside the current shipped v0.1 capability surface
 - current refactors must preserve the localhost/origin/trusted-local/workspace baseline before they pursue target-state modularity
+- diagnostics should consume redacted audit owner output instead of widening durable audit storage to include raw secrets or unstable internal fragments
 
 ## 6. Execution Profiles
 
@@ -98,6 +101,7 @@ Escalate a change for explicit security review if it:
 - makes a previously manual-only high-risk tool auto-runnable
 - weakens `workspaceRoot` or blocked-path enforcement
 - exposes richer diagnostics without a redaction pass
+- broadens durable audit storage to include raw secrets, raw result text, or unstable internal-only fragments
 - treats target-state mode language as permission to bypass current live policy
 
 ## 9. Related Documents

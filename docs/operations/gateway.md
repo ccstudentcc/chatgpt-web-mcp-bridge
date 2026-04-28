@@ -17,9 +17,10 @@ The gateway owns:
 - materialized catalog truth for the current builtin tool set
 - builtin tool execution for the current shipped v0.1 tools
 - shell detection plus guarded `run_pwsh` runtime semantics under `apps/gateway/src/shell-runtime/*`
+- structured execution, policy, and lifecycle audit truth under `apps/gateway/src/audit-log/*`
 - localhost/origin/token/trusted-local access control
 - workspace and sensitive-path enforcement
-- execution logging and basic diagnostics for current tool calls
+- current health shaping and pre-diagnostics operator checks
 
 The gateway does not own:
 
@@ -29,6 +30,12 @@ The gateway does not own:
 - conversation-local runtime UI state
 
 `run_pwsh` remains a default-disabled power tool unless `allowPwsh=true`, so current shipped v0.1 behavior is still conservative even though shell-runtime now has a direct gateway owner.
+
+Current audit rule:
+
+- durable audit entries should describe stable execution, policy, and lifecycle concepts
+- audit summaries must stay redacted and must not persist raw result content, secrets, or panel-facing formatting copy
+- later diagnostics should aggregate these owner events instead of reverse-engineering route-local strings
 
 Target-state docs may assign proposal handling, external MCP lifecycle, or result-cache subsystems to the gateway in the future, but those are not current shipped gateway subsystems yet.
 

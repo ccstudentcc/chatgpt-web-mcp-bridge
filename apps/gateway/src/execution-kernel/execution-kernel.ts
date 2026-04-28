@@ -1,4 +1,11 @@
 import {
+  createAuditRequestContext,
+  createExecutionCompletedAuditEvent,
+  createExecutionFailedAuditEvent,
+  createExecutionFinishedAuditEvent,
+  createPolicyDeniedAuditEvent
+} from '../audit-log/index.js';
+import {
   createBatchResultEnvelope,
   createExecuteRequestFromToolCallRequest,
   createExecuteResponse,
@@ -81,11 +88,13 @@ export function createExecutionKernel(options: CreateExecutionKernelOptions): Ex
     const continueOnFailure = executeOptions.continueOnFailure ?? false;
     const callOutcomes: ExecutionKernelCallOutcome[] = [];
     const batchWarnings = new Set<string>();
+    const auditRequest = createAuditRequestContext({ request, executionId });
 
     for (const [index, call] of request.calls.entries()) {
       const outcome = await executeCall({
         index,
         call,
+        auditRequest,
         config: options.config,
         logger: options.logger,
         registry,
@@ -109,6 +118,41 @@ export function createExecutionKernel(options: CreateExecutionKernelOptions): Ex
         break;
       }
     }
+
+    await options.logger.write(createExecutionFinishedAuditEvent({
+      ts: new Date().toISOString(),
+      request: auditRequest,
+      continueOnFailure,
+      warnings: [...batchWarnings],
+      callOutcomes: callOutcomes.map((outcome) => {
+        if (outcome.kind === 'success') {
+          return {
+            index: outcome.index,
+            callId: outcome.callId,
+            tool: outcome.tool,
+            status: 'completed' as const
+          };
+        }
+
+        if (outcome.kind === 'failure') {
+          return {
+            index: outcome.index,
+            callId: outcome.callId,
+            tool: outcome.tool,
+            status: outcome.decision.action === 'deny' ? 'denied' as const : 'failed' as const,
+            reasonCode: outcome.decision.reasonCode
+          };
+        }
+
+        return {
+          index: outcome.index,
+          callId: outcome.callId,
+          tool: outcome.tool,
+          status: 'skipped' as const,
+          reasonCode: 'SKIPPED_AFTER_BATCH_FAILURE'
+        };
+      })
+    }));
 
     return {
       executeResponse: createExecuteResponse({
@@ -138,6 +182,7 @@ export function createExecutionKernel(options: CreateExecutionKernelOptions): Ex
 interface ExecuteCallOptions {
   index: number;
   call: ExecuteRequest['calls'][number];
+  auditRequest: ReturnType<typeof createAuditRequestContext>;
   config: GatewayConfig;
   logger: Logger;
   registry: Map<string, LocalTool>;
@@ -145,7 +190,7 @@ interface ExecuteCallOptions {
 }
 
 async function executeCall(options: ExecuteCallOptions): Promise<ExecutionKernelCallSuccess | ExecutionKernelCallFailure> {
-  const { call, config, logger, registry, now } = options;
+  const { call, auditRequest, config, logger, registry, now } = options;
   const started = now();
   let toolRisk: RiskLevel = 'low';
   const assessment = assessToolCall(call, registry);
@@ -153,16 +198,17 @@ async function executeCall(options: ExecuteCallOptions): Promise<ExecutionKernel
   if (assessment.kind === 'deny') {
     const durationMs = now() - started;
     const legacyResponse = failure(call.tool, assessment.error, durationMs);
+    const decision = createFailureDecision(call.callId, assessment.risk, assessment.error, false);
 
-    await logger.write({
+    await logger.write(createPolicyDeniedAuditEvent({
       ts: new Date().toISOString(),
-      callId: call.callId,
-      tool: call.tool,
-      ok: false,
-      durationMs,
-      warnings: legacyResponse.warnings,
-      resultSummary: legacyResponse.error.code
-    });
+      request: auditRequest,
+      call,
+      index: options.index,
+      decision,
+      response: legacyResponse,
+      durationMs
+    }));
 
     return {
       kind: 'failure',
@@ -170,7 +216,7 @@ async function executeCall(options: ExecuteCallOptions): Promise<ExecutionKernel
       callId: call.callId,
       tool: call.tool,
       legacyResponse,
-      decision: createFailureDecision(call.callId, assessment.risk, assessment.error, false)
+      decision
     };
   }
 
@@ -181,17 +227,7 @@ async function executeCall(options: ExecuteCallOptions): Promise<ExecutionKernel
     const safeResult = toSafeResult(result, config.maxGatewayResultChars);
     const warnings = collectWarnings(result, safeResult.truncationWarning);
     const durationMs = now() - started;
-
-    await logger.write({
-      ts: new Date().toISOString(),
-      callId: call.callId,
-      tool: call.tool,
-      risk: assessment.tool.risk,
-      argsSummary: summarizeArgs(call.args),
-      ok: true,
-      durationMs,
-      warnings
-    });
+    const decision = createSuccessDecision(call.callId, assessment.tool.risk);
 
     const legacyResponse: ToolCallSuccess = {
       ok: true,
@@ -201,27 +237,38 @@ async function executeCall(options: ExecuteCallOptions): Promise<ExecutionKernel
       durationMs
     };
 
+    await logger.write(createExecutionCompletedAuditEvent({
+      ts: new Date().toISOString(),
+      request: auditRequest,
+      call,
+      index: options.index,
+      decision,
+      response: legacyResponse,
+      durationMs
+    }));
+
     return {
       kind: 'success',
       index: options.index,
       callId: call.callId,
       tool: call.tool,
       legacyResponse,
-      decision: createSuccessDecision(call.callId, assessment.tool.risk)
+      decision
     };
   } catch (error) {
     const durationMs = now() - started;
     const legacyResponse = failure(call.tool, error, durationMs);
+    const decision = createFailureDecision(call.callId, toolRisk, error, true);
 
-    await logger.write({
+    await logger.write(createExecutionFailedAuditEvent({
       ts: new Date().toISOString(),
-      callId: call.callId,
-      tool: call.tool,
-      ok: false,
-      durationMs,
-      warnings: legacyResponse.warnings,
-      resultSummary: legacyResponse.error.code
-    });
+      request: auditRequest,
+      call,
+      index: options.index,
+      decision,
+      response: legacyResponse,
+      durationMs
+    }));
 
     return {
       kind: 'failure',
@@ -229,7 +276,7 @@ async function executeCall(options: ExecuteCallOptions): Promise<ExecutionKernel
       callId: call.callId,
       tool: call.tool,
       legacyResponse,
-      decision: createFailureDecision(call.callId, toolRisk, error, true)
+      decision
     };
   }
 }
@@ -302,19 +349,6 @@ function attachExecuteCompat(
     ...legacyResponse,
     execute: executeResponse
   };
-}
-
-function summarizeArgs(args: Record<string, unknown>): Record<string, unknown> {
-  const summary: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(args)) {
-    if (key.toLowerCase().includes('content')) {
-      summary[key] = `[${String(value).length} chars]`;
-      continue;
-    }
-
-    summary[key] = value;
-  }
-  return summary;
 }
 
 function collectWarnings(result: unknown, truncationWarning?: string): string[] {

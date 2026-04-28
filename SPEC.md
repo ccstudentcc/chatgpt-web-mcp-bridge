@@ -8,7 +8,7 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage, the Stage 8 `result-delivery` module stage, the Stage 9 `injection-runtime` module stage, the Stage 10 `operator-panel` module stage, the Stage 11 `execution-kernel` module stage, the Stage 12 `tool-registry` module stage, the Stage 13 `tool-policy` module stage, the Stage 14 `builtin-tools` module stage, and the Stage 15 `shell-runtime` module stage are now complete. Phase 2 remains a module-by-module Final Core refactor program, and the next active module stage is `audit-log`.
+Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage, the Stage 8 `result-delivery` module stage, the Stage 9 `injection-runtime` module stage, the Stage 10 `operator-panel` module stage, the Stage 11 `execution-kernel` module stage, the Stage 12 `tool-registry` module stage, the Stage 13 `tool-policy` module stage, the Stage 14 `builtin-tools` module stage, the Stage 15 `shell-runtime` module stage, and the Stage 16 `audit-log` module stage are now complete. Phase 2 remains a module-by-module Final Core refactor program, and the next active module stage is `diagnostics`.
 
 Phase 2 exists so the repo can finish `apps/extension` and `apps/gateway` one module at a time, keeping each stage narrow enough to improve ownership, timing, logic, stability, and test coverage without reopening multiple modules at once.
 
@@ -82,23 +82,25 @@ Exit gate for any Phase 2 stage:
 
 ## Current Active Stage
 
-Active module stage: `audit-log`
+Active module stage: `diagnostics`
 
 Current module-stage file surfaces:
 
-- `apps/gateway/src/audit-log/*`
+- `apps/gateway/src/diagnostics/*`
+- `apps/gateway/src/routes/health.ts`
+- `apps/gateway/src/routes/health.test.ts`
+- `apps/gateway/src/config.ts`
 - `apps/gateway/src/logger.ts`
-- `apps/gateway/src/routes/call-tool.ts`
-- `apps/gateway/src/routes/call-tool.test.ts`
-- `apps/gateway/src/execution-kernel/*`
+- `apps/gateway/src/audit-log/*`
+- `docs/operations/gateway.md`
 - `docs/operations/security.md`
 - the root task-control docs
 
 Current stage intent:
 
-- move execution, policy, and lifecycle audit ownership into `apps/gateway/src/audit-log/*`
-- make audit events describe stable execution, policy, and lifecycle concepts instead of route-local strings
-- keep redaction and truthfulness explicit before diagnostics starts aggregating audit data
+- move diagnostics ownership into `apps/gateway/src/diagnostics/*` and keep it read-only relative to execution control
+- aggregate gateway health, config-derived runtime facts, audit summaries, and redacted diagnostics bundles without creating a second control plane
+- keep diagnostics aligned with the actual owners for execution, registry, policy, and audit data
 
 ## In Scope
 

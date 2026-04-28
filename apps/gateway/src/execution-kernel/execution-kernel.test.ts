@@ -47,7 +47,26 @@ describe('execution-kernel', () => {
         }
       }
     });
-    expect(logger.write).toHaveBeenCalledTimes(1);
+    expect(logger.write).toHaveBeenCalledTimes(2);
+    expect(logger.write).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      category: 'execution',
+      event: 'call_completed',
+      call: expect.objectContaining({
+        callId: 'call-1',
+        tool: 'read_file'
+      })
+    }));
+    expect(logger.write).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      category: 'lifecycle',
+      event: 'execution_finished',
+      summary: expect.objectContaining({
+        totalCalls: 1,
+        completedCalls: 1,
+        failedCalls: 0,
+        deniedCalls: 0,
+        skippedCalls: 0
+      })
+    }));
   });
 
   it('aggregates batch execution outcomes through one kernel entrypoint', async () => {
@@ -95,9 +114,10 @@ describe('execution-kernel', () => {
   });
 
   it('stops a kernel batch on the first failure by default and marks later calls as skipped', async () => {
+    const logger = createLogger();
     const kernel = createExecutionKernel({
       config: createConfig(),
-      logger: createLogger(),
+      logger,
       now: () => 1_700_000_000_200,
       registry: createRegistry({
         read_file: {
@@ -139,6 +159,23 @@ describe('execution-kernel', () => {
         ]
       }
     });
+    expect(logger.write).toHaveBeenLastCalledWith(expect.objectContaining({
+      category: 'lifecycle',
+      event: 'execution_finished',
+      summary: expect.objectContaining({
+        totalCalls: 3,
+        completedCalls: 1,
+        failedCalls: 0,
+        deniedCalls: 1,
+        skippedCalls: 1,
+        stoppedOnFailure: true
+      }),
+      calls: [
+        expect.objectContaining({ callId: 'call-read', status: 'completed' }),
+        expect.objectContaining({ callId: 'call-grep', status: 'denied', reasonCode: 'BLOCKED_PATH' }),
+        expect.objectContaining({ callId: 'call-list', status: 'skipped', reasonCode: 'SKIPPED_AFTER_BATCH_FAILURE' })
+      ]
+    }));
   });
 
   it('can continue a kernel batch after a failure when the caller opts in', async () => {
