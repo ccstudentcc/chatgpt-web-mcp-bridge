@@ -450,7 +450,7 @@ Completed on April 28, 2026:
 
 ## Stage 11: Execute Module Stage - Execution Kernel
 
-Status: in progress
+Status: completed
 
 Goal:
 
@@ -498,18 +498,18 @@ Definition of done:
 - route handlers stop owning coordination logic directly
 - later gateway modules can depend on the kernel instead of duplicating orchestration rules
 
-Current progress on April 28, 2026:
+Completed on April 28, 2026:
 
 - `apps/gateway/src/execution-kernel/execution-kernel.ts` now owns batch-first execution orchestration, executor selection, per-call decision assembly, inline-versus-batch result-envelope shaping, and legacy `/call-tool` compat response assembly.
 - `apps/gateway/src/routes/call-tool.ts` now only performs auth, request validation, and delegation into the execution kernel.
 - direct owner tests now cover single-call legacy compat behavior plus batch stop-on-failure and continue-on-failure coordination at the kernel seam.
 - matching userscript-side batch regression coverage confirms current `/call-tool` consumers still aggregate live per-call responses correctly when each payload carries nested `execute` metadata.
 - `pnpm --filter @cwmb/gateway lint`, `pnpm --filter @cwmb/gateway test`, `pnpm --filter @cwmb/gateway build`, and root `pnpm lint`, `pnpm test`, `pnpm build` succeeded again after the extraction.
-- the required live browser-to-gateway `/call-tool` validation pass is still open, so Stage 11 remains `in progress` until that gate is completed.
+- manual browser-to-gateway validation now also passed for the live `/call-tool` path, including single-call and batch execution, so the stage can close without reopening browser-runtime scope.
 
 ## Stage 12: Execute Module Stage - Tool Registry
 
-Status: pending
+Status: in progress
 
 Goal:
 

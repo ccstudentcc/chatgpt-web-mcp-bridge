@@ -8,7 +8,7 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage, the Stage 8 `result-delivery` module stage, the Stage 9 `injection-runtime` module stage, and the Stage 10 `operator-panel` module stage are now complete. Phase 2 remains a module-by-module Final Core refactor program, and the current active module stage is `execution-kernel`.
+Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage, the Stage 8 `result-delivery` module stage, the Stage 9 `injection-runtime` module stage, the Stage 10 `operator-panel` module stage, and the Stage 11 `execution-kernel` module stage are now complete. Phase 2 remains a module-by-module Final Core refactor program, and the current active module stage is `tool-registry`.
 
 Phase 2 exists so the repo can finish `apps/extension` and `apps/gateway` one module at a time, keeping each stage narrow enough to improve ownership, timing, logic, stability, and test coverage without reopening multiple modules at once.
 
@@ -82,24 +82,26 @@ Exit gate for any Phase 2 stage:
 
 ## Current Active Stage
 
-Active module stage: `execution-kernel`
+Active module stage: `tool-registry`
 
 Current module-stage file surfaces:
 
-- `apps/gateway/src/execution-kernel/*`
-- `apps/gateway/src/routes/call-tool.ts`
-- `apps/gateway/src/routes/call-tool.test.ts`
+- `apps/gateway/src/tool-registry/*`
+- `apps/gateway/src/routes/tools.ts`
+- `apps/gateway/src/routes/tools.test.ts`
 - `apps/gateway/src/tools/index.ts`
-- `apps/gateway/src/utils/errors.ts`
-- `apps/gateway/src/logger.ts`
-- `packages/protocol/src/*` only if execution contracts need a narrow supporting refinement
+- `apps/gateway/src/tools/mcp-list.ts`
+- `apps/gateway/src/tools/mcp-list.test.ts`
+- `apps/gateway/src/config.ts`
+- `packages/protocol/src/schemas.ts`
+- `packages/protocol/src/schemas.test.ts`
 - the root task-control docs
 
 Current stage intent:
 
-- make `apps/gateway/src/execution-kernel/*` the unique execution orchestration entrypoint for `/call-tool` and any later gateway execution path
-- remove route-owned coordination and result-assembly logic from the live gateway compat path
-- keep browser-runtime behavior stable while later gateway modules gain one kernel seam to depend on
+- make `apps/gateway/src/tool-registry/*` the owner for builtin and external tool aggregation, namespace resolution, and materialized catalog generation
+- keep `mcp_list`, `/tools`, and catalog metadata aligned from one owner path
+- keep browser-runtime behavior stable while later gateway modules gain one catalog seam to depend on
 
 ## In Scope
 
