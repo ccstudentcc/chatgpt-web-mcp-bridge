@@ -24,7 +24,7 @@ Phase 2.5 exists to land those three changes as one deliberate slice, with one s
 ### 2.1 In Scope
 
 - Migrate the extension shell to `WXT` + Chrome Extension `MV3`
-- Keep the ChatGPT in-page panel as the primary operator surface
+- Keep one ChatGPT-bound work surface as the primary operator surface
 - Add `popup` and `options` as supported extension surfaces
 - Rebuild operator-facing extension UI on `React` + `Tailwind CSS`
 - Refactor extension-side runtime owners from the current Stage 19-21 layout into capability-domain owners that serve all supported surfaces cleanly
@@ -51,45 +51,56 @@ Phase 2.5 exists to land those three changes as one deliberate slice, with one s
 
 ## 3. Surface Model
 
-### 3.1 Primary Surface: ChatGPT In-Page Panel
+Detailed surface hierarchy and mode-governance truth for the current Phase 2.5 follow-on slice lives in [phase2.5-surface-hierarchy-and-mode-governance.md](./phase2.5-surface-hierarchy-and-mode-governance.md).
 
-The ChatGPT page remains the primary operating surface.
+### 3.1 Primary Work Surfaces: Floating Panel And Chrome Side Panel
 
-It owns:
+Phase 2.5 now treats the operator work surface as one product surface with two host containers:
+
+- page-local floating panel on the ChatGPT page
+- browser-native Chrome Side Panel
+
+These two containers must expose the same feature set and workflow ordering. They differ only in layout density, host environment, and presentation rules.
+
+Exactly one of them may be active at runtime for a given profile. The chosen host container is controlled by one persisted surface-mode setting.
+
+The active work surface owns operator-facing access to:
 
 - live conversation-scoped runtime status
 - pending tool-turn interaction
 - result delivery and recovery actions
-- runtime-local diagnostics that depend on the active page
+- runtime-local diagnostics that depend on the active ChatGPT page
+- a limited set of high-frequency global settings
 
-It must not be demoted to a secondary shell behind popup or options.
+The product must not drift into a split architecture where floating panel and side panel expose different workflow capabilities.
 
 ### 3.2 Secondary Surface: Popup
 
-The popup is a lightweight companion surface.
+The popup is a lightweight launch surface.
 
-It should expose:
+It should expose only:
 
-- current connection health summary
-- current active-tab bridge status when available
-- high-signal global toggles and shortcuts
-- fast navigation into the full options console
+- current connection and bridge summary
+- current persisted work-surface mode
+- launch actions into the active work surface, ChatGPT tab, and options page
+- a very small set of high-frequency global settings
 
-It must not become the primary place for page-scoped execution and delivery workflows.
+It must not become the primary place for page-scoped execution, recovery, or diagnostics workflows.
 
 ### 3.3 Secondary Surface: Options
 
-The options page is the full control console.
+The options page is the full control console and the only durable settings home.
 
 It should expose:
 
-- persisted gateway and behavior settings
+- the complete persisted settings set
+- the canonical surface-mode selector
 - health and connection overview
 - materialized catalog overview
-- recent operator-visible logs and diagnostics summaries
-- explicit explanations for bridge state and recovery actions
+- diagnostics explanations and recent summarized logs
+- entry paths into the active work surface
 
-It is the richest non-page surface, but it still does not replace the in-page panel for conversation-local execution and delivery.
+Options is the richest non-page surface, but it still does not replace the active work surface for live conversation-local execution and recovery.
 
 ## 4. State Ownership Model
 
@@ -103,6 +114,7 @@ This includes:
 - auto-execute / auto-insert / auto-send defaults that are meant to persist across surfaces
 - continue-on-error preference
 - request injection mode preference
+- persisted work-surface mode preference
 - any future extension-global operator preference that is not tied to one ChatGPT conversation
 
 Popup and options should read and update this truth through explicit messaging contracts. The in-page runtime may cache or observe these values, but it does not own them.
@@ -200,7 +212,8 @@ Owns:
 Owns:
 
 - `React` + `Tailwind CSS` apps for:
-  - in-page panel
+  - floating panel
+  - side panel
   - popup
   - options
 - shared design tokens, layout primitives, and presentational components
@@ -254,6 +267,9 @@ apps/extension/
 │  ├─ options/
 │  │  ├─ index.html
 │  │  └─ main.tsx
+│  ├─ sidepanel/
+│  │  ├─ index.html
+│  │  └─ main.tsx
 │  └─ chatgpt-main-world.ts
 ├─ public/
 ├─ src/
@@ -273,7 +289,7 @@ Key structural rules:
 
 - `manifest.json` stops being a source file; `WXT` config plus entrypoints become the only extension-shell truth
 - page-world request-hook installation moves to an unlisted script managed by `WXT`
-- `popup` and `options` are first-class entrypoints, not ad hoc HTML files outside the shell model
+- `popup`, `options`, and `sidepanel` are first-class entrypoints, not ad hoc HTML files outside the shell model
 - `ui-surfaces` owns rendered UI; capability domains own reusable logic
 
 ## 7. Runtime Sequences
@@ -293,20 +309,36 @@ Key structural rules:
 1. popup entrypoint loads shared design shell
 2. popup requests background-owned settings snapshot
 3. popup requests summarized active-tab bridge state when available
-4. popup renders quick controls and launch paths into options
+4. popup renders launch paths plus a minimal set of high-frequency settings
 
-### 7.3 Options Startup
+### 7.3 Chrome Side Panel Startup
+
+1. side panel entrypoint loads the shared work-surface shell
+2. side panel requests background-owned settings truth
+3. side panel resolves the currently active tab context
+4. if the active tab is ChatGPT, the shared work-surface app binds to that page runtime summary
+5. if the active tab is not ChatGPT, the side panel renders an empty-state handoff with recent summary context
+
+### 7.4 Options Startup
 
 1. options entrypoint loads shared design shell
 2. options reads background-owned settings truth
 3. options requests gateway-facing read models and recent summarized diagnostics
 4. options renders the full control console
 
-### 7.4 Settings Update Flow
+### 7.5 Surface-Mode Update Flow
+
+1. popup or options submits a persisted surface-mode mutation
+2. background validates and persists the normalized mode
+3. the currently active work-surface host is closed or hidden immediately
+4. the newly selected work-surface host is opened when the host runtime allows it
+5. if automatic side-panel opening is unavailable, the user sees an explicit handoff action rather than silently keeping both hosts visible
+
+### 7.6 Settings Update Flow
 
 1. popup, options, or in-page panel submits a settings mutation request
 2. background validates and persists the change
-3. background broadcasts the normalized settings snapshot
+3. background publishes the normalized settings snapshot
 4. page runtime and other surfaces react to the same normalized truth
 
 ## 8. Migration And Deletion Rules
@@ -314,6 +346,8 @@ Key structural rules:
 - Do not keep the hand-written shell and `WXT` shell in parallel once the active runtime path switches
 - Do not keep a second UI truth outside `ui-surfaces` once the `React` + `Tailwind CSS` surfaces land
 - Do not let popup or options become alternate execution architectures
+- Do not let floating panel and side panel diverge into separate workflow products
+- Do not allow floating panel and side panel to remain visible at the same time for one profile
 - Do not move page facts, turn classification, injection logic, or delivery logic into background-only or UI-only files
 - Delete or archive superseded shell scaffolding once the WXT path is verified
 
@@ -323,7 +357,8 @@ Phase 2.5 is complete only when all of the following are true:
 
 - `WXT` is the only active extension shell build and dev path
 - popup and options are real extension surfaces, not placeholders
-- the in-page panel remains the primary operator surface
+- the active work surface is either floating panel or Chrome Side Panel, never both at once
+- floating panel and side panel expose the same workflow capabilities
 - configuration truth is background-owned and shared consistently across in-page panel, popup, and options
 - page runtime truth remains page-owned and is only summarized elsewhere
 - capability-domain owner boundaries are explicit in code and docs
@@ -336,7 +371,8 @@ Phase 2.5 is complete only when all of the following are true:
   - root `pnpm test`
   - root `pnpm build`
 - real ChatGPT Web validation confirms:
-  - the in-page panel path still works
+  - the floating-panel path still works when selected
+  - the Chrome Side Panel path works when selected
   - main-world request injection still works
   - `/health`, `/tools`, and `/call-tool` still work through the live browser path
   - popup reflects current bridge status

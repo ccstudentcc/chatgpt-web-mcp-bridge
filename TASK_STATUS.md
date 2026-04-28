@@ -10,7 +10,8 @@
 - `apps/userscript/` is now a legacy archive with a README and `legacy/` snapshot content only. It is not the desired v0.9 shell, and it is not a supported runtime path.
 - Phase 1 shared-contract freeze is now complete.
 - Phase 2 completed as a module-by-module Final Core refactor program for `apps/extension` and `apps/gateway`.
-- Phase 2.5 is now closed as the first follow-on slice after the Stage 7-21 program. On April 29, 2026, the user confirmed the full real ChatGPT Web validation pass for the extension convergence pack, so there is currently no active follow-on slice.
+- The first Phase 2.5 convergence landing is closed. On April 29, 2026, the user confirmed the full real ChatGPT Web validation pass for that pack.
+- Phase 2.5 is now reopened immediately as a focused second convergence slice for surface hierarchy and mode governance: popup deflation, full options IA redesign, Chrome Side Panel adoption, and one-mode work-surface exclusivity.
 - Phase 2 code has now advanced through the full declared Stage 7-21 extraction sequence. `package-domain-extraction`, `extension-structure`, `gateway-structure`, and `remove-compat-layers` are closed.
 - Stage 21 code-side cleanup is now landed. On April 28, 2026, compat imports were removed, gateway compat directories were deleted, extension runtime tests were migrated under `apps/extension/src/main/*`, and `apps/userscript/` was archived as a legacy reference outside the pnpm workspace.
 - Stage 21 is now closed. On April 28, 2026, the user confirmed real ChatGPT Web extension-only validation in a real browser, so the remove-compat-layers slice can end and there is currently no active module stage.
@@ -26,9 +27,20 @@
 - The first Phase 2.5 code slice is now landed: `apps/extension/wxt.config.ts` plus `entrypoints/*` replace the former hand-written `esbuild + manifest.json` shell, and extension build output now comes from `WXT`.
 - Popup and options are now real extension surfaces in code, rendered through `React` + `Tailwind CSS` from `apps/extension/src/ui-surfaces/*`.
 - Background-owned configuration truth is now explicit in code under `apps/extension/src/settings/*`; the ChatGPT page runtime hydrates and mutates extension-global settings through extension messaging instead of direct page-local `GM_*` persistence.
-- Real ChatGPT Web validation has now passed for this Phase 2.5 slice, including the in-page panel primary workflow, main-world request injection, `/health`, `/tools`, `/call-tool`, popup bridge summary, and options full-console behavior, so the slice is formally complete.
-- The target product-surface split for Phase 2.5 is explicit: the in-page panel remains the primary operator surface, popup is a lightweight companion, and options is the full extension control console.
+- Real ChatGPT Web validation has passed for the first Phase 2.5 landing, including the in-page panel primary workflow, main-world request injection, `/health`, `/tools`, `/call-tool`, popup bridge summary, and options full-console behavior.
+- The active Phase 2.5 follow-on slice now has two linked design truths:
+  - `docs/architecture/phase2.5-extension-convergence.md`
+  - `docs/architecture/phase2.5-surface-hierarchy-and-mode-governance.md`
+- The target product-surface split for the reopened Phase 2.5 slice is explicit:
+  - popup is a lightweight companion and launcher
+  - floating panel or Chrome Side Panel is the single selected work surface
+  - options is the full extension control console
 - The target truth split for Phase 2.5 is explicit: background/service worker owns persisted configuration truth, while the ChatGPT page runtime owns conversation-scoped live runtime truth.
+- The active surface redesign truth further constrains that split:
+  - popup is launcher-first and may edit only a very small set of high-frequency settings
+  - floating panel and Chrome Side Panel must expose the same work-surface capability set
+  - only one work-surface host may be visible at runtime
+  - work-surface mode may be changed only from popup or options
 - The current dialogue-level acceptance summary for April 27, 2026 reports the bridge chain, batch behavior, workspace read/search/grep tools, security boundaries, protocol alignment, core gateway/protocol/userscript tracing, and real write/UI end-to-end usage as currently usable with no remaining blocker called out for the just-closed Stage 7 boundary.
 - Draft v0.9 docs and draft contract shapes are reference truth only. They are not separate compatibility targets; compatibility work in the current slice applies to the proven live runtime floor and the still-live routes/behaviors it depends on.
 - ChatGPT Web DOM/request-shape/selectors evidence now has one intended home: `docs/operations/chatgpt-web-runtime-evidence.md`.
@@ -190,7 +202,7 @@
 ## Active Stop Line
 
 - The v0.1 stop line is closed as of April 27, 2026.
-- The current program gate is no longer v0.1 acceptance. Phase 2 and Phase 2.5 are complete, and there is currently no active follow-on slice.
+- The current program gate is no longer v0.1 acceptance. Phase 2 is complete, and the active gate is the reopened Phase 2.5 surface hierarchy and mode-governance slice.
 - Any Phase 2 stage completion claim now requires direct owner-level tests, adjacent compat-path regression checks, root `pnpm lint` / `test` / `build`, and real ChatGPT Web validation whenever browser runtime timing or DOM behavior changed.
 - Stage 20 close-out now includes direct owner tests plus manual browser-to-gateway validation for `/health`, `/tools`, and `/call-tool` through the new `api/` adapters.
 - Until explicitly migrated, the active compatibility floor includes:
@@ -204,11 +216,10 @@
 
 ## Active Slice
 
-- Active program: none
-- Most recently closed follow-on slice: Phase 2.5 extension convergence
-- Most recently closed battleground: Extension Ring, with explicitly allowed supporting Final Core owner realignment on the extension side
-- Most recently closed primary axis: `WXT` shell convergence, multi-surface operator UI, and extension capability-domain owner refactoring
-- Active module stage: none. Phase 2 module stages are closed, and there is currently no active follow-on slice
+- Active program: Phase 2.5 surface hierarchy and mode governance
+- Battleground: Extension Ring, with explicitly allowed supporting Final Core owner realignment on the extension side
+- Primary axis: popup deflation, options IA redesign, Chrome Side Panel adoption, and one-mode work-surface exclusivity
+- Active module stage: none. Phase 2 module stages are closed; the active execution stage is the reopened Phase 2.5 surface redesign sequence in `IMPLEMENTATION_PLAN.md`
 - Phase 1 completed implementation surfaces:
   - `packages/protocol/*`
   - narrow gateway route adapters
@@ -337,7 +348,8 @@
 - The repo still lacks browser-driven end-to-end automation, so browser-runtime transitions will continue to need real ChatGPT Web verification.
 - The repo still lacks browser-driven end-to-end automation, so the extension-only runtime path still needs periodic real ChatGPT Web validation even though unit/root verification is green.
 - Stages 20 and 21 are now both fully closed: the `api/` path is the live gateway adapter, the userscript runtime is no longer part of the supported workspace path, and there is currently no active Phase 2 module stage.
-- Phase 2.5 is now closed. Do not reopen it implicitly, and do not introduce a second extension scaffold, a second operator-facing UI framework, or a second execution architecture unless new root task-control truth explicitly activates a new slice.
+- Phase 2.5 is active again. Do not reopen a second extension scaffold, a second operator-facing UI framework, or a second execution architecture beyond the declared floating-panel versus side-panel host choice inside this slice.
+- Do not let popup become a mini options page or let options become a live work-surface clone; the current slice exists to sharpen that hierarchy, not blur it further.
 - The unified ChatGPT Web runtime evidence doc exists now, but it is not yet a fully populated evidence pack; DOM-heavy work should refresh or add evidence there before expanding.
 - Phase 2 may span many commits and substantial refactors, but the control rule is now stage isolation, not “one big package”: progress should come from completing one module cleanly before activating the next.
 - Later-scope capabilities remain target-state work rather than shipped behavior:
@@ -358,6 +370,6 @@
 - Treat nested `execute` as the only active `/call-tool` execution-metadata compat surface unless a future task doc explicitly reopens that decision with live runtime evidence.
 - `diagnostics` is closed. Do not assume another extraction stage; Phase 2 is closed, and Phase 2.5 now has its own explicit design and task-control truth.
 - Use the expanded `IMPLEMENTATION_PLAN.md` stage contract as the execution source of truth for module boundaries, allowed supporting surfaces, validation, and stage exit conditions; do not re-invent those rules ad hoc in code review.
-- Phase 2.5 is closed. Use `docs/architecture/phase2.5-extension-convergence.md` plus the root task-control docs as the closed design and acceptance truth for this slice.
-- Do not reopen later follow-on slices until new root task-control truth explicitly activates one.
+- Use `docs/architecture/phase2.5-extension-convergence.md` plus `docs/architecture/phase2.5-surface-hierarchy-and-mode-governance.md` as the active design truth for the reopened Phase 2.5 slice.
+- Do not open later follow-on slices until this reopened Phase 2.5 surface redesign pack either lands or is explicitly replaced by new root task-control truth.
 - Keep the whole-project stack baseline intact: `WXT` only for the extension shell target, `React` + `Tailwind CSS` only for operator-facing extension UI, and `Fastify` + plain `TypeScript` owners for the gateway and shared runtime layers.

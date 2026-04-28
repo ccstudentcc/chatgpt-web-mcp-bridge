@@ -10,9 +10,7 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 Phase 1 shared-contract freeze is complete. Stages 7—21 are complete. Stage 21 `remove-compat-layers` formally closed on April 28, 2026 after real ChatGPT Web extension-only validation in a real browser.
 
-Phase 2 is complete. The most recently closed follow-on slice is Phase 2.5 extension convergence: one coordinated extension-side phase that lands `WXT`, popup/options, `React` + `Tailwind CSS` operator-facing UI, and capability-domain owner refactoring together while preserving the live browser-to-gateway floor.
-
-On April 29, 2026, the user confirmed the full real ChatGPT Web validation pass for that Phase 2.5 convergence pack, so there is currently no active follow-on slice.
+Phase 2 is complete. Phase 2.5 is now reopened as a focused second convergence slice: extension surface hierarchy and mode governance. This follow-on slice keeps the existing `WXT` shell, popup/options, `React` + `Tailwind CSS`, and capability-domain direction, but redesigns how popup, floating panel, Chrome Side Panel, and options divide responsibilities while preserving the live browser-to-gateway floor.
 
 Phase 2.5 stack baseline:
 
@@ -99,17 +97,23 @@ Exit gate for any Phase 2 stage:
 
 Active module stage: none. The most recently fully closed Phase 2 stage is `remove-compat-layers` (Stage 21).
 
-Phase 2.5 is now closed, and its design truth remains in [docs/architecture/phase2.5-extension-convergence.md](docs/architecture/phase2.5-extension-convergence.md) as the acceptance-backed record for that convergence pack.
+Phase 2.5 is now active again through two linked design truths:
 
-Stages 20-21 remain defined in `IMPLEMENTATION_PLAN.md` for auditability. Do not infer any follow-on slice beyond the closed Phase 2.5 pack until the root task-control docs explicitly activate one.
+- [docs/architecture/phase2.5-extension-convergence.md](docs/architecture/phase2.5-extension-convergence.md)
+- [docs/architecture/phase2.5-surface-hierarchy-and-mode-governance.md](docs/architecture/phase2.5-surface-hierarchy-and-mode-governance.md)
+
+Stages 20-21 remain defined in `IMPLEMENTATION_PLAN.md` for auditability. Do not infer any follow-on slice beyond the currently active Phase 2.5 surface redesign pack until the root task-control docs explicitly activate one.
 
 Follow-on stack guard:
 
 - do not open a new slice that introduces a second extension scaffold beside `WXT`
 - do not open a second operator-facing UI framework beside `React` + `Tailwind CSS`
 - do not treat stack standardization as permission to rewrite gateway owners away from `Fastify` + `TypeScript`
-- keep the in-page panel as the primary operator surface even after popup/options land
+- keep the selected ChatGPT-bound work surface as the primary operator surface even after popup/options land
 - keep background-owned configuration truth separate from page-owned conversation runtime truth
+- keep popup intentionally incomplete and limited to launch actions plus a very small set of high-frequency settings
+- keep floating panel and Chrome Side Panel feature-identical while allowing them to differ in layout density
+- allow only one active work-surface host at runtime
 
 Most recently completed module-stage file surfaces:
 
@@ -157,6 +161,13 @@ Most recently completed stage intent:
 - Standardize follow-on work on one project stack: `pnpm` workspace, repo-wide `TypeScript`, extension-shell target `WXT` + Chrome Extension `MV3`, operator-facing extension UI target `React` + `Tailwind CSS`, gateway `Fastify` + `TypeScript`, shared `Zod` schemas, and `Vitest` for unit/module tests.
 - Use Phase 2.5 to converge extension runtime ownership onto capability domains that can serve in-page panel, popup, and options cleanly without creating a second execution architecture.
 - Make background/service worker the owner for persisted extension configuration truth while keeping page runtime as the owner of conversation-scoped live runtime truth.
+- Use the reopened Phase 2.5 slice to establish one explicit surface hierarchy:
+  - popup as launch surface plus very small quick settings
+  - floating panel or Chrome Side Panel as the single selected work surface
+  - options as the full control console
+- Make the work-surface mode a persisted setting that can be changed only from popup or options.
+- Require immediate host exclusivity when the work-surface mode changes; floating panel and side panel must never remain visible at the same time for one profile.
+- Keep floating panel and Chrome Side Panel functionally identical even when their layouts diverge.
 - **Stages 18—21 extend Phase 2 to complete the target structure:**
   - Split `packages/protocol/` into domain packages (`turn-model`, `tool-contracts`, `policy-model`, `result-model`), rename `shared/` to `shared-utils/`, create `test-fixtures/`, and delete `protocol/` (Stage 18).
   - Complete the Chrome Extension shell with manifest v3, background service worker, content script, and `main/` composition root, making `apps/extension/` the primary browser runtime (Stage 19).
@@ -208,6 +219,9 @@ Most recently completed stage intent:
 - Verification must remain reproducible from the repo root whenever code changes are made.
 - Phase 2.5 may reorganize extension-side owner names and boundaries, but it must preserve the live compatibility floor until the replacement path is re-verified on the real ChatGPT page.
 - Phase 2.5 must not let popup or options become alternate execution architectures; they are supporting surfaces around the primary in-page panel path.
+- Phase 2.5 must not let popup grow into a second control console; anything beyond the allowed quick-setting set belongs in options.
+- Phase 2.5 must not let work-surface mode switching live inside the work surface itself; that control belongs only in popup and options.
+- Phase 2.5 must treat Chrome Side Panel as a first-class browser-native host, not as a reduced debug shell.
 
 ## Acceptance Criteria
 
@@ -228,3 +242,4 @@ Most recently completed stage intent:
 - The `operator-panel` stage has one explicit v0.9 owner target for runtime snapshot display, operator intents, and diagnostics entrypoints, and current userscript panel modules are treated as compat consumers rather than the long-term source of truth.
 - Every Phase 2 stage requires root verification, and browser-runtime stages additionally require real ChatGPT Web validation before being called complete.
 - Phase 2.5 is explicit enough that implementation can proceed without reopening whether `WXT`, popup/options, `React` + `Tailwind CSS`, and extension owner refactoring belong in one coordinated slice.
+- The reopened Phase 2.5 surface redesign slice is explicit enough that implementation can proceed without reopening popup scope, options hierarchy, work-surface exclusivity, or Chrome Side Panel adoption.

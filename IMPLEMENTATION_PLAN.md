@@ -84,6 +84,248 @@ Definition of done:
 - operator-facing extension UI renders through `React` + `Tailwind CSS`
 - The full Phase 2.5 acceptance set has been re-verified on the real ChatGPT Web path
 
+## Stage 23: Reopen Phase 2.5 - Surface Mode Contract And Host Exclusivity
+
+Status: active
+
+Goal:
+
+- define and land the persisted work-surface mode contract, side-panel host orchestration, and the runtime exclusivity rule that guarantees floating panel and Chrome Side Panel never remain visible at the same time
+
+Primary design truth:
+
+- `docs/architecture/phase2.5-extension-convergence.md`
+- `docs/architecture/phase2.5-surface-hierarchy-and-mode-governance.md`
+
+Target owner surfaces:
+
+- `apps/extension/src/settings/*`
+- `apps/extension/src/extension-shell/*`
+- `apps/extension/src/main/*`
+- `apps/extension/entrypoints/*`
+
+Allowed supporting surfaces:
+
+- `apps/extension/src/ui-surfaces/*` only where the contract must be exercised by popup or work-surface mounts
+- root task-control docs plus the Phase 2.5 architecture docs
+
+Optimization targets:
+
+- make the selected work-surface mode explicit in the background-owned settings truth
+- make side-panel launch and floating-panel suppression host-owned rather than view-local behavior
+- ensure mode changes from popup or options take effect immediately
+- keep work-surface switching semantics uniform across tabs and service-worker restarts
+
+Stage constraints:
+
+- do not yet broaden popup or options design scope beyond what is required to exercise the mode contract
+- do not let the work surface itself own or edit the mode switch control
+- do not leave transitional states where both hosts remain visible
+- do not introduce a second settings truth outside the existing background-owned snapshot
+
+Required validation:
+
+- targeted extension tests for:
+  - persisted work-surface mode normalization
+  - host exclusivity enforcement
+  - immediate mode-switch semantics
+  - side-panel empty-state routing outside ChatGPT
+- `pnpm --filter @cwmb/extension lint`
+- `pnpm --filter @cwmb/extension test`
+- `pnpm --filter @cwmb/extension build`
+- root `pnpm lint`
+- root `pnpm test`
+- root `pnpm build`
+- real ChatGPT Web validation for:
+  - floating-panel mode hides side panel
+  - side-panel mode suppresses floating panel
+  - popup and options can both switch modes
+
+Definition of done:
+
+- one persisted work-surface mode exists in the background-owned settings contract
+- popup and options can mutate that mode
+- the work surface itself cannot mutate that mode
+- floating panel and side panel are runtime-exclusive
+- side-panel launch behavior and fallback handoff are explicit in code and docs
+
+## Stage 24: Shared Work-Surface Convergence Across Floating Panel And Side Panel
+
+Status: pending
+
+Goal:
+
+- converge floating panel and Chrome Side Panel onto one shared work-surface app with identical feature coverage and workflow ordering
+
+Primary design truth:
+
+- `docs/architecture/phase2.5-surface-hierarchy-and-mode-governance.md`
+
+Target owner surfaces:
+
+- `apps/extension/src/ui-surfaces/*`
+- `apps/extension/src/main/*`
+- `apps/extension/src/operator-workflows/*`
+- `apps/extension/entrypoints/sidepanel/*`
+
+Allowed supporting surfaces:
+
+- `apps/extension/src/settings/*` when work-surface read/write affordances depend on the shared settings contract
+- `apps/extension/src/extension-shell/*` when mount boundaries or host context must be adjusted
+
+Optimization targets:
+
+- stop treating the floating panel as the only operator work-surface host
+- keep workflow ordering identical across floating panel and side panel
+- move host-specific differences into presentation wrappers rather than logic forks
+- keep diagnostics collapsed by default while preserving deep access in both hosts
+
+Stage constraints:
+
+- do not split feature coverage between floating panel and side panel
+- do not add a side-panel-only execution path
+- do not let work-surface layout differences leak into settings ownership or runtime truth
+
+Required validation:
+
+- targeted extension tests for:
+  - shared work-surface render contract
+  - host-specific mount behavior
+  - tab-following semantics across multiple ChatGPT tabs
+- `pnpm --filter @cwmb/extension lint`
+- `pnpm --filter @cwmb/extension test`
+- `pnpm --filter @cwmb/extension build`
+- root `pnpm lint`
+- root `pnpm test`
+- root `pnpm build`
+- real ChatGPT Web validation for:
+  - floating-panel mode end-to-end workflows
+  - side-panel mode end-to-end workflows
+  - non-ChatGPT side-panel empty state and handoff
+
+Definition of done:
+
+- one shared work-surface app renders into both hosts
+- floating panel and side panel expose the same workflow capabilities
+- the side panel follows the active ChatGPT tab and degrades to an explicit empty state outside ChatGPT
+- diagnostics remain secondary rather than dominating the first screen
+
+## Stage 25: Popup Deflation And Options Control-Console Redesign
+
+Status: pending
+
+Goal:
+
+- redesign popup into a launcher-first companion and redesign options into a clearly layered full control console
+
+Primary design truth:
+
+- `docs/architecture/phase2.5-surface-hierarchy-and-mode-governance.md`
+
+Target owner surfaces:
+
+- `apps/extension/src/ui-surfaces/*`
+- `apps/extension/entrypoints/popup/*`
+- `apps/extension/entrypoints/options/*`
+
+Allowed supporting surfaces:
+
+- `apps/extension/src/settings/*`
+- `apps/extension/src/main/*` only when current read-model contracts need to be reshaped for popup or options consumption
+
+Optimization targets:
+
+- limit popup to launch actions, status summary, and at most four high-frequency settings
+- make options visibly hierarchical through left-nav plus right-console information architecture
+- ensure options remains the full settings home while popup remains intentionally incomplete
+- keep launch affordances explicit from both popup and options into the selected work surface
+
+Stage constraints:
+
+- do not reintroduce live execution workflows into popup
+- do not turn options into a second work surface
+- do not exceed the declared quick-setting budget in popup unless root task-control docs explicitly reopen that rule
+
+Required validation:
+
+- targeted extension tests for:
+  - popup quick-setting contract
+  - options navigation and settings persistence contract
+  - selected work-surface launch actions from popup and options
+- `pnpm --filter @cwmb/extension lint`
+- `pnpm --filter @cwmb/extension test`
+- `pnpm --filter @cwmb/extension build`
+- root `pnpm lint`
+- root `pnpm test`
+- root `pnpm build`
+- real ChatGPT Web validation for:
+  - popup launching the selected work surface
+  - popup editing only the allowed quick settings
+  - options editing the full settings set and launching the selected work surface
+
+Definition of done:
+
+- popup is launcher-first and intentionally incomplete
+- popup exposes only the allowed quick-setting set
+- options is the full control console with clear left-nav hierarchy
+- popup and options both read and write the same normalized settings truth
+
+## Stage 26: Reopened Phase 2.5 Validation And Closeout
+
+Status: pending
+
+Goal:
+
+- close the reopened Phase 2.5 surface redesign slice with explicit validation and task-control truth
+
+Primary design truth:
+
+- `docs/architecture/phase2.5-extension-convergence.md`
+- `docs/architecture/phase2.5-surface-hierarchy-and-mode-governance.md`
+
+Target owner surfaces:
+
+- root task-control docs
+- relevant Phase 2.5 architecture docs
+- any extension tests needed to codify closeout regressions
+
+Allowed supporting surfaces:
+
+- extension UI and shell surfaces only when late validation reveals slice-local regressions that must be fixed before closeout
+
+Optimization targets:
+
+- convert the reopened slice from active truth to closed truth without ambiguity
+- leave no uncertainty about popup scope, options scope, or work-surface exclusivity after closeout
+- document the real validation checklist so future follow-on slices do not need to rediscover it
+
+Stage constraints:
+
+- do not close the slice on unit or root checks alone
+- do not claim closeout while one host mode still lacks real-page validation
+- do not implicitly activate a later follow-on slice at closeout time
+
+Required validation:
+
+- `pnpm --filter @cwmb/extension lint`
+- `pnpm --filter @cwmb/extension test`
+- `pnpm --filter @cwmb/extension build`
+- root `pnpm lint`
+- root `pnpm test`
+- root `pnpm build`
+- real ChatGPT Web validation for:
+  - floating-panel mode
+  - side-panel mode
+  - immediate mode switching and exclusivity
+  - popup launch and quick-setting behavior
+  - options full-console behavior
+
+Definition of done:
+
+- all reopened Phase 2.5 stages are validated and closed
+- root task-control docs return to a no-active-follow-on-slice truth unless a later slice is explicitly activated
+- the repo docs state one stable hierarchy for popup, work surface, and options
+
 ## Stage 1: Close And Archive The v0.1 Baseline
 
 Status: completed
