@@ -389,7 +389,7 @@ Definition of done:
 
 ## Stage 10: Execute Module Stage - Operator Panel
 
-Status: in progress
+Status: complete
 
 Goal:
 
@@ -442,9 +442,15 @@ Definition of done:
 - manual run, retry, copy, or recovery intents flow through the same runtime contracts as automatic paths
 - the panel remains an observer and intent surface, not an alternate control plane
 
+Completed on April 28, 2026:
+
+- `apps/extension/src/operator-panel/runtime-snapshot.ts`, `capabilities.ts`, and `panel-state.ts` now own the pure runtime snapshot display, capability gating, operator-visible status assembly, and collapsed-panel action availability rules consumed by the live panel.
+- current userscript `state.ts`, `ui.ts`, `preview.ts`, `capabilities.ts`, and `runtime-snapshot.ts` now act as compat holders or DOM/render shells instead of remaining the long-term owner for panel-facing runtime truth.
+- real ChatGPT Web validation passed for operator-visible runtime statuses, collapsed `Execute` / `Insert` / `Send` / `Continue` actions, and manual recovery affordances before the stage was closed.
+
 ## Stage 11: Execute Module Stage - Execution Kernel
 
-Status: pending
+Status: in progress
 
 Goal:
 

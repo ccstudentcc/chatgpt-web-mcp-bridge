@@ -8,7 +8,7 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage, the Stage 8 `result-delivery` module stage, and the Stage 9 `injection-runtime` module stage are now complete. Phase 2 remains a module-by-module Final Core refactor program, and the current active module stage is `operator-panel`.
+Phase 1 shared-contract freeze is complete. The Stage 7 `turn-runtime` module stage, the Stage 8 `result-delivery` module stage, the Stage 9 `injection-runtime` module stage, and the Stage 10 `operator-panel` module stage are now complete. Phase 2 remains a module-by-module Final Core refactor program, and the current active module stage is `execution-kernel`.
 
 Phase 2 exists so the repo can finish `apps/extension` and `apps/gateway` one module at a time, keeping each stage narrow enough to improve ownership, timing, logic, stability, and test coverage without reopening multiple modules at once.
 
@@ -82,28 +82,24 @@ Exit gate for any Phase 2 stage:
 
 ## Current Active Stage
 
-Active module stage: `operator-panel`
+Active module stage: `execution-kernel`
 
 Current module-stage file surfaces:
 
-- `apps/extension/src/operator-panel/*`
-- `apps/userscript/src/state.ts`
-- `apps/userscript/src/ui.ts`
-- `apps/userscript/src/preview.ts`
-- `apps/userscript/src/capabilities.ts`
-- `apps/userscript/src/runtime-snapshot.ts`
-- `apps/userscript/src/state.test.ts`
-- `apps/userscript/src/ui.test.ts`
-- `apps/userscript/src/preview.test.ts`
-- `apps/userscript/src/runtime-snapshot.test.ts`
-- `apps/userscript/src/capabilities.test.ts`
+- `apps/gateway/src/execution-kernel/*`
+- `apps/gateway/src/routes/call-tool.ts`
+- `apps/gateway/src/routes/call-tool.test.ts`
+- `apps/gateway/src/tools/index.ts`
+- `apps/gateway/src/utils/errors.ts`
+- `apps/gateway/src/logger.ts`
+- `packages/protocol/src/*` only if execution contracts need a narrow supporting refinement
 - the root task-control docs
 
 Current stage intent:
 
-- make `apps/extension/src/operator-panel/*` the long-term owner for runtime snapshot display, operator intents, and diagnostics entrypoints without creating a second execution architecture
-- keep panel display and intent wiring downstream of the already-extracted runtime owners
-- improve operator-facing diagnostics readability without reopening injection, delivery, or turn-runtime semantics
+- make `apps/gateway/src/execution-kernel/*` the unique execution orchestration entrypoint for `/call-tool` and any later gateway execution path
+- remove route-owned coordination and result-assembly logic from the live gateway compat path
+- keep browser-runtime behavior stable while later gateway modules gain one kernel seam to depend on
 
 ## In Scope
 
@@ -188,5 +184,5 @@ Current stage intent:
 - No active task-control or v0.9 entry doc still says that v0.1 close-out is blocking v0.9 by default.
 - Phase 2 clearly limits itself to one active module stage at a time instead of broad new capabilities or parallel extraction axes.
 - The repo has one explicit source of truth for ChatGPT Web DOM/request-shape evidence, and the task docs point to it instead of duplicating its content.
-- The `result-delivery` stage has one explicit v0.9 owner target for result formatting, insertion, send timing, and retry or copy fallback semantics, and userscript delivery modules are treated as current compat consumers rather than the long-term source of truth.
+- The `operator-panel` stage has one explicit v0.9 owner target for runtime snapshot display, operator intents, and diagnostics entrypoints, and current userscript panel modules are treated as compat consumers rather than the long-term source of truth.
 - Every Phase 2 stage requires root verification, and browser-runtime stages additionally require real ChatGPT Web validation before being called complete.

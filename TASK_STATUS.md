@@ -12,9 +12,10 @@
 - Phase 2 is now open as a module-by-module Final Core refactor program for completing `apps/extension` and `apps/gateway`.
 - Phase 2 execution rule is now explicit: one stage equals one module, and only one module stage may be active at a time.
 - Phase 2 may still use larger rewrites when they improve efficiency, timing, logic clarity, stability, or test coverage, but only inside the currently active module stage.
+- Phase 2 has now advanced from the first extension-runtime owner slices into the first gateway-side module stage: `execution-kernel`.
 - Stage 3 slice-definition work is complete; Stage 4 compat-preserving execution is complete on the same Phase 1 boundary.
 - Stage 5 execution-model definition is now complete, and the Phase 2 stage-definition pack is now explicit enough for execution: every declared module stage now has owner surfaces, supporting surfaces, optimization targets, validation expectations, and a definition of done in `IMPLEMENTATION_PLAN.md`.
-- Stage 6 module ordering and rationale are now also explicit; Stage 7 `turn-runtime` is complete, Stage 8 `result-delivery` is now also complete, and the next open gate is now the active `injection-runtime` module stage.
+- Stage 6 module ordering and rationale are now also explicit; Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, and 10 `operator-panel` are complete, and the next open gate is now the active `execution-kernel` module stage.
 - The current dialogue-level acceptance summary for April 27, 2026 reports the bridge chain, batch behavior, workspace read/search/grep tools, security boundaries, protocol alignment, core gateway/protocol/userscript tracing, and real write/UI end-to-end usage as currently usable with no remaining blocker called out for the just-closed Stage 7 boundary.
 - Draft v0.9 docs and draft contract shapes are reference truth only. They are not separate compatibility targets; compatibility work in the current slice applies to the proven live runtime floor and the still-live routes/behaviors it depends on.
 - ChatGPT Web DOM/request-shape/selectors evidence now has one intended home: `docs/operations/chatgpt-web-runtime-evidence.md`.
@@ -40,6 +41,7 @@
 - Catalog prompt construction, bootstrap/live prompt-sync copy, and request-payload injection helpers now also live under `apps/extension/src/injection-runtime/{catalog,catalog-cache,request-body-injection}.ts`, while userscript `catalog*.ts` and `request-hook.ts` are reduced to compat exports or runtime transport shells.
 - The pure runtime-snapshot helper semantics have been lifted out of userscript-local state code into `apps/extension/src/operator-panel/runtime-snapshot.ts`, while `apps/userscript/src/runtime-snapshot.ts` remains a thin compat re-export.
 - Operator-panel owner truth now also lives in `apps/extension/src/operator-panel/capabilities.ts` and `panel-state.ts`, so capability gating, operator-facing runtime stats, injection diagnostics summary copy, and collapsed-toggle availability no longer drift inside userscript-local panel conditionals.
+- The Stage 10 `operator-panel` module stage is now closed. On April 28, 2026, real ChatGPT Web validation passed for operator-visible runtime statuses, collapsed `Execute` / `Insert` / `Send` / `Continue` actions, and manual recovery affordances after the panel owner shift.
 - Pure invalid-turn state, pending-selection identity, and auto-round guard semantics now live under `apps/extension/src/turn-runtime/*`, while userscript `detection-state.ts`, `round-guard.ts`, and `turn-runtime.ts` only provide compat wiring or local type adaptation.
 - Parser-level turn normalization is now a compat concern only in `apps/userscript/src/parser.ts`, while the latest-open-turn and startup/history rescan decision pipeline now lives under extension-owned turn-runtime helpers.
 - The first Phase 2 extraction step is now in code: parser-level MCP turn analysis and normalization logic lives under `apps/extension/src/turn-runtime/mcp-turn-analysis.ts`, while `apps/userscript/src/parser.ts` is reduced to a thin compat wrapper that restores legacy `callId` semantics.
@@ -150,7 +152,7 @@
 ## Active Stop Line
 
 - The v0.1 stop line is closed as of April 27, 2026.
-- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. Stages 7 `turn-runtime`, 8 `result-delivery`, and 9 `injection-runtime` are complete; the next active code-side extraction gate is now `operator-panel`, without reopening closed injection, delivery, or neighboring gateway modules or broad capability rollout.
+- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, and 10 `operator-panel` are complete; the next active code-side extraction gate is now `execution-kernel`, without reopening closed browser-runtime modules or broad capability rollout.
 - Any Phase 2 stage completion claim now requires direct owner-level tests, adjacent compat-path regression checks, root `pnpm lint` / `test` / `build`, and real ChatGPT Web validation whenever browser runtime timing or DOM behavior changed.
 - Until explicitly migrated, the active compatibility floor includes:
   - `/health`
@@ -165,8 +167,8 @@
 
 - Active program: Phase 2 module-by-module Final Core refactor
 - Battleground: Final Core
-- Primary axis: extension runtime boundary extraction
-- Active module stage: `operator-panel`
+- Primary axis: gateway execution boundary extraction after the completed extension-runtime slices
+- Active module stage: `execution-kernel`
 - Phase 1 completed implementation surfaces:
   - `packages/protocol/*`
   - narrow gateway route adapters
@@ -196,17 +198,13 @@
   - stronger direct test coverage than before the stage
   - root verification, plus real-page validation for browser-runtime stages
 - Active module-stage implementation surfaces:
-  - `apps/extension/src/operator-panel/*`
-  - `apps/userscript/src/state.ts`
-  - `apps/userscript/src/ui.ts`
-  - `apps/userscript/src/preview.ts`
-  - `apps/userscript/src/capabilities.ts`
-  - `apps/userscript/src/runtime-snapshot.ts`
-  - `apps/userscript/src/state.test.ts`
-  - `apps/userscript/src/ui.test.ts`
-  - `apps/userscript/src/preview.test.ts`
-  - `apps/userscript/src/runtime-snapshot.test.ts`
-  - `apps/userscript/src/capabilities.test.ts`
+  - `apps/gateway/src/execution-kernel/*`
+  - `apps/gateway/src/routes/call-tool.ts`
+  - `apps/gateway/src/routes/call-tool.test.ts`
+  - `apps/gateway/src/tools/index.ts`
+  - `apps/gateway/src/utils/errors.ts`
+  - `apps/gateway/src/logger.ts`
+  - `packages/protocol/src/*` only if execution contracts need a narrow supporting refinement
   - root task-control docs
 - Phase 2 progress landed so far:
   - `apps/extension/src/injection-runtime/catalog.ts` is now the long-term owner for visible fallback catalog prompt construction, hidden request prompt snapshots, and bootstrap-versus-live prompt-sync diagnostics copy
@@ -241,14 +239,16 @@
 - The Stage 7 `turn-runtime` module stage is now closed. Userscript files touched there remain reference or temporary bridge surfaces, not target-state ownership destinations by themselves.
 - The Stage 8 `result-delivery` module stage is now closed. Real-page validation passed for insert-only, insert-plus-send, insertion-failure recovery, `Send=off -> Send=on -> refresh`, truncated residue refresh recovery, and repeated identical conversation-request submissions. Delivery-specific pure logic now routes through `apps/extension/src/result-delivery/*`, while userscript files remain compat/runtime shells only.
 - The Stage 9 `injection-runtime` module stage is now closed. Real-page validation passed for first-message hidden injection, visible fallback behavior, injection diagnostics timing, and cold-start recovery after cache deletion; in the warm-bootstrap path the operator did not observe `Catalog src = Cached bootstrap` before live sync, but the hidden path still worked and the cache was promptly recreated, so the stage can close without keeping a second local catalog truth.
-- Still explicitly not opened while `operator-panel` is the active module stage:
+- The Stage 10 `operator-panel` module stage is now closed. Operator-visible runtime snapshot truth, intent gating, and diagnostics entry copy now route through extension-owned operator-panel helpers, while userscript panel files remain compat/runtime shells only.
+- Still explicitly not opened while `execution-kernel` is the active module stage:
   - extension-first shell migration
-  - gateway execution-kernel extraction as a primary module stage
+  - tool-registry extraction as a parallel primary module stage
+  - tool-policy extraction as a parallel primary module stage
   - `reviewed` / `yolo` rollout
   - proposal workflow rollout
   - external/custom MCP rollout
   - broad builtin capability expansion
-  - operator-panel feature expansion unrelated to panel ownership extraction
+  - new browser-runtime behavior unrelated to keeping the live `/call-tool` path stable
   - broad panel redesign as a separate battleground
 
 ## Caveats
@@ -275,8 +275,8 @@
 - When a cleaner direct implementation exists in `apps/extension` or `apps/gateway`, prefer landing there over recreating new long-term logic in userscript-shaped files.
 - Do not add or keep adapters only to preserve draft-only field names, draft wording, or other reference-only shapes. Keep compatibility only where current live runtime behavior still depends on it.
 - Treat nested `execute` as the only active `/call-tool` execution-metadata compat surface unless a future task doc explicitly reopens that decision with live runtime evidence.
-- The next required live verification now moves to `operator-panel`: exercise operator-visible runtime snapshot status, manual run/retry or insert intents, and diagnostics readability on the real ChatGPT page before claiming the next stage complete.
+- The next required live verification now moves to `execution-kernel`: exercise the live browser-to-gateway `/call-tool` path, including single-call and batch execution, before claiming the next stage complete.
 - Before the next live verification pass, remember that regenerated replies can add reply-picker UI text under the same assistant turn; if invalid-turn reports reappear on a visually pure rendered `mcp` block, inspect whether extraction regressed from markdown-body text back to whole-turn `innerText`.
-- The remaining code-side gap is no longer `injection-runtime`; it is making operator-visible runtime truth read cleanly from the extracted owners without reconstructing a second state machine in userscript UI code.
+- The remaining code-side gap is no longer `operator-panel`; it is moving gateway-side execution coordination behind one kernel owner without reopening already-closed browser-runtime stages.
 - Use the expanded `IMPLEMENTATION_PLAN.md` stage contract as the execution source of truth for module boundaries, allowed supporting surfaces, validation, and stage exit conditions; do not re-invent those rules ad hoc in code review.
 - If a change tries to activate a second Phase 2 module at the same time, stop and either narrow it back to the active module stage or first update the task-control docs to resequence the program.
