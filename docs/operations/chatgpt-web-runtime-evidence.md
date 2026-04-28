@@ -167,6 +167,27 @@ But the underlying DOM/request-shape observations still need to be centralized h
   - `apps/userscript/src/parser.test.ts`
   - `apps/userscript/src/chatgpt-mcp-bridge.user.ts`
 
+## Evidence: regenerated replies can append reply-picker UI text after an otherwise valid rendered `mcp` block
+
+- Date: 2026-04-28
+- Method: manual repro on a real signed-in page, captured assistant-turn HTML from the current ChatGPT runtime, and follow-up userscript regression tests
+- Page state:
+  - existing thread
+  - assistant reply regenerated so the turn showed the built-in reply picker (`1/2`)
+  - visible assistant body was only one rendered `mcp` code block for `read_file README.md`
+- Observation:
+  - The same assistant `SECTION[data-turn="assistant"]` still contained the regenerated-reply action strip and reply-picker text under the message body.
+  - On that DOM shape, reading `innerText` from the whole assistant turn or whole `[data-message-author-role="assistant"]` container can append UI residue such as the reply-picker `1/2` after the valid rendered `mcp` block, even though the actual markdown body itself remains MCP-only.
+  - That means invalid-turn enforcement can falsely report `natural language or other non-block content after MCP tool-call blocks` when the model output is correct and only ChatGPT chrome changed around it.
+- Impact:
+  - Assistant-turn text extraction should prefer the assistant markdown body over the whole turn container whenever that body exists.
+  - DOM-sensitive turn validation should treat regenerated-reply picker chrome as page UI, not as assistant-authored trailing content.
+- Affected surfaces:
+  - `apps/extension/src/chatgpt-adapter/chatgpt-runtime-facts.ts`
+  - `apps/userscript/src/chatgpt-runtime-facts.ts`
+  - `apps/userscript/src/dom.ts`
+  - `apps/userscript/src/dom.test.ts`
+
 ## Evidence: undelivered composer state survives refresh, and `composer-submit-button` can still be a stop button
 
 - Date: 2026-04-27

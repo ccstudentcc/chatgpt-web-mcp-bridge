@@ -11,11 +11,17 @@ export const chatgptCodeBlockFallbackSelectors = [
   '[class*="whitespace-pre"]'
 ] as const;
 
+export const chatgptAssistantContentSelectors = [
+  '.markdown',
+  '[class*="markdown"]'
+] as const;
+
 export const chatgptSelectors = {
   assistantMessage: '[data-message-author-role="assistant"]',
   userMessage: '[data-message-author-role="user"]',
   assistantTurnContainer: '[data-turn="assistant"], [data-message-author-role="assistant"]',
   userTurnContainer: '[data-turn="user"], [data-message-author-role="user"]',
+  assistantContent: chatgptAssistantContentSelectors.join(', '),
   codeBlockStrict: chatgptCodeBlockStrictSelectors.join(', '),
   codeBlockFallback: chatgptCodeBlockFallbackSelectors.join(', '),
   codeBlock: [...chatgptCodeBlockStrictSelectors, ...chatgptCodeBlockFallbackSelectors].join(', '),
@@ -203,6 +209,20 @@ export function findNearestChatGptUserTurn(node: Element): HTMLElement | null {
   return node.closest(chatgptSelectors.userTurnContainer) as HTMLElement | null;
 }
 
+export function extractChatGptAssistantBodyText(node: HTMLElement): string {
+  const assistantMessage = resolveChatGptAssistantMessageNode(node);
+  if (!assistantMessage) {
+    return node.innerText || node.textContent || '';
+  }
+
+  const contentRoot = assistantMessage.querySelector(chatgptSelectors.assistantContent);
+  if (contentRoot instanceof HTMLElement) {
+    return contentRoot.innerText || contentRoot.textContent || '';
+  }
+
+  return assistantMessage.innerText || assistantMessage.textContent || '';
+}
+
 export function looksLikeChatGptSendButton(button: HTMLButtonElement): boolean {
   const label = button.getAttribute('aria-label') ?? '';
   if (looksLikeChatGptStopButton(button)) {
@@ -223,4 +243,17 @@ export function looksLikeChatGptSendButton(button: HTMLButtonElement): boolean {
 export function looksLikeChatGptStopButton(button: HTMLButtonElement): boolean {
   const label = button.getAttribute('aria-label') ?? '';
   return button.dataset.testid === 'stop-button' || /stop|stream|停止|流式/u.test(label);
+}
+
+function resolveChatGptAssistantMessageNode(node: HTMLElement): HTMLElement | null {
+  if (typeof node.matches === 'function' && node.matches(chatgptSelectors.assistantMessage)) {
+    return node;
+  }
+
+  if (typeof (node as { querySelector?: unknown }).querySelector !== 'function') {
+    return null;
+  }
+
+  const nested = node.querySelector(chatgptSelectors.assistantMessage);
+  return nested instanceof HTMLElement ? nested : null;
 }

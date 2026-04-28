@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { findAssistantMessages, findLatestOpenAssistantMessage, onChatMutation } from './dom.js';
+import { extractVisibleText, findAssistantMessages, findLatestOpenAssistantMessage, onChatMutation } from './dom.js';
 
 describe('findAssistantMessages fallback', () => {
   afterEach(() => {
@@ -359,6 +359,70 @@ describe('findAssistantMessages fallback', () => {
     Object.defineProperty(globalThis, 'HTMLElement', { value: FakeHTMLElement, configurable: true });
 
     expect(findLatestOpenAssistantMessage()).toBe(latestMcp);
+  });
+
+  it('reads assistant visible text from the markdown body instead of the regenerated-reply action bar', () => {
+    class FakeHTMLElement {
+      innerText: string;
+      textContent: string;
+      private readonly nestedMessage: FakeHTMLElement | null;
+      private readonly nestedContent: FakeHTMLElement | null;
+      private readonly isAssistantMessage: boolean;
+
+      constructor(
+        text: string,
+        options: {
+          nestedMessage?: FakeHTMLElement | null;
+          nestedContent?: FakeHTMLElement | null;
+          isAssistantMessage?: boolean;
+        } = {}
+      ) {
+        this.innerText = text;
+        this.textContent = text;
+        this.nestedMessage = options.nestedMessage ?? null;
+        this.nestedContent = options.nestedContent ?? null;
+        this.isAssistantMessage = options.isAssistantMessage ?? false;
+      }
+
+      matches(selector: string): boolean {
+        return selector === '[data-message-author-role="assistant"]' && this.isAssistantMessage;
+      }
+
+      querySelector(selector: string): FakeHTMLElement | null {
+        if (selector === '[data-message-author-role="assistant"]') {
+          return this.nestedMessage;
+        }
+        if (selector === '.markdown, [class*="markdown"]') {
+          return this.nestedContent;
+        }
+        return null;
+      }
+
+      closest(): FakeHTMLElement | null {
+        return this;
+      }
+    }
+
+    const markdownBody = new FakeHTMLElement([
+      'mcp',
+      '{',
+      '  "tool": "read_file",',
+      '  "args": {',
+      '    "path": "README.md"',
+      '  }',
+      '}'
+    ].join('\n'));
+    const assistantMessage = new FakeHTMLElement(`${markdownBody.innerText}\n1/2`, {
+      nestedContent: markdownBody,
+      isAssistantMessage: true
+    });
+    const assistantTurn = new FakeHTMLElement(`${markdownBody.innerText}\n1/2`, {
+      nestedMessage: assistantMessage
+    });
+
+    Object.defineProperty(globalThis, 'HTMLElement', { value: FakeHTMLElement, configurable: true });
+
+    expect(extractVisibleText(assistantTurn as unknown as HTMLElement)).toBe(markdownBody.innerText);
   });
 });
 

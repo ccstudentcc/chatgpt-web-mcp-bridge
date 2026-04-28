@@ -1,4 +1,5 @@
 import {
+  extractChatGptAssistantBodyText,
   chatgptSelectors,
   findNearestChatGptUserTurn,
   isIgnorableChatGptAssistantPlaceholderText,
@@ -47,7 +48,7 @@ export function findLatestUserMessage(): HTMLElement | null {
 }
 
 export function extractVisibleText(el: HTMLElement): string {
-  return el.innerText || el.textContent || '';
+  return extractChatGptAssistantBodyText(el);
 }
 
 export function onChatMutation(callback: () => void): void {

@@ -5,6 +5,7 @@ export {
   chatgptConversationPaths,
   chatgptIgnorableStatusLinePatterns,
   chatgptSelectors,
+  extractChatGptAssistantBodyText,
   findNearestChatGptAssistantTurn,
   findNearestChatGptUserTurn,
   getChatGptTurnId,
