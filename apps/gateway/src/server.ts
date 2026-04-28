@@ -4,15 +4,13 @@ import type { Logger } from './logger.js';
 import { registerHealthRoute } from './routes/health.js';
 import { registerToolsRoute } from './routes/tools.js';
 import { registerCallToolRoute } from './routes/call-tool.js';
+import { assertAllowedOrigin } from './security/origin.js';
 
 export async function createServer(config: GatewayConfig, token: string | undefined, logger: Logger) {
   const server = Fastify({ logger: false });
 
   server.addHook('onRequest', async (request) => {
-    const origin = request.headers.origin;
-    if (origin && origin !== 'https://chatgpt.com' && origin !== 'https://chat.openai.com') {
-      throw Object.assign(new Error('Origin is not allowed.'), { code: 'ORIGIN_NOT_ALLOWED' });
-    }
+    assertAllowedOrigin(request.headers);
   });
 
   await registerHealthRoute(server, config);

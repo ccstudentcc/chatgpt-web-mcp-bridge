@@ -14,6 +14,7 @@ At the current repo stage, important live facts include:
 - the gateway is localhost-only
 - trusted local mode is the default
 - ChatGPT Web `Origin` restrictions are part of the boundary
+- Stage 19 extension requests do not bypass that boundary: the gateway only accepts extension-origin calls when the extension background proxy asserts a real ChatGPT page origin
 - current live tool truth comes from `/tools`
 - the current shipped live route set is `/health`, `/tools`, and `/call-tool`
 - current write capability is still highly constrained relative to target-state plans

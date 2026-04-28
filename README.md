@@ -20,7 +20,7 @@ Default behavior is intentionally conservative:
 - Only injects on `https://chatgpt.com/*` and `https://chat.openai.com/*`.
 - Only rewrites ChatGPT conversation requests, not arbitrary page traffic.
 - Only listens on `127.0.0.1`.
-- Rejects non-ChatGPT `Origin` headers at the gateway layer.
+- Rejects non-ChatGPT `Origin` headers at the gateway layer; Stage 19 extension proxy requests are only accepted when the extension asserts a real ChatGPT page origin.
 - Uses trusted local mode by default, so localhost requests do not need a pairing token.
 - Limits all file operations to `workspaceRoot`.
 - Blocks `.env`, SSH keys, browser profile data, Git credentials, and other sensitive paths.

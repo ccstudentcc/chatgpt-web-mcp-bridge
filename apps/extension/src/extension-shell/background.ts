@@ -1,6 +1,8 @@
+import { PAGE_ORIGIN_HEADER } from '@cwmb/tool-contracts';
 import { EXTENSION_MESSAGE_TYPES, type ContentScriptReadyMessage, type GatewayProxyRequestMessage, type PingMessage } from './messages.js';
 
 const LOG_PREFIX = '[cwmb extension]';
+type GatewayRequestSender = { url?: string; tab?: { url?: string } };
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log(`${LOG_PREFIX} service worker installed`);
@@ -32,7 +34,7 @@ chrome.runtime.onMessage.addListener((message: PingMessage | GatewayProxyRequest
   }
 
   if (message.type === EXTENSION_MESSAGE_TYPES.gatewayRequest) {
-    void proxyGatewayRequest(message)
+    void proxyGatewayRequest(message, sender)
       .then((response) => sendResponse(response))
       .catch((error: unknown) => {
         sendResponse({
@@ -46,16 +48,22 @@ chrome.runtime.onMessage.addListener((message: PingMessage | GatewayProxyRequest
   return false;
 });
 
-async function proxyGatewayRequest(message: GatewayProxyRequestMessage): Promise<unknown> {
+async function proxyGatewayRequest(message: GatewayProxyRequestMessage, sender: GatewayRequestSender): Promise<unknown> {
   const controller = new AbortController();
   const timeoutMs = typeof message.request.timeout === 'number' ? message.request.timeout : 15_000;
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const pageOrigin = resolveChatGptPageOrigin(sender);
+  const headers = { ...(message.request.headers ?? {}) };
+
+  if (pageOrigin) {
+    headers[PAGE_ORIGIN_HEADER] = pageOrigin;
+  }
 
   try {
     const response = await fetch(message.request.url, {
       method: message.request.method,
       body: message.request.data,
-      headers: message.request.headers,
+      headers,
       signal: controller.signal
     });
     const responseText = await response.text();
@@ -79,4 +87,22 @@ async function proxyGatewayRequest(message: GatewayProxyRequestMessage): Promise
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+function resolveChatGptPageOrigin(sender: GatewayRequestSender): string | undefined {
+  const candidate = sender.url ?? sender.tab?.url;
+  if (!candidate) {
+    return undefined;
+  }
+
+  try {
+    const url = new URL(candidate);
+    if (url.origin === 'https://chatgpt.com' || url.origin === 'https://chat.openai.com') {
+      return url.origin;
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
 }
