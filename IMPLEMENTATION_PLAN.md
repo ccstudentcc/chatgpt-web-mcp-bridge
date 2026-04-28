@@ -2,6 +2,86 @@
 
 Current boundary: as of April 27, 2026, v0.1 close-out is complete. This plan now tracks the active v0.9 mainline program.
 
+## Stage 22: Execute Follow-On Slice - Phase 2.5 Extension Convergence
+
+Status: active
+
+Goal:
+
+- land one explicit extension-side convergence slice that replaces the hand-written shell with `WXT`, adds popup/options, rebuilds operator-facing UI on `React` + `Tailwind CSS`, and refactors extension runtime ownership into capability domains while preserving the live browser-to-gateway floor
+
+Primary design truth:
+
+- `docs/architecture/phase2.5-extension-convergence.md`
+
+Target owner surfaces:
+
+- `apps/extension/wxt.config.ts`
+- `apps/extension/entrypoints/*`
+- `apps/extension/public/*`
+- `apps/extension/src/extension-shell/*`
+- `apps/extension/src/ui-surfaces/*`
+- `apps/extension/src/chatgpt-adapter/*`
+- `apps/extension/src/request-injection/*`
+- `apps/extension/src/turn-detection/*`
+- `apps/extension/src/result-delivery/*`
+- `apps/extension/src/operator-workflows/*`
+- `apps/extension/src/settings/*`
+- `apps/extension/src/main/*`
+
+Allowed supporting surfaces:
+
+- `apps/gateway/src/api/*`, `tool-registry/*`, `tool-policy/*`, and adjacent shared packages only when needed to preserve or expose the existing live compatibility floor to the new extension shell and surfaces
+- root task-control docs plus the relevant product and architecture docs under `docs/`
+
+Optimization targets:
+
+- eliminate the hand-written extension shell as a second build truth
+- keep the in-page panel as the primary operator surface while adding popup/options without forking runtime architecture
+- make background-owned configuration truth explicit across all extension surfaces
+- keep page-owned conversation runtime truth explicit and local to the ChatGPT page path
+- separate capability-domain logic from rendering so `React` UI stays a consumer, not an owner
+
+Stage constraints:
+
+- do not reopen the userscript as a live runtime shell
+- do not let popup/options become alternate execution architectures
+- do not rewrite gateway framework choice or shared package language choice as part of this slice
+- do not silently relax the active compatibility floor
+- do not move domain logic into React component or hook trees
+
+Required validation:
+
+- `pnpm --filter @cwmb/extension lint`
+- `pnpm --filter @cwmb/extension test`
+- `pnpm --filter @cwmb/extension build`
+- root `pnpm lint`
+- root `pnpm test`
+- root `pnpm build`
+- real ChatGPT Web validation for:
+  - in-page panel primary workflow
+  - main-world request injection
+  - `/health`, `/tools`, and `/call-tool`
+  - popup bridge summary
+  - options full-console behavior
+
+Current code-side progress:
+
+- `WXT` shell migration is now landed in code: `apps/extension/wxt.config.ts` plus `entrypoints/*` are the only active extension build and entrypoint truth.
+- popup and options now exist as real extension surfaces rendered through `React` + `Tailwind CSS` under `apps/extension/src/ui-surfaces/*`.
+- background-owned settings truth now exists in code under `apps/extension/src/settings/*`, and the ChatGPT page runtime consumes that snapshot over extension messaging instead of directly persisting extension-global settings through page-local `GM_*` helpers.
+- active-tab bridge summary reporting now exists as a read-model contract for popup/options, but real ChatGPT Web validation is still outstanding before this slice can be closed.
+
+Definition of done:
+
+- `WXT` is the only active extension shell build and dev path
+- popup and options are real supported surfaces
+- in-page panel remains the primary operator surface
+- background-owned configuration truth is explicit and shared across surfaces
+- page-owned conversation runtime truth remains page-owned
+- extension capability-domain owner boundaries are explicit in code and docs
+- operator-facing extension UI renders through `React` + `Tailwind CSS`
+
 ## Stage 1: Close And Archive The v0.1 Baseline
 
 Status: completed
@@ -1150,3 +1230,10 @@ Code-side completion reached on April 28, 2026:
 - Stage 18 (package-domain-extraction) is a high-risk atomic operation: splitting `protocol/` into 4 domain packages + renaming `shared/` + creating `test-fixtures` + updating every consumer import must succeed in one stage or the build breaks. The only valid intermediate state is "all imports updated and build passing."
 - Stage 19 (extension-structure) introduced a new browser-runtime entrypoint (Chrome Extension), and Stage 21 removed the userscript fallback from the live workspace path. Any remaining runtime regression now concentrates on the extension-only path rather than being masked by a second shell.
 - Stage 21 (remove-compat-layers) is the highest-risk deletion stage: if any compat file still carries unique runtime logic, deleting it will cause live-path regressions. Exhaustive pre-deletion verification is required.
+
+## Phase 2.5 Guardrails
+
+- Keep the whole-project stack fixed to one declared baseline: `pnpm` workspace, repo-wide `TypeScript`, extension-shell target `WXT` + Chrome Extension `MV3`, operator-facing extension UI target `React` + `Tailwind CSS`, gateway `Fastify` + `TypeScript`, shared `Zod` schemas, and `Vitest` for unit/module tests.
+- Treat the current hand-written extension shell as the live pre-migration baseline until the active Phase 2.5 slice replaces it. Do not introduce a second extension scaffold in parallel.
+- Keep `React` and `Tailwind CSS` scoped to operator-facing extension UI surfaces. Do not use Phase 2.5 stack work to hide runtime-owner logic behind component or hook layers.
+- Do not use stack standardization as a reason to reopen gateway framework choice or shared-package language choice unless the root task-control docs explicitly say that decision is back in scope.

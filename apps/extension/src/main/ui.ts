@@ -6,7 +6,7 @@ import {
   type OperatorPanelToggleView
 } from '../operator-panel/index.js';
 import { buildToolCatalogPrompt } from '../injection-runtime/index.js';
-import { getCatalogTools, hasLiveCatalog, saveBaseUrl, savePanelPosition, saveToken, state } from './state.js';
+import { getCatalogTools, hasLiveCatalog, savePanelPosition, state } from './state.js';
 
 const LOG_STREAM_SELECTOR = '.cwmb-log-stream';
 const DISCLOSURE_SELECTOR = 'details[data-cwmb-disclosure-key]';
@@ -19,6 +19,8 @@ let onIgnoreHandler: (() => void) | null = null;
 let onRetryHandler: (() => void) | null = null;
 let onInsertHandler: (() => void) | null = null;
 let onInsertCatalogHandler: (() => void) | null = null;
+let onEditTokenHandler: ((token: string) => void) | null = null;
+let onEditBaseUrlHandler: ((baseUrl: string) => void) | null = null;
 let onConfigChangedHandler: (() => void) | null = null;
 let onToggleExecuteHandler: (() => void) | null = null;
 let onToggleInsertHandler: (() => void) | null = null;
@@ -32,6 +34,8 @@ export function setUiHandlers(handlers: {
   onRetry: () => void;
   onInsert: () => void;
   onInsertCatalog: () => void;
+  onEditToken: (token: string) => void;
+  onEditBaseUrl: (baseUrl: string) => void;
   onConfigChanged: () => void;
   onToggleExecute: () => void;
   onToggleInsert: () => void;
@@ -44,6 +48,8 @@ export function setUiHandlers(handlers: {
   onRetryHandler = handlers.onRetry;
   onInsertHandler = handlers.onInsert;
   onInsertCatalogHandler = handlers.onInsertCatalog;
+  onEditTokenHandler = handlers.onEditToken;
+  onEditBaseUrlHandler = handlers.onEditBaseUrl;
   onConfigChangedHandler = handlers.onConfigChanged;
   onToggleExecuteHandler = handlers.onToggleExecute;
   onToggleInsertHandler = handlers.onToggleInsert;
@@ -211,17 +217,15 @@ function bindHandlers(
   applyPanelPosition();
   root?.querySelector('[data-cwmb="token"]')?.addEventListener('click', () => {
     const token = prompt('Pairing token', state.token);
-    if (token !== null) saveToken(token.trim());
-    renderPanel();
-    onConfigChangedHandler?.();
+    if (token !== null) {
+      onEditTokenHandler?.(token.trim());
+    }
   });
   root?.querySelector('[data-cwmb="base-url"]')?.addEventListener('click', () => {
     const baseUrl = prompt('Gateway base URL', state.baseUrl);
     if (baseUrl !== null && baseUrl.trim()) {
-      saveBaseUrl(baseUrl.trim());
+      onEditBaseUrlHandler?.(baseUrl.trim());
     }
-    renderPanel();
-    onConfigChangedHandler?.();
   });
   root?.querySelector('[data-cwmb="run"]')?.addEventListener('click', () => onRunHandler?.());
   root?.querySelector('[data-cwmb="ignore"]')?.addEventListener('click', () => onIgnoreHandler?.());

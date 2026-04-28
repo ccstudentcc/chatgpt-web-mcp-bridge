@@ -5,20 +5,28 @@
   "private": true,
   "scripts": {
     "build:deps": "pnpm --filter @cwmb/shared-utils build && pnpm --filter @cwmb/turn-model build && pnpm --filter @cwmb/result-model build && pnpm --filter @cwmb/tool-contracts build",
-    "dev": "tsx scripts/build.ts --watch",
-    "build": "pnpm run build:deps && tsx scripts/build.ts",
-    "test": "pnpm run build:deps && vitest run",
-    "lint": "pnpm run build:deps && tsc -p tsconfig.json --noEmit"
+    "prepare:wxt": "wxt prepare",
+    "dev": "pnpm run build:deps && wxt",
+    "build": "pnpm run build:deps && wxt build",
+    "test": "pnpm run build:deps && pnpm run prepare:wxt && vitest run",
+    "lint": "pnpm run build:deps && pnpm run prepare:wxt && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@cwmb/result-model": "workspace:*",
     "@cwmb/shared-utils": "workspace:*",
     "@cwmb/tool-contracts": "workspace:*",
     "@cwmb/turn-model": "workspace:*",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "4.2.4",
     "@types/node": "^20.12.12",
-    "esbuild": "^0.23.0"
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "tailwindcss": "4.2.4",
+    "vite": "8.0.10",
+    "wxt": "0.20.25"
   }
 }

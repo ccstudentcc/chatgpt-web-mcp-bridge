@@ -1,11 +1,10 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
-    "rootDir": "..",
-    "outDir": "dist",
     "lib": ["ES2022", "DOM"],
     "types": [],
     "baseUrl": ".",
+    "jsx": "react-jsx",
     "paths": {
       "@cwmb/result-model": ["../../packages/result-model/dist/index.d.ts"],
       "@cwmb/shared-utils": ["../../packages/shared-utils/dist/index.d.ts"],
@@ -14,8 +13,12 @@
     }
   },
   "include": [
+    "entrypoints/**/*.ts",
+    "entrypoints/**/*.tsx",
     "src/**/*.ts",
+    "src/**/*.tsx",
     "src/**/*.d.ts",
-    "src/main/types.d.ts"
+    "src/main/types.d.ts",
+    "wxt.config.ts"
   ]
 }

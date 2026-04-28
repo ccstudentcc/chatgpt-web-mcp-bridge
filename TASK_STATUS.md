@@ -9,9 +9,8 @@
 - The current codebase now runs through `apps/extension` plus `apps/gateway` only; the proven userscript baseline has been archived as a reference, not kept as a live workspace app.
 - `apps/userscript/` is now a legacy archive with a README and `legacy/` snapshot content only. It is not the desired v0.9 shell, and it is not a supported runtime path.
 - Phase 1 shared-contract freeze is now complete.
-- Phase 2 is now open as a module-by-module Final Core refactor program for completing `apps/extension` and `apps/gateway`.
-- Phase 2 execution rule is now explicit: one stage equals one module, and only one module stage may be active at a time.
-- Phase 2 may still use larger rewrites when they improve efficiency, timing, logic clarity, stability, or test coverage, but only inside the currently active module stage.
+- Phase 2 completed as a module-by-module Final Core refactor program for `apps/extension` and `apps/gateway`.
+- Phase 2.5 is now the active follow-on slice: one coordinated extension convergence phase that lands `WXT`, popup/options, operator-facing `React` + `Tailwind CSS` UI, and extension capability-domain owner refactoring together.
 - Phase 2 code has now advanced through the full declared Stage 7-21 extraction sequence. `package-domain-extraction`, `extension-structure`, `gateway-structure`, and `remove-compat-layers` are closed.
 - Stage 21 code-side cleanup is now landed. On April 28, 2026, compat imports were removed, gateway compat directories were deleted, extension runtime tests were migrated under `apps/extension/src/main/*`, and `apps/userscript/` was archived as a legacy reference outside the pnpm workspace.
 - Stage 21 is now closed. On April 28, 2026, the user confirmed real ChatGPT Web extension-only validation in a real browser, so the remove-compat-layers slice can end and there is currently no active module stage.
@@ -22,6 +21,14 @@
 - Stage 3 slice-definition work is complete; Stage 4 compat-preserving execution is complete on the same Phase 1 boundary.
 - Stage 5 execution-model definition is now complete, and the Phase 2 stage-definition pack is now explicit enough for execution: every declared module stage now has owner surfaces, supporting surfaces, optimization targets, validation expectations, and a definition of done in `IMPLEMENTATION_PLAN.md`.
 - Stage 6 module ordering and rationale are now also explicit; Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, 10 `operator-panel`, 11 `execution-kernel`, 12 `tool-registry`, 13 `tool-policy`, 14 `builtin-tools`, 15 `shell-runtime`, 16 `audit-log`, and 17 `diagnostics` are complete, and no new code-side extraction gate has been declared yet beyond that sequence.
+- The repo now has an explicit whole-project stack baseline for active Phase 2.5 work: `pnpm` workspace plus repo-wide `TypeScript`; extension-shell target `WXT` + Chrome Extension `MV3`; operator-facing extension UI target `React` + `Tailwind CSS`; gateway `Fastify` + `TypeScript`; shared contracts and models in focused `TypeScript` packages with `Zod` runtime schemas; `Vitest` as the default unit and module test runner.
+- Phase 2.5 design truth now lives in `docs/architecture/phase2.5-extension-convergence.md`, and it explicitly bundles `WXT`, popup/options, operator-facing `React`/`Tailwind` UI, and extension capability-domain owner refactoring into one coordinated slice.
+- The first Phase 2.5 code slice is now landed: `apps/extension/wxt.config.ts` plus `entrypoints/*` replace the former hand-written `esbuild + manifest.json` shell, and extension build output now comes from `WXT`.
+- Popup and options are now real extension surfaces in code, rendered through `React` + `Tailwind CSS` from `apps/extension/src/ui-surfaces/*`.
+- Background-owned configuration truth is now explicit in code under `apps/extension/src/settings/*`; the ChatGPT page runtime hydrates and mutates extension-global settings through extension messaging instead of direct page-local `GM_*` persistence.
+- Real ChatGPT Web validation is still outstanding for this Phase 2.5 slice, so the in-page panel path remains the compatibility floor and the slice is not yet formally complete.
+- The target product-surface split for Phase 2.5 is explicit: the in-page panel remains the primary operator surface, popup is a lightweight companion, and options is the full extension control console.
+- The target truth split for Phase 2.5 is explicit: background/service worker owns persisted configuration truth, while the ChatGPT page runtime owns conversation-scoped live runtime truth.
 - The current dialogue-level acceptance summary for April 27, 2026 reports the bridge chain, batch behavior, workspace read/search/grep tools, security boundaries, protocol alignment, core gateway/protocol/userscript tracing, and real write/UI end-to-end usage as currently usable with no remaining blocker called out for the just-closed Stage 7 boundary.
 - Draft v0.9 docs and draft contract shapes are reference truth only. They are not separate compatibility targets; compatibility work in the current slice applies to the proven live runtime floor and the still-live routes/behaviors it depends on.
 - ChatGPT Web DOM/request-shape/selectors evidence now has one intended home: `docs/operations/chatgpt-web-runtime-evidence.md`.
@@ -183,7 +190,7 @@
 ## Active Stop Line
 
 - The v0.1 stop line is closed as of April 27, 2026.
-- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, 10 `operator-panel`, 11 `execution-kernel`, 12 `tool-registry`, 13 `tool-policy`, 14 `builtin-tools`, 15 `shell-runtime`, 16 `audit-log`, 17 `diagnostics`, 18 `package-domain-extraction`, 19 `extension-structure`, 20 `gateway-structure`, and 21 `remove-compat-layers` are complete. There is currently no active module stage.
+- The current program gate is no longer v0.1 acceptance. Phase 2 is complete, and the active gate is Phase 2.5 extension convergence.
 - Any Phase 2 stage completion claim now requires direct owner-level tests, adjacent compat-path regression checks, root `pnpm lint` / `test` / `build`, and real ChatGPT Web validation whenever browser runtime timing or DOM behavior changed.
 - Stage 20 close-out now includes direct owner tests plus manual browser-to-gateway validation for `/health`, `/tools`, and `/call-tool` through the new `api/` adapters.
 - Until explicitly migrated, the active compatibility floor includes:
@@ -197,10 +204,10 @@
 
 ## Active Slice
 
-- Active program: Phase 2 module-by-module Final Core refactor
-- Battleground: Final Core
-- Primary axis: no active module stage; follow-on slice undeclared
-- Active module stage: none. Most recently completed fully closed stage: `remove-compat-layers`
+- Active program: Phase 2.5 extension convergence
+- Battleground: Extension Ring, with explicitly allowed supporting Final Core owner realignment on the extension side
+- Primary axis: `WXT` shell convergence, multi-surface operator UI, and extension capability-domain owner refactoring
+- Active module stage: none. Phase 2 module stages are closed; the active work item is the cross-cutting Phase 2.5 slice
 - Phase 1 completed implementation surfaces:
   - `packages/protocol/*`
   - narrow gateway route adapters
@@ -329,6 +336,7 @@
 - The repo still lacks browser-driven end-to-end automation, so browser-runtime transitions will continue to need real ChatGPT Web verification.
 - The repo still lacks browser-driven end-to-end automation, so the extension-only runtime path still needs periodic real ChatGPT Web validation even though unit/root verification is green.
 - Stages 20 and 21 are now both fully closed: the `api/` path is the live gateway adapter, the userscript runtime is no longer part of the supported workspace path, and there is currently no active Phase 2 module stage.
+- Phase 2.5 is active now. No work inside this slice should introduce a second extension scaffold, a second operator-facing UI framework, or a second execution architecture beside the declared in-page panel plus popup/options model.
 - The unified ChatGPT Web runtime evidence doc exists now, but it is not yet a fully populated evidence pack; DOM-heavy work should refresh or add evidence there before expanding.
 - Phase 2 may span many commits and substantial refactors, but the control rule is now stage isolation, not “one big package”: progress should come from completing one module cleanly before activating the next.
 - Later-scope capabilities remain target-state work rather than shipped behavior:
@@ -347,7 +355,8 @@
 - When a cleaner direct implementation exists in `apps/extension` or `apps/gateway`, land it there; do not rebuild archived userscript-shaped seams.
 - Do not add or keep adapters only to preserve draft-only field names, draft wording, or other reference-only shapes. Keep compatibility only where current live runtime behavior still depends on it.
 - Treat nested `execute` as the only active `/call-tool` execution-metadata compat surface unless a future task doc explicitly reopens that decision with live runtime evidence.
-- `diagnostics` is closed. Do not assume a next extraction stage; Stage 21 is also formally closed, and any follow-on slice still needs an explicit declaration in the task-control docs.
+- `diagnostics` is closed. Do not assume another extraction stage; Phase 2 is closed, and Phase 2.5 now has its own explicit design and task-control truth.
 - Use the expanded `IMPLEMENTATION_PLAN.md` stage contract as the execution source of truth for module boundaries, allowed supporting surfaces, validation, and stage exit conditions; do not re-invent those rules ad hoc in code review.
-- If a change would activate a new Phase 2 or follow-on module stage, first update the task-control docs to declare that slice explicitly rather than assuming the old diagnostics gate still applies.
-- The next possible follow-on slice is undeclared. Choose it explicitly in the task-control docs before opening new scope.
+- Phase 2.5 is declared. Use `docs/architecture/phase2.5-extension-convergence.md` plus the root task-control docs as the execution truth for this slice.
+- Do not reopen later follow-on slices until Phase 2.5 either lands or is deliberately replaced by new root task-control truth.
+- Keep the whole-project stack baseline intact: `WXT` only for the extension shell target, `React` + `Tailwind CSS` only for operator-facing extension UI, and `Fastify` + plain `TypeScript` owners for the gateway and shared runtime layers.

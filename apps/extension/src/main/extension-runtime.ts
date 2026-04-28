@@ -44,9 +44,14 @@ import {
   pollLatestAssistantTurnRuntime,
   resolveCurrentRequestIdentity
 } from '../turn-runtime/index.js';
-import { configureUiMountTarget, renderPanel, setUiHandlers } from './ui.js';
+import { getExtensionSettings, reportActiveTabBridgeSummary, updateExtensionSettings } from '../settings/runtime-client.js';
+import { normalizeExtensionSettings } from '../settings/storage.js';
+import { clearLegacyExtensionSettings, isDefaultExtensionSettingsSnapshot, readLegacyExtensionSettings } from '../settings/legacy-page-storage.js';
+import type { ActiveTabBridgeSummary, ExtensionSettingsPatch, ExtensionSettingsSnapshot } from '../settings/contracts.js';
+import { configureUiMountTarget, renderPanel as renderPanelUi, setUiHandlers } from './ui.js';
 import {
   addLogEntry,
+  applyExtensionSettings,
   clearRequestPromptObserver,
   clearGatewayCatalog,
   clearGatewayRuntime,
@@ -63,10 +68,6 @@ import {
   type BridgeStatus,
   type StoredBatch,
   state,
-  toggleAutoExecute,
-  toggleAutoInsert,
-  toggleAutoSend,
-  toggleContinueBatchOnError,
   togglePanelCollapsed
 } from './state.js';
 
@@ -89,6 +90,12 @@ const RECOVERED_DELIVERY_RETRY_COOLDOWN_MS = 250;
 let startupUndeliveredRecoveryDeadline = 0;
 let recoveredDeliveryResumeInFlight = false;
 let recoveredDeliveryRetryNotBefore = 0;
+let storageListenerInstalled = false;
+
+function renderPanel(): void {
+  renderPanelUi();
+  void publishActiveTabSummary();
+}
 
 export function startExtensionRuntimeWhenReady(options: StartExtensionRuntimeOptions = {}): void {
   if (runtimePromise) {
@@ -114,14 +121,108 @@ export async function startExtensionRuntime(options: StartExtensionRuntimeOption
 
   runtimePromise = (async () => {
     configureUiMountTarget(options.panelMountTarget);
+    await hydrateExtensionSettings();
     if (options.installRequestHook) {
       installPageRequestHook();
     }
     ensureRequestPromptLifecycleInstalled();
+    installBackgroundMessageListener();
     await startBridge();
   })();
 
   return runtimePromise;
+}
+
+async function hydrateExtensionSettings(): Promise<void> {
+  try {
+    const settings = await getExtensionSettings();
+    const legacySettings = readLegacyExtensionSettings();
+
+    if (legacySettings && isDefaultExtensionSettingsSnapshot(settings)) {
+      const migrated = await updateExtensionSettings(legacySettings);
+      clearLegacyExtensionSettings();
+      applyExtensionSettings(migrated);
+      addLogEntry('info', 'Migrated legacy page-local settings into background storage.');
+      return;
+    }
+
+    applyExtensionSettings(settings);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to load background settings';
+    console.warn(`${message}. Falling back to local defaults.`);
+    addLogEntry('warn', `${message}. Using local defaults until background settings respond.`);
+  }
+}
+
+function installBackgroundMessageListener(): void {
+  if (storageListenerInstalled) {
+    return;
+  }
+
+  storageListenerInstalled = true;
+  chrome.storage.onChanged.addListener((changes: Record<string, { newValue?: unknown }>, areaName: string) => {
+    if (areaName !== 'local' || !changes.cwmb_extension_settings?.newValue) {
+      return;
+    }
+
+    const next = normalizeExtensionSettings(changes.cwmb_extension_settings.newValue);
+    if (isSameSettingsSnapshot(next)) {
+      return;
+    }
+
+    applyExtensionSettings(next);
+    addLogEntry('info', 'Background settings updated.');
+    renderPanel();
+    void refreshGatewayStatus();
+  });
+}
+
+function isSameSettingsSnapshot(next: ExtensionSettingsSnapshot): boolean {
+  return state.token === next.token
+    && state.baseUrl === next.baseUrl
+    && state.autoExecutePreference === next.autoExecute
+    && state.autoInsertPreference === next.autoInsert
+    && state.autoSendPreference === next.autoSend
+    && state.continueBatchOnError === next.continueBatchOnError
+    && state.requestInjectionMode === next.requestInjectionMode;
+}
+
+async function persistSettings(patch: ExtensionSettingsPatch, successMessage: string, options?: {
+  refreshGateway?: boolean;
+  rerunPending?: boolean;
+}): Promise<void> {
+  applyExtensionSettings(await updateExtensionSettings(patch));
+  addLogEntry('info', successMessage);
+  renderPanel();
+
+  if (options?.refreshGateway) {
+    await refreshGatewayStatus();
+  }
+
+  if (options?.rerunPending) {
+    void maybeAutoRunPending();
+  }
+}
+
+async function publishActiveTabSummary(): Promise<void> {
+  const summary: ActiveTabBridgeSummary = {
+    path: window.location.pathname,
+    hasDomAccess: Boolean(document.documentElement),
+    status: state.status,
+    pendingCount: state.pending.length,
+    lastError: state.lastError,
+    requestHookStatus: state.lastRequestHook?.status,
+    requestPromptSource: state.requestPrompt?.source,
+    catalogSource: state.gatewayRuntime?.catalogSource,
+    catalogVersion: state.gatewayRuntime?.catalog?.catalogVersion,
+    updatedAt: Date.now()
+  };
+
+  try {
+    await reportActiveTabBridgeSummary(summary);
+  } catch {
+    // Ignore summary sync failures. They should not block the live page runtime.
+  }
 }
 
 function ensureRequestPromptLifecycleInstalled(): void {
@@ -683,28 +784,26 @@ async function startBridge(): Promise<void> {
     onRetry: () => void retryStoppedBatch(),
     onInsert: () => void insertLastResult(),
     onInsertCatalog: insertToolCatalog,
+    onEditToken: (token) => void persistSettings({ token }, 'Pairing token updated.', { refreshGateway: true }),
+    onEditBaseUrl: (baseUrl) => void persistSettings({ baseUrl }, 'Gateway base URL updated.', { refreshGateway: true }),
     onConfigChanged: () => void refreshGatewayStatus(),
-    onToggleExecute: () => {
-      toggleAutoExecute();
-      addLogEntry('info', `Auto execute ${state.autoExecuteEnabled ? 'enabled' : 'disabled'}.`);
-      renderPanel();
-      void maybeAutoRunPending();
-    },
-    onToggleInsert: () => {
-      toggleAutoInsert();
-      addLogEntry('info', `Auto insert ${state.autoInsertResult ? 'enabled' : 'disabled'}.`);
-      renderPanel();
-    },
-    onToggleSend: () => {
-      toggleAutoSend();
-      addLogEntry('info', `Auto send ${state.autoSendResult ? 'enabled' : 'disabled'}.`);
-      renderPanel();
-    },
-    onToggleContinueBatch: () => {
-      toggleContinueBatchOnError();
-      addLogEntry('info', `Continue on batch error ${state.continueBatchOnError ? 'enabled' : 'disabled'}.`);
-      renderPanel();
-    },
+    onToggleExecute: () => void persistSettings(
+      { autoExecute: !state.autoExecuteEnabled },
+      `Auto execute ${state.autoExecuteEnabled ? 'disabled' : 'enabled'}.`,
+      { rerunPending: true }
+    ),
+    onToggleInsert: () => void persistSettings(
+      { autoInsert: !state.autoInsertResult },
+      `Auto insert ${state.autoInsertResult ? 'disabled' : 'enabled'}.`
+    ),
+    onToggleSend: () => void persistSettings(
+      { autoSend: !state.autoSendResult },
+      `Auto send ${state.autoSendResult ? 'disabled' : 'enabled'}.`
+    ),
+    onToggleContinueBatch: () => void persistSettings(
+      { continueBatchOnError: !state.continueBatchOnError },
+      `Continue on batch error ${state.continueBatchOnError ? 'disabled' : 'enabled'}.`
+    ),
     onToggleCollapsed: () => {
       togglePanelCollapsed();
       renderPanel();

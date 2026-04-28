@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Fira Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Fira Code", "SFMono-Regular", monospace;
+  --color-bridge-blue: #2563eb;
+  --color-bridge-cyan: #0f766e;
+  --color-bridge-ink: #0f172a;
+  --color-bridge-slate: #334155;
+  --color-bridge-wash: #f8fafc;
+  --color-bridge-glow: #f97316;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(15, 118, 110, 0.14), transparent 28%),
+    linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  color: var(--color-bridge-ink);
+  font-family: var(--font-sans);
+}
+
+#root {
+  min-height: 100vh;
+}
