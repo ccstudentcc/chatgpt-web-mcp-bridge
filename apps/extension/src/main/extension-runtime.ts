@@ -1,6 +1,5 @@
-import { buildToolCatalogPrompt, createRequestPromptSnapshot, describeRequestPromptSync } from '../../../userscript/src/catalog.js';
-import { readStoredToolCatalog, writeStoredToolCatalog } from '../../../userscript/src/catalog-cache.js';
-import { assessPendingTools } from '../../../userscript/src/capabilities.js';
+import { buildToolCatalogPrompt, createRequestPromptSnapshot, describeRequestPromptSync, readStoredToolCatalog, writeStoredToolCatalog } from '../injection-runtime/index.js';
+import { assessPendingTools } from '../operator-panel/index.js';
 import {
   createLegacyToolCallRequest,
   getExecuteResponseCompat,
@@ -13,12 +12,12 @@ import {
   createInlineToolResultEnvelopeFromLegacyResponse,
   type BatchResultItem
 } from '@cwmb/result-model';
-import { createBatchId, executeBatch } from '../../../userscript/src/batch.js';
-import { callTool, health, listCatalog } from '../../../userscript/src/gateway-client.js';
-import { extractVisibleText, findLatestOpenAssistantMessage, findLatestUserMessage, onChatMutation } from '../../../userscript/src/dom.js';
-import { sha256Normalized } from '../../../userscript/src/hash.js';
-import { insertIntoChatInput, isChatInputSubmitting, readCurrentChatInputText, sendCurrentChatInput } from '../../../userscript/src/inserter.js';
-import { createEmptyRequestPromptSnapshot, describeRequestHookStatus } from '../../../userscript/src/request-injection-state.js';
+import { createBatchId, executeBatch } from './batch.js';
+import { callTool, health, listCatalog } from './gateway-client.js';
+import { extractVisibleText, findLatestOpenAssistantMessage, findLatestUserMessage, onChatMutation } from './dom.js';
+import { sha256Normalized } from './hash.js';
+import { insertIntoChatInput, isChatInputSubmitting, readCurrentChatInputText, sendCurrentChatInput } from './inserter.js';
+import { createEmptyRequestPromptSnapshot, describeRequestHookStatus } from '../injection-runtime/index.js';
 import {
   deriveBatchDeliveryOutcome,
   deliverResult,
@@ -32,9 +31,9 @@ import {
   resolveDeliveredBridgeStatus,
   shouldKeepRecoveredDeliveryRetryWindow,
   type ReadyDeliveryStatus
-} from '../../../userscript/src/result-delivery.js';
-import { canAutoRunForRequest, recordAutoRunForRequest, syncAutoRoundRequest } from '../../../userscript/src/round-guard.js';
-import { installPageRequestHook, syncRequestPrompt, type RequestHookStatus } from '../../../userscript/src/request-hook.js';
+} from '../result-delivery/index.js';
+import { canAutoRunForRequest, recordAutoRunForRequest, syncAutoRoundRequest } from '../turn-runtime/index.js';
+import { installPageRequestHook, syncRequestPrompt, type RequestHookStatus } from './request-hook.js';
 import {
   clearPendingSelectionRuntime,
   consumeFirstPendingRuntime,
@@ -45,7 +44,7 @@ import {
   pollLatestAssistantTurnRuntime,
   resolveCurrentRequestIdentity
 } from '../turn-runtime/index.js';
-import { configureUiMountTarget, renderPanel, setUiHandlers } from '../../../userscript/src/ui.js';
+import { configureUiMountTarget, renderPanel, setUiHandlers } from './ui.js';
 import {
   addLogEntry,
   clearRequestPromptObserver,
@@ -69,7 +68,7 @@ import {
   toggleAutoSend,
   toggleContinueBatchOnError,
   togglePanelCollapsed
-} from '../../../userscript/src/state.js';
+} from './state.js';
 
 export interface StartExtensionRuntimeOptions {
   installRequestHook?: boolean;

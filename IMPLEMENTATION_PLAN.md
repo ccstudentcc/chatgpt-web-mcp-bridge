@@ -1068,7 +1068,7 @@ Definition of done:
 
 ## Stage 21: Execute Module Stage - Remove All Compatibility Layers
 
-Status: planned
+Status: code-complete, live validation pending
 
 Goal:
 
@@ -1129,13 +1129,24 @@ Definition of done:
 - the repo directory structure matches the v0.9 target architecture
 - root verification passes and live ChatGPT Web validation confirms the extension-only path
 
+Code-side completion reached on April 28, 2026:
+
+- `apps/extension/src/main/extension-runtime.ts` and the migrated `src/main/*` helpers no longer import runtime modules from `apps/userscript/src/*`
+- key extension runtime tests (`batch`, `gateway-client`, `dom`, `inserter`, `parser`, `request-hook`, `state`, `ui`) now live under `apps/extension/src/main/*`
+- gateway owner imports now point directly to `api/`, `execution-kernel/`, `tool-registry/`, `tool-policy/`, `builtin-tools/`, `shell-runtime/`, and `main/`
+- `apps/gateway/src/routes/`, `tools/`, `security/`, `shell/`, and `utils/` have been deleted
+- `apps/userscript/` now contains only `README.md` plus `legacy/` archive material and is no longer a workspace package
+- root `package.json` and `pnpm-workspace.yaml` no longer reference the userscript workspace app
+- `pnpm --filter @cwmb/extension lint`, `test`, `build`, `pnpm --filter @cwmb/gateway lint`, `test`, `build`, and root `pnpm lint`, `pnpm test`, `pnpm build` all succeeded after the cleanup
+- real ChatGPT Web validation for the extension-only runtime path is still required before this stage can be marked complete
+
 ## Risks
 
-- The codebase now carries a dual browser-runtime shape: the extension-first mainline path is landed in code, while the userscript remains a required fallback until Stage 21 removes it. Stage 19 is now dialogue-closed, but repo-local real-page evidence is still stronger for the userscript path than for the extension path.
+- The userscript fallback has now been removed from the live workspace path, so any missed migration detail will surface only on the extension-only runtime path. Real-page validation remains the only trustworthy close-out signal for that browser path.
 - Hidden request-layer injection, invalid-turn enforcement, result delivery, and operator recovery are still real-page behaviors; browser-only regressions cannot be dismissed by passing unit tests alone.
 - Stage 20 now creates `gateway/api/`, `gateway/proposal-engine/`, `gateway/external-mcp/`, `gateway/result-cache/`, and `gateway/main/`, and the live browser-to-gateway path has now been manually validated before close-out.
 - Follow-on work can still sprawl if a new slice is opened without first declaring its owner boundary and supporting seams in the task-control docs.
 - The repo still lacks browser-driven end-to-end automation, so major browser-runtime transitions will continue to depend on real ChatGPT Web manual verification.
 - Stage 18 (package-domain-extraction) is a high-risk atomic operation: splitting `protocol/` into 4 domain packages + renaming `shared/` + creating `test-fixtures` + updating every consumer import must succeed in one stage or the build breaks. The only valid intermediate state is "all imports updated and build passing."
-- Stage 19 (extension-structure) introduces a new browser-runtime entrypoint (Chrome Extension) while the existing userscript runtime must remain functional. Dual-runtime validation adds overhead until Stage 21 removes the userscript.
+- Stage 19 (extension-structure) introduced a new browser-runtime entrypoint (Chrome Extension), and Stage 21 removed the userscript fallback from the live workspace path. Any remaining runtime regression now concentrates on the extension-only path rather than being masked by a second shell.
 - Stage 21 (remove-compat-layers) is the highest-risk deletion stage: if any compat file still carries unique runtime logic, deleting it will cause live-path regressions. Exhaustive pre-deletion verification is required.

@@ -8,7 +8,7 @@ Turn the proven v0.1 userscript + gateway baseline into the real v0.9 product ta
 
 ## Current Slice
 
-Phase 1 shared-contract freeze is complete. Stages 7—20 (the Final Core extraction sequence plus `package-domain-extraction`, `extension-structure`, and `gateway-structure`) are now complete. Stage 21 `remove-compat-layers` remains the planned follow-on stage.
+Phase 1 shared-contract freeze is complete. Stages 7—21 (the Final Core extraction sequence plus `package-domain-extraction`, `extension-structure`, `gateway-structure`, and `remove-compat-layers`) are now complete.
 
 Phase 2 exists so the repo can finish `apps/extension` and `apps/gateway` one module at a time, keeping each stage narrow enough to improve ownership, timing, logic, stability, and test coverage without reopening multiple modules at once.
 
@@ -86,9 +86,9 @@ Exit gate for any Phase 2 stage:
 
 ## Current Stage State
 
-Active module stage: none. The most recently closed stage is `gateway-structure` (Stage 20) on April 28, 2026, after the user confirmed browser-to-gateway validation for the new `api/` path. Stage 21 remains the planned follow-on stage.
+Active module stage: none. The most recently closed stage is `remove-compat-layers` (Stage 21) on April 28, 2026, after compat imports were removed, `apps/userscript/` was archived, and root verification returned green.
 
-Stages 20-21 remain defined in `IMPLEMENTATION_PLAN.md` with full owner surfaces, constraints, validation, and definitions of done. Stage 20 is now closed in the root task-control docs; do not activate Stage 21 until `TASK_STATUS.md` declares the next slice.
+Stages 20-21 remain defined in `IMPLEMENTATION_PLAN.md` for auditability, and Stage 21 is now closed in the root task-control docs. Do not infer any follow-on slice until `TASK_STATUS.md` explicitly activates it.
 
 Most recently completed module-stage file surfaces:
 
@@ -99,9 +99,9 @@ Most recently completed module-stage file surfaces:
 - `packages/tool-contracts/*`
 - `packages/test-fixtures/*`
 - `apps/gateway/package.json`
-- `apps/userscript/package.json`
-- `apps/userscript/tsconfig.json`
-- `apps/userscript/scripts/build.ts`
+- `apps/extension/src/main/*`
+- `apps/gateway/src/main/*`
+- `apps/userscript/README.md`
 - the root task-control docs
 
 Most recently completed stage intent:
@@ -137,7 +137,7 @@ Most recently completed stage intent:
   - Split `packages/protocol/` into domain packages (`turn-model`, `tool-contracts`, `policy-model`, `result-model`), rename `shared/` to `shared-utils/`, create `test-fixtures/`, and delete `protocol/` (Stage 18).
   - Complete the Chrome Extension shell with manifest v3, background service worker, content script, and `main/` composition root, making `apps/extension/` the primary browser runtime (Stage 19).
   - Complete the gateway module layout: `api/` (replacing `routes/`), `proposal-engine/` (typed interface + stub), `external-mcp/` (typed interface + stub), `result-cache/` (typed interface + in-memory impl), and `main/` composition root (Stage 20).
-  - Delete all compat re-exports (`routes/`, `tools/`, `security/`, `shell/`, `utils/`) and archive `apps/userscript/` as a legacy reference, leaving the target structure as the only structure (Stage 21).
+  - Delete all compat re-exports (`routes/`, `tools/`, `security/`, `shell/`, `utils/`) and archive `apps/userscript/` as a legacy reference, leaving the target structure as the only structure (Stage 21, complete).
 
 ## Out Of Scope
 

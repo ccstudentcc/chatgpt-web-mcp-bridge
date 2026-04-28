@@ -1,7 +1,7 @@
 import { loadConfig } from './config.js';
 import { createLogger } from './logger.js';
 import { createGatewayServer } from './main/index.js';
-import { readOrCreateToken, tokenPath } from './security/token.js';
+import { readOrCreateToken, tokenPath } from './main/token-store.js';
 
 async function main() {
   const config = await loadConfig();

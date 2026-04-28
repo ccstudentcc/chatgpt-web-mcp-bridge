@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { minimatch } from 'minimatch';
 import { resolveWorkspacePath, type PathPolicy } from '../tool-policy/path-policy.js';
-import { ignoredDirectories } from '../security/sensitive-paths.js';
+import { ignoredDirectories } from '../tool-policy/path-policy.js';
 
 export interface WorkspaceFileEntry {
   absolutePath: string;

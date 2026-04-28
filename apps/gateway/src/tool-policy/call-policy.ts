@@ -2,8 +2,8 @@ import { createToolDecision, type ToolDecision } from '@cwmb/policy-model';
 import type { ExecuteRequest } from '@cwmb/tool-contracts';
 import type { RiskLevel } from '@cwmb/shared-utils';
 import { AppError } from '@cwmb/shared-utils';
-import type { LocalTool } from '../tools/index.js';
-import { failure } from '../utils/errors.js';
+import type { LocalTool } from '../tool-registry/local-tool.js';
+import { failure } from '../execution-kernel/failure.js';
 
 export interface AllowedToolCall {
   kind: 'allow';

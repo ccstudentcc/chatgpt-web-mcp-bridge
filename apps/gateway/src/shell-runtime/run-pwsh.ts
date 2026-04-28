@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { z } from 'zod';
 import { AppError } from '@cwmb/shared-utils';
 import type { GatewayConfig } from '../config.js';
-import type { LocalTool } from '../tools/index.js';
+import type { LocalTool } from '../tool-registry/local-tool.js';
 import { resolveWorkspacePath } from '../tool-policy/path-policy.js';
 import {
   DEFAULT_SHELL_TIMEOUT_MS,

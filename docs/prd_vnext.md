@@ -58,7 +58,7 @@ vNext 不把会话管理作为主产品线。
 
 最终浏览器壳是 Chrome Extension。
 
-当前 userscript 只是过渡实现来源和 reference baseline，不应再被视为终态产品形态，也不应被当成 v0.9 必须长期维护的一层 compat 壳。
+当前 userscript 已经降级为归档 reference baseline，保存在 `apps/userscript/legacy/` 供回看，不再是 workspace app，也不是受支持的运行时路径。
 
 ---
 

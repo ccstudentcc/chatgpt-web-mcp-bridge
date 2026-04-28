@@ -21,14 +21,14 @@ Current top-level implementation shape:
 
 - `apps/extension` (runtime modules extracted in Stages 7-10, real extension shell and `main/` composition root now active in Stage 19)
 - `apps/gateway` (execution, registry, policy, builtin, shell, audit, diagnostics modules extracted in Stages 11-17, and the Stage 20 structure slice now landed in code through `api/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, and `main/`)
-- `apps/userscript` (compat carrier, to be archived in Stage 21)
+- `apps/userscript` (legacy archive only after Stage 21)
 - `packages/protocol` (deleted in Stage 18 after the domain-package split)
 - `packages/shared` (renamed to `packages/shared-utils` in Stage 18)
 
 Important current facts:
 
 - Core runtime logic has been extracted from userscript into `apps/extension/src/*` modules (Stages 7-10), and Stage 19 now moves the primary runtime orchestration loop into `apps/extension/src/main/*` while userscript remains a fallback bootstrap.
-- Gateway is now fully modularized behind owner boundaries: Stages 11-17 extracted execution, registry, policy, builtin, shell, audit, and diagnostics; Stage 20 now lands `api/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, and `main/` in code; `routes/`, `tools/`, `security/`, `shell/`, and `utils/` still exist as compat seams awaiting Stage 21 deletion
+- Gateway is now fully modularized behind owner boundaries: Stages 11-17 extracted execution, registry, policy, builtin, shell, audit, and diagnostics; Stage 20 lands `api/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, and `main/`; Stage 21 then deletes `routes/`, `tools/`, `security/`, `shell/`, and `utils/`
 - Shared protocol and model layers now live in the focused domain packages introduced by Stage 18 instead of the former monolithic `packages/protocol/`.
 - The strongest currently verified behavior knowledge comes from real userscript runtime behavior, not from a future gateway abstraction
 
@@ -38,7 +38,7 @@ The current implementation layout is not the target ownership map.
 
 In particular:
 
-- `apps/userscript` is the current implementation container, not the final product shell; it will be archived in Stage 21
+- `apps/userscript` is now an archived implementation snapshot, not the final product shell
 - `apps/gateway/src/server.ts` and `index.ts` are now compat entrypoints, not proof that the flat gateway shape is desirable; `apps/gateway/src/main/*` is the active composition root and the flat entrypoints remain only until Stage 21 deletes them
 - the former `packages/protocol/` catch-all is already gone; use `turn-model`, `tool-contracts`, `policy-model`, and `result-model`
 - the former `packages/shared/` bucket is already gone; use `packages/shared-utils`
@@ -100,20 +100,11 @@ Current live contracts such as `/tools` must remain canonical until product trut
 
 ### 4.1 Userscript Runtime Mapping
 
-Current live entrypoints and remaining logic surfaces:
+Current state:
 
-- `apps/userscript/src/catalog*.ts`
-- `apps/userscript/src/request-hook.ts`
-- `apps/userscript/src/parser.ts` as a partial compat wrapper around seeded extension turn-runtime owners
-- `apps/userscript/src/detection-state.ts` as a compat consumer of seeded extension turn-runtime state helpers
-- `apps/userscript/src/round-guard.ts` as a compat consumer of seeded extension turn-runtime guard helpers
-- `apps/userscript/src/turn-runtime.ts` as a compat re-export entrypoint for seeded extension turn-runtime helpers
-- `apps/userscript/src/inserter.ts`
-- `apps/userscript/src/dom.ts`
-- `apps/userscript/src/chatgpt-runtime-facts.ts` as a compat re-export of the seeded v0.9 adapter owner
-- `apps/userscript/src/selectors.ts` as a legacy compat entrypoint only
-- `apps/userscript/src/ui.ts`
-- `apps/userscript/src/state.ts`
+- `apps/userscript/` is no longer a live workspace app or supported runtime path
+- its former runtime sources now survive only under `apps/userscript/legacy/` as a reference snapshot
+- the live browser-runtime shell now routes through `apps/extension/src/main/*` plus `apps/extension/src/extension-shell/*`
 
 Already-seeded target owners that should win when the same semantics are touched:
 
@@ -129,7 +120,7 @@ Target ownership mapping:
 - DOM facts and selectors -> `apps/extension/src/chatgpt-adapter/`
 - insertion and send handling -> `apps/extension/src/result-delivery/`
 - panel rendering -> `apps/extension/src/operator-panel/`
-- the current userscript shell -> reference baseline only; extract behavior into `apps/extension` / `apps/gateway` directly rather than planning a durable shell migration target
+- the archived userscript shell -> reference baseline only; extract behavior into `apps/extension` / `apps/gateway` directly rather than planning a durable shell migration target
 
 ### 4.2 Gateway Mapping
 
@@ -191,7 +182,7 @@ Target ownership mapping:
 | `result-cache` | complete Stage 20 implementation | typed interface + in-memory impl (Stage 20) | not yet a shipped capability owner beyond the stub cache | low |
 | `gateway-main` | complete Stage 20 implementation | composition root (Stage 20) | compat entrypoints still present until Stage 21 | medium |
 | `domain-packages` | split and active after Stage 18 | 4 domain packages + shared-utils + test-fixtures | importer churn across apps still needs validation | medium |
-| `compat-layers` | routes/tools/security/shell/utils still exist | deleted (Stage 21) | indirection and hidden ownership | high |
+| `compat-layers` | deleted in Stage 21 | stay deleted | ownership drift if recreated | medium |
 
 ## 6. Ordered Migration Phases
 
@@ -256,7 +247,7 @@ Full Phase 2 module order (Stages 7-21, see root `IMPLEMENTATION_PLAN.md` and `S
 12. `package-domain-extraction` (complete) — split `protocol/` into domain packages, rename `shared/`, create `test-fixtures/`
 13. `extension-structure` (complete) — full Chrome Extension shell + `main/`, extension becomes primary browser runtime
 14. `gateway-structure` (complete) — `api/`, `proposal-engine/`, `external-mcp/`, `result-cache/`, `main/`
-15. `remove-compat-layers` (planned) — delete all compat re-exports, archive `apps/userscript/`
+15. `remove-compat-layers` (complete) — deleted all compat re-exports and archived `apps/userscript/`
 
 Goals:
 

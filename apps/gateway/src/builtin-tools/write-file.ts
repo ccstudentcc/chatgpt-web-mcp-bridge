@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
 import { AppError } from '@cwmb/shared-utils';
-import type { LocalTool } from '../tools/index.js';
+import type { LocalTool } from '../tool-registry/local-tool.js';
 import { assertWriteEnabled } from '../tool-policy/index.js';
 import { resolveBuiltinToolPath } from './workspace-policy.js';
 

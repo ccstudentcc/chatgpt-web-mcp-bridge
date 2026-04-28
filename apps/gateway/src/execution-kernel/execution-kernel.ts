@@ -26,8 +26,9 @@ import { AppError, truncateText, type RiskLevel } from '@cwmb/shared-utils';
 import type { GatewayConfig } from '../config.js';
 import type { Logger } from '../logger.js';
 import { assessToolCall, createFailureDecision, createSuccessDecision } from '../tool-policy/index.js';
-import { createToolRegistry, type LocalTool } from '../tools/index.js';
-import { failure } from '../utils/errors.js';
+import { createGatewayToolRegistry } from '../tool-registry/index.js';
+import type { LocalTool } from '../tool-registry/local-tool.js';
+import { failure } from './failure.js';
 
 interface CreateExecutionKernelOptions {
   config: GatewayConfig;
@@ -82,7 +83,7 @@ export interface ExecutionKernel {
 
 export function createExecutionKernel(options: CreateExecutionKernelOptions): ExecutionKernel {
   const now = options.now ?? Date.now;
-  const registry = options.registry ?? createToolRegistry(options.config);
+  const registry = options.registry ?? createGatewayToolRegistry(options.config).tools;
   const execute = async (request: ExecuteRequest, executeOptions: ExecuteCallsOptions = {}): Promise<ExecutionKernelResult> => {
     const started = now();
     const executionId = `${request.requestId}.${started}`;

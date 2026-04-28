@@ -2,7 +2,7 @@ import type { ToolCallLiveResponse, ToolCallRequest } from '@cwmb/tool-contracts
 import { ToolCallRequestSchema } from '@cwmb/tool-contracts';
 import { AppError } from '@cwmb/shared-utils';
 import type { FastifyInstance } from 'fastify';
-import { assertAuthorized } from '../security/token.js';
+import { assertAuthorized } from './auth.js';
 import type { GatewayRouteAuthContext } from './tools.js';
 
 export interface GatewayCallToolOwner {

@@ -1,7 +1,7 @@
 import type { CatalogContract, CatalogToolDescriptor } from '@cwmb/tool-contracts';
 import type { ExecutionProfile, PolicyAction, ToolSource } from '@cwmb/shared-utils';
 import type { GatewayConfig } from '../config.js';
-import type { LocalTool } from '../tools/index.js';
+import type { LocalTool } from './local-tool.js';
 
 export const LIVE_CATALOG_VERSION = 'phase1.shared-contract-freeze.v1';
 

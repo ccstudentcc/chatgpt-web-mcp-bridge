@@ -7,9 +7,9 @@ import { createGatewayHealthSnapshot } from '../diagnostics/index.js';
 import { createExecutionKernel, type ExecutionKernel } from '../execution-kernel/index.js';
 import { createNoopExternalMcpRegistry, type ExternalMcpRegistry } from '../external-mcp/index.js';
 import type { Logger } from '../logger.js';
+import { assertAllowedOrigin } from './origin-guard.js';
 import { createNoopProposalEngine, type ProposalEngine } from '../proposal-engine/index.js';
 import { createInMemoryResultCache, type InMemoryResultCacheOptions, type ResultCache } from '../result-cache/index.js';
-import { assertAllowedOrigin } from '../security/origin.js';
 import { createGatewayToolRegistry, type GatewayToolRegistry } from '../tool-registry/index.js';
 
 export interface CreateGatewayRuntimeOptions {

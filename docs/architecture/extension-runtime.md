@@ -35,12 +35,12 @@ apps/extension/src/
 └─ main/
 ```
 
-Current Stage 19 progress:
+Current Stage 19-21 runtime state:
 
-- `apps/extension/src/main/extension-runtime.ts` now owns the shared browser-runtime composition root used by both the real extension shell and the fallback userscript bootstrap.
+- `apps/extension/src/main/extension-runtime.ts` now owns the shared browser-runtime composition root used by the real extension shell and the extension-owned runtime helpers under `src/main/*`.
 - `apps/extension/src/extension-shell/*` now owns the Chrome-extension host layer: manifest-driven entrypoints, background lifecycle ping, gateway messaging bridge, main-world request hook, content-script bootstrap, and panel mount isolation.
-- `apps/userscript/src/chatgpt-mcp-bridge.user.ts` is now a thin fallback bootstrap into that extension-owned composition root rather than the primary owner of the runtime loop.
-- Local Stage 19 verification is green for `pnpm --filter @cwmb/extension lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build`; unpacked-Chrome and real ChatGPT Web extension-path validation remain the open close-out gate.
+- Stage 21 archives the former userscript bootstrap under `apps/userscript/legacy/`; the active browser runtime path is now extension-only.
+- Local extension and root verification are green for `pnpm --filter @cwmb/extension lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build`; unpacked-Chrome and real ChatGPT Web extension-path validation remain the open Stage 21 close-out gate.
 
 ## 3. Module Boundaries
 

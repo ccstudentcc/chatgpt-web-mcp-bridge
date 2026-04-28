@@ -1,6 +1,6 @@
 import type { CatalogContract } from '@cwmb/tool-contracts';
 import type { FastifyInstance } from 'fastify';
-import { assertAuthorized } from '../security/token.js';
+import { assertAuthorized } from './auth.js';
 
 export interface GatewayRouteAuthContext {
   expectedToken?: string;

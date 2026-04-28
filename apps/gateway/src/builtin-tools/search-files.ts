@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { LocalTool } from '../tools/index.js';
+import type { LocalTool } from '../tool-registry/local-tool.js';
 import { createWorkspacePathPolicy, resolveBuiltinToolPath } from './workspace-policy.js';
 import { hasRg, runRgPathFilter } from './rg-runtime.js';
 import { matchesOptionalGlob, walkWorkspaceFiles } from './workspace-search.js';

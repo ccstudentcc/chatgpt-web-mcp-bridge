@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { AppError } from '@cwmb/shared-utils';
-import type { LocalTool } from '../tools/index.js';
+import type { LocalTool } from '../tool-registry/local-tool.js';
 
 const WriteFileProposalArgsSchema = z.object({
   path: z.string().min(1),

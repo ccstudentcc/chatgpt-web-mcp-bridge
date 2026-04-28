@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { CatalogToolDescriptor } from '@cwmb/tool-contracts';
-import type { LocalTool } from '../tools/index.js';
+import type { LocalTool } from '../tool-registry/local-tool.js';
 import type { MaterializeCatalogOptions } from '../tool-registry/catalog.js';
 
 const McpListArgsSchema = z.object({

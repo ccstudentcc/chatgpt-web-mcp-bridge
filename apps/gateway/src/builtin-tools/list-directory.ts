@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
-import type { LocalTool } from '../tools/index.js';
-import { ignoredDirectories } from '../security/sensitive-paths.js';
+import type { LocalTool } from '../tool-registry/local-tool.js';
+import { ignoredDirectories } from '../tool-policy/path-policy.js';
 import { createWorkspacePathPolicy, resolveBuiltinToolPath } from './workspace-policy.js';
 
 const ListDirectoryArgsSchema = z.object({

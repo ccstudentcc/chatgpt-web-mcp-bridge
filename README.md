@@ -2,7 +2,7 @@
 
 A safe local tool bridge that lets ChatGPT Web request read-only project context through MCP-style JSON blocks.
 
-> This is not an official ChatGPT MCP client. It is a local bridge for Windows + Chrome users who want a conservative, auditable workflow.
+> This is not an official ChatGPT MCP client. It is a local bridge for ChatGPT Web users who want a conservative, auditable workflow.
 
 ## Documentation map
 
@@ -38,7 +38,6 @@ Do not point `workspaceRoot` at your whole user directory or disk root.
 - Node.js 20+
 - pnpm 9+
 - Chrome Extension developer mode for the primary Stage 19 runtime path
-- Tampermonkey for the fallback userscript path until Stage 21
 - `rg` recommended for faster search
 
 ## Install
@@ -100,15 +99,7 @@ Expected Stage 19 smoke signals:
 - visiting ChatGPT Web mounts the bridge panel inside the content-script shadow host,
 - request-hook diagnostics continue to report injection timing in the panel log.
 
-## Install userscript fallback
-
-Build userscript:
-
-```pwsh
-pnpm dev:userscript
-```
-
-Install `apps/userscript/dist/chatgpt-mcp-bridge.user.js` in Tampermonkey.
+The former userscript implementation is archived under [`apps/userscript/README.md`](apps/userscript/README.md) as a Stage 20 legacy reference. It is no longer a workspace app or a supported runtime path.
 
 Open ChatGPT Web. In the bridge panel:
 
@@ -140,11 +131,11 @@ Expected flow:
 
 ```text
 ChatGPT outputs mcp block
-→ extension or userscript detects it
-→ extension or userscript auto-runs the enabled tool
+→ extension detects it
+→ extension auto-runs the enabled tool
 → gateway reads README.md under workspaceRoot
-→ extension or userscript inserts `tool_result` into the input box
-→ extension or userscript auto-sends it back to ChatGPT
+→ extension inserts `tool_result` into the input box
+→ extension auto-sends it back to ChatGPT
 ```
 
 If `Auto insert` is off, the panel keeps the result in `Insert result` / `Copy result` mode until you choose to insert it manually.

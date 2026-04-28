@@ -6,17 +6,17 @@
 - `docs/prd.md` is now the closed v0.1 reference baseline: a useful behavior reference for the proven userscript + gateway runtime, but no longer the active product target.
 - Root `SPEC.md`, `IMPLEMENTATION_PLAN.md`, and `TASK_STATUS.md` now track the active v0.9 mainline.
 - `docs/v0.9-entrypoint.md` is the navigation entrypoint for that mainline; `docs/prd_vnext.md` owns the active product-boundary truth; `docs/architecture/v0.9-target-architecture.md` owns the target module-boundary truth.
-- The current codebase still implements the proven userscript + gateway baseline, so v0.9 work must preserve or explicitly migrate the current live contracts rather than pretending they no longer matter.
-- Userscript is now treated as a reference baseline only. It is not the desired v0.9 shell, and it is not a required long-term compat layer in the target architecture.
+- The current codebase now runs through `apps/extension` plus `apps/gateway` only; the proven userscript baseline has been archived as a reference, not kept as a live workspace app.
+- `apps/userscript/` is now a legacy archive with a README and `legacy/` snapshot content only. It is not the desired v0.9 shell, and it is not a supported runtime path.
 - Phase 1 shared-contract freeze is now complete.
 - Phase 2 is now open as a module-by-module Final Core refactor program for completing `apps/extension` and `apps/gateway`.
 - Phase 2 execution rule is now explicit: one stage equals one module, and only one module stage may be active at a time.
 - Phase 2 may still use larger rewrites when they improve efficiency, timing, logic clarity, stability, or test coverage, but only inside the currently active module stage.
-- Phase 2 has now advanced through the full declared Stage 7-20 extraction sequence. `package-domain-extraction`, `extension-structure`, and `gateway-structure` are closed, and Stage 21 `remove-compat-layers` remains the planned follow-on stage.
-- Stage 19 code-side extraction is now landed: `apps/extension/` has a real package boundary, manifest v3 shell, background service worker, content-script bootstrap, main-world request hook entrypoint, and `apps/extension/src/main/extension-runtime.ts` composition root, while `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now acts as a thin fallback bootstrap into that owner path.
+- Phase 2 code has now advanced through the full declared Stage 7-21 extraction sequence. `package-domain-extraction`, `extension-structure`, and `gateway-structure` are closed; `remove-compat-layers` is code-complete but still waiting on real ChatGPT Web validation before formal close.
+- Stage 21 code-side cleanup is now landed. On April 28, 2026, compat imports were removed, gateway compat directories were deleted, extension runtime tests were migrated under `apps/extension/src/main/*`, and `apps/userscript/` was archived as a legacy reference outside the pnpm workspace.
 - Stage 19 is now closed. On April 28, 2026, the user confirmed that the remaining extension-path issue had been fixed in the latest commit and approved ending `extension-structure` so Stage 20 could begin.
 - The Stage 19 extension path now also carries an explicit gateway trust bridge: extension-background proxy requests assert the underlying ChatGPT page origin, and the gateway accepts extension-origin calls only when that assertion matches the allowed ChatGPT Web origins. This fixes extension-path `ORIGIN_NOT_ALLOWED` failures without widening the localhost trust boundary to arbitrary webpages.
-- Stage 20 code-side extraction is now landed: `apps/gateway/src/api/*` owns HTTP adaptation, `proposal-engine/*`, `external-mcp/*`, and `result-cache/*` now exist as direct Stage 20 owner directories, `apps/gateway/src/main/*` is the explicit gateway composition root, and `routes/*`, `server.ts`, plus `index.ts` now act as compat shells over those owners.
+- Stage 20 code-side extraction is now landed: `apps/gateway/src/api/*` owns HTTP adaptation, `proposal-engine/*`, `external-mcp/*`, and `result-cache/*` now exist as direct Stage 20 owner directories, `apps/gateway/src/main/*` is the explicit gateway composition root, and the former `routes/*` / `server.ts` compat shells were removed by Stage 21 after the owner split had already landed.
 - Stage 20 is now closed. On April 28, 2026, the user confirmed manual browser-to-gateway validation for `/health`, `/tools`, and `/call-tool` through the new `api/` adapters, so the structure slice can end without inferring Stage 21 automatically.
 - Stage 3 slice-definition work is complete; Stage 4 compat-preserving execution is complete on the same Phase 1 boundary.
 - Stage 5 execution-model definition is now complete, and the Phase 2 stage-definition pack is now explicit enough for execution: every declared module stage now has owner surfaces, supporting surfaces, optimization targets, validation expectations, and a definition of done in `IMPLEMENTATION_PLAN.md`.
@@ -24,14 +24,14 @@
 - The current dialogue-level acceptance summary for April 27, 2026 reports the bridge chain, batch behavior, workspace read/search/grep tools, security boundaries, protocol alignment, core gateway/protocol/userscript tracing, and real write/UI end-to-end usage as currently usable with no remaining blocker called out for the just-closed Stage 7 boundary.
 - Draft v0.9 docs and draft contract shapes are reference truth only. They are not separate compatibility targets; compatibility work in the current slice applies to the proven live runtime floor and the still-live routes/behaviors it depends on.
 - ChatGPT Web DOM/request-shape/selectors evidence now has one intended home: `docs/operations/chatgpt-web-runtime-evidence.md`.
-- ChatGPT Web page-fact code truth now targets one v0.9 owner: `apps/extension/src/chatgpt-adapter/`; current userscript code should only consume or compat-re-export that truth.
-- Injection-runtime helper truth now has a wider v0.9 target owner at `apps/extension/src/injection-runtime/`; current userscript catalog, cache, request-hook, and state code should consume that logic through compat wiring or runtime-shell orchestration rather than duplicate local owner semantics.
+- ChatGPT Web page-fact code truth now targets one v0.9 owner: `apps/extension/src/chatgpt-adapter/`; the archived userscript snapshot is reference-only and must not become a second source of truth.
+- Injection-runtime helper truth now has a wider v0.9 target owner at `apps/extension/src/injection-runtime/`; extension-only browser-runtime code should consume that logic directly instead of recreating userscript-shaped local owner semantics.
 - Shared model-facing tool-guidance text for the live catalog prompt now also has one extension-owned owner path at `apps/extension/src/injection-runtime/catalog.ts`; visible/manual catalog prompt and hidden request injection prompt should wrap that same guidance instead of maintaining separate copies.
-- Browser-runtime snapshot helper truth now also has a narrow v0.9 target owner at `apps/extension/src/operator-panel/`; current userscript state code should consume it through compat wiring rather than remain the long-term owner.
-- Turn-runtime helper truth now also has a narrow v0.9 target owner at `apps/extension/src/turn-runtime/`; current userscript invalid-turn state, pending-selection identity, and auto-round guard code should consume it through compat wiring rather than remain the long-term owner.
+- Browser-runtime snapshot helper truth now also has a narrow v0.9 target owner at `apps/extension/src/operator-panel/`; the archived userscript state snapshot is reference-only and must not become a competing owner.
+- Turn-runtime helper truth now also has a narrow v0.9 target owner at `apps/extension/src/turn-runtime/`; the archived userscript invalid-turn and guard code is historical evidence only, not a live owner path.
 - Phase 1 implementation has started in code, not only in docs: the shared contract surfaces for `CatalogContract`, `TurnContext`, `ExecuteRequest`, `ExecuteResponse`, `ToolDecision`, and `ResultEnvelope` now live in the focused domain packages with matching schemas/tests.
 - Those shared contract surfaces now also include `GatewayHealthContract` and browser-local `GatewayRuntimeSnapshot`, so gateway reachability/config truth can live beside catalog truth without userscript-only field drift.
-- `/tools` now materializes Phase 1 catalog metadata (`catalogVersion`, `generatedAt`, `workspaceRoot`) while preserving the existing `tools` array that current userscript consumers already expect.
+- `/tools` now materializes Phase 1 catalog metadata (`catalogVersion`, `generatedAt`, `workspaceRoot`) while preserving the existing `tools` array that the browser runtime still expects.
 - `/health` is now validated through the shared contract before userscript applies automation defaults; the earlier local `shell: string` typing drift is gone, and shell diagnostics now stay structured end-to-end.
 - `/call-tool` now attaches compatibility execution metadata under a nested `execute` object, so current userscript code keeps the legacy top-level `result` while Phase 1 consumers can still read `requestId`, `executionId`, `decisions`, and structured result-envelope metadata.
 - Shared compat parsing no longer accepts the earlier flat top-level `requestId` / `executionId` / `decisions` / `result` execute shape; that transition-only form was not part of the live runtime floor and is now intentionally inert.
@@ -181,7 +181,7 @@
 ## Active Stop Line
 
 - The v0.1 stop line is closed as of April 27, 2026.
-- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, 10 `operator-panel`, 11 `execution-kernel`, 12 `tool-registry`, 13 `tool-policy`, 14 `builtin-tools`, 15 `shell-runtime`, 16 `audit-log`, 17 `diagnostics`, 18 `package-domain-extraction`, 19 `extension-structure`, and 20 `gateway-structure` are complete. There is currently no active code-side extraction gate.
+- The current program gate is no longer v0.1 acceptance, and Phase 1 shared-contract freeze is no longer open. Stages 7 `turn-runtime`, 8 `result-delivery`, 9 `injection-runtime`, 10 `operator-panel`, 11 `execution-kernel`, 12 `tool-registry`, 13 `tool-policy`, 14 `builtin-tools`, 15 `shell-runtime`, 16 `audit-log`, 17 `diagnostics`, 18 `package-domain-extraction`, 19 `extension-structure`, and 20 `gateway-structure` are complete. Stage 21 `remove-compat-layers` is the current close-out gate until real ChatGPT Web extension-only validation passes.
 - Any Phase 2 stage completion claim now requires direct owner-level tests, adjacent compat-path regression checks, root `pnpm lint` / `test` / `build`, and real ChatGPT Web validation whenever browser runtime timing or DOM behavior changed.
 - Stage 20 close-out now includes direct owner tests plus manual browser-to-gateway validation for `/health`, `/tools`, and `/call-tool` through the new `api/` adapters.
 - Until explicitly migrated, the active compatibility floor includes:
@@ -197,8 +197,8 @@
 
 - Active program: Phase 2 module-by-module Final Core refactor
 - Battleground: Final Core
-- Primary axis: no active module stage. Stage 20 `gateway-structure` is closed, and Stage 21 remains the planned follow-on slice until explicitly activated.
-- Active module stage: none. Most recently completed stage: `gateway-structure`
+- Primary axis: Stage 21 `remove-compat-layers` close-out
+- Active module stage: `remove-compat-layers` (code-side complete, live validation pending). Most recently completed fully closed stage: `gateway-structure`
 - Phase 1 completed implementation surfaces:
   - `packages/protocol/*`
   - narrow gateway route adapters
@@ -224,7 +224,7 @@
   - `package-domain-extraction` (Stage 18, complete)
   - `extension-structure` (Stage 19, complete)
   - `gateway-structure` (Stage 20, complete)
-  - `remove-compat-layers` (Stage 21, planned)
+  - `remove-compat-layers` (Stage 21, complete)
 - Phase 2 stage-completion rubric now requires:
   - one explicit long-term owner for the active module
   - supporting seams kept translation-only
@@ -234,7 +234,7 @@
 - Most recently completed module-stage implementation surfaces:
   - `apps/extension/src/extension-shell/*`
   - `apps/extension/src/main/*`
-  - `apps/userscript/src/chatgpt-mcp-bridge.user.ts`
+  - `apps/userscript/README.md`
   - `apps/extension/package.json`
   - `docs/architecture/extension-runtime.md`
   - root task-control docs
@@ -260,22 +260,16 @@
   - `apps/extension/src/operator-panel/capabilities.ts` is now the long-term owner for pending-tool capability assessment and manual-versus-auto action gating on the current operator panel
   - `apps/extension/src/operator-panel/panel-state.ts` is now the long-term owner for operator-facing runtime stat assembly, injection diagnostics summary copy, visible action availability, and collapsed-toggle availability on the current operator panel
   - `apps/extension/src/result-delivery/startup-recovery.ts` is now the long-term owner for startup undelivered-result restore probing plus delivery-specific startup composer normalization
-  - `apps/gateway/src/shell-runtime/*` is now the long-term owner for shell detection, configured-shell normalization, guarded `run_pwsh` preparation/execution, timeout handling, and captured stdout/stderr/combined-output shaping, while `apps/gateway/src/shell/detect-shell.ts` and `apps/gateway/src/tools/run-pwsh.ts` remain translation-only compat seams
+  - `apps/gateway/src/shell-runtime/*` is now the long-term owner for shell detection, configured-shell normalization, guarded `run_pwsh` preparation/execution, timeout handling, and captured stdout/stderr/combined-output shaping; Stage 21 deleted the former `shell/*` and shell-related compat adapters
   - `apps/gateway/src/audit-log/*` is now the long-term owner for structured execution, policy, and lifecycle audit truth, while `apps/gateway/src/logger.ts` remains a compat re-export seam and `apps/gateway/src/execution-kernel/*` now only emits owner-defined audit events
-  - `apps/gateway/src/diagnostics/*` is now the long-term owner for health snapshot creation, config-derived runtime facts, and redacted diagnostics bundle assembly, while `apps/gateway/src/routes/health.ts` remains a thin compat adapter and the live `/health` contract stays unchanged
-  - `apps/gateway/src/api/*` is now the long-term owner for `/health`, `/tools`, and `/call-tool` HTTP adaptation, while `apps/gateway/src/routes/*` remains a translation-only compat layer until Stage 21
-  - `apps/gateway/src/main/*` is now the long-term owner for gateway dependency wiring, while `apps/gateway/src/server.ts` and `apps/gateway/src/index.ts` now delegate to that composition root
+  - `apps/gateway/src/diagnostics/*` is now the long-term owner for health snapshot creation, config-derived runtime facts, and redacted diagnostics bundle assembly; `apps/gateway/src/api/health.ts` is the live adapter and the public `/health` contract stays unchanged
+  - `apps/gateway/src/api/*` is now the long-term owner for `/health`, `/tools`, and `/call-tool` HTTP adaptation; the old `routes/*` compat layer was deleted in Stage 21
+  - `apps/gateway/src/main/*` is now the long-term owner for gateway dependency wiring; `apps/gateway/src/index.ts` delegates to that composition root and `apps/gateway/src/server.ts` was deleted in Stage 21
   - `apps/gateway/src/proposal-engine/*` now defines the typed proposal contract plus Stage 20 no-op stub, without opening the real proposal workflow yet
   - `apps/gateway/src/external-mcp/*` now defines the typed external MCP registry contract plus Stage 20 no-op stub, without opening live endpoint lifecycle work yet
   - `apps/gateway/src/result-cache/*` now defines the typed result-cache contract plus an in-memory TTL implementation, without turning cached results into a second execution-truth path
-  - `apps/userscript/src/parser.ts` remains only as a compat wrapper for hashed `callId` output
-  - `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now also delegates injection prompt construction, bootstrap/live sync copy, and request-hook diagnostics wording while continuing to own runtime orchestration, gateway fetch timing, and panel updates
-  - `apps/userscript/src/state.ts` now acts as the compat holder for structured request-prompt/request-hook observer facts consumed by extension-owned operator-panel helpers
-  - `apps/userscript/src/chatgpt-mcp-bridge.user.ts` now delegates request identity resolution, latest turn-source orchestration, pending-turn classification, live turn analysis, message-identity tracking, pending-selection mutations, scan-state decisions, scan-result runtime effects, result-delivery timing semantics, ready-status fallback, and unsent-result refresh restore instead of owning those pure decision paths locally
-  - `apps/userscript/src/catalog.ts`, `catalog-cache.ts`, `request-injection-state.ts`, and `capabilities.ts` now act only as compat or thin-consumer seams for extension-owned injection-runtime or operator-panel helpers
-  - `apps/userscript/src/request-hook.ts` now acts as the runtime shell for page-hook installation, prompt snapshot transport, and request-match wiring while consuming extension-owned request-payload mutation helpers
-  - `apps/userscript/src/ui.ts` now acts as the DOM/render shell for extension-owned operator-panel view-state and existing result-delivery presentation helpers, while `apps/userscript/src/preview.ts` and the current batch-failure copy path in `apps/userscript/src/chatgpt-mcp-bridge.user.ts` remain compat consumption points
-  - userscript bundling now explicitly resolves the Stage 18 domain-package entrypoints for extension-owned turn-runtime imports
+  - `apps/extension/src/main/*` now owns the extension-only runtime shell that previously remained split across `apps/userscript/src/*`, including DOM helpers, gateway fetch orchestration, request-hook wiring, result insertion, runtime state, and operator-panel rendering
+  - `apps/userscript/` is now an archive only: `README.md` plus `legacy/` reference material, with no live workspace package or supported runtime entrypoint
 - The Stage 7 `turn-runtime` module stage is now closed. Userscript files touched there remain reference or temporary bridge surfaces, not target-state ownership destinations by themselves.
 - The Stage 8 `result-delivery` module stage is now closed. Real-page validation passed for insert-only, insert-plus-send, insertion-failure recovery, `Send=off -> Send=on -> refresh`, truncated residue refresh recovery, and repeated identical conversation-request submissions. Delivery-specific pure logic now routes through `apps/extension/src/result-delivery/*`, while userscript files remain compat/runtime shells only.
 - The Stage 9 `injection-runtime` module stage is now closed. Real-page validation passed for first-message hidden injection, visible fallback behavior, injection diagnostics timing, and cold-start recovery after cache deletion; in the warm-bootstrap path the operator did not observe `Catalog src = Cached bootstrap` before live sync, but the hidden path still worked and the cache was promptly recreated, so the stage can close without keeping a second local catalog truth.
@@ -300,15 +294,16 @@
   - browser-to-gateway `/health` through `apps/gateway/src/api/*`
   - browser-to-gateway `/tools` through `apps/gateway/src/api/*`
   - browser-to-gateway `/call-tool` through `apps/gateway/src/api/*`
-- The following item remains the planned follow-on stage (full definition in `IMPLEMENTATION_PLAN.md`) and is not active yet:
-  - Stage 21: removal of all compat layers (`routes/`, `tools/`, `security/`, `shell/`, `utils/`), archive `apps/userscript/`
 - Stage 19 code-side validation passed on April 28, 2026 before close-out:
   - `pnpm --filter @cwmb/extension lint`, `test`, `build`
   - root `pnpm lint`, `pnpm test`, `pnpm build`
-- Userscript fallback validation remains green alongside the new extension shell:
-  - root `pnpm test` includes `pnpm --filter @cwmb/userscript test`
-  - root `pnpm build` includes `pnpm --filter @cwmb/userscript build`
-  - root `pnpm lint` includes `pnpm --filter @cwmb/userscript lint`
+- Stage 21 code-side validation passed on April 28, 2026:
+  - `pnpm --filter @cwmb/extension lint`, `test`, `build`
+  - `pnpm --filter @cwmb/gateway lint`, `test`, `build`
+  - root `pnpm lint`, `pnpm test`, `pnpm build`
+  - `pnpm-workspace.yaml` no longer includes `apps/userscript`
+  - root `package.json` no longer references `@cwmb/userscript` scripts
+  - live ChatGPT Web extension-only validation remains the open formal close-out gate
 - Stage 18 verification passed on April 28, 2026, and the workspace remained green after Stage 19 shell landing:
   - `pnpm --filter @cwmb/shared-utils build`
   - `pnpm --filter @cwmb/turn-model build`
@@ -316,7 +311,6 @@
   - `pnpm --filter @cwmb/result-model build`
   - `pnpm --filter @cwmb/tool-contracts build`
   - `pnpm --filter @cwmb/test-fixtures build`
-  - `pnpm --filter @cwmb/userscript lint`, `test`, `build`
   - `pnpm --filter @cwmb/gateway lint`, `test`, `build`
   - root `pnpm lint`, `pnpm test`, `pnpm build`
 - Still explicitly out of scope until a later Phase:
@@ -330,9 +324,8 @@
 ## Caveats
 
 - The repo still lacks browser-driven end-to-end automation, so browser-runtime transitions will continue to need real ChatGPT Web verification.
-- The active codebase now carries both the landed extension shell and the userscript fallback. That is a deliberate Stage 19 / Stage 21 overlap, not a signal that userscript should keep regrowing as a long-term primary path.
-- The Stage 19 code shift is now treated as complete by user confirmation, but repository evidence remains stronger for the userscript fallback path than for the extension path because the close-out was dialogue-confirmed rather than re-recorded in repo docs.
-- Stage 20 now has direct owner tests, gateway verification, root workspace verification, and manual browser-to-gateway validation through the new `api/` layer, so the stage is complete even though Stage 21 has not been activated yet.
+- The repo still lacks browser-driven end-to-end automation, so the extension-only runtime path still needs periodic real ChatGPT Web validation even though unit/root verification is green.
+- Stage 20 is fully closed, while Stage 21 is only code-closed so far: the `api/` path is the live gateway adapter, the userscript runtime is no longer part of the supported workspace path, and formal Stage 21 closure still depends on real ChatGPT Web extension-only validation.
 - The unified ChatGPT Web runtime evidence doc exists now, but it is not yet a fully populated evidence pack; DOM-heavy work should refresh or add evidence there before expanding.
 - Phase 2 may span many commits and substantial refactors, but the control rule is now stage isolation, not “one big package”: progress should come from completing one module cleanly before activating the next.
 - Later-scope capabilities remain target-state work rather than shipped behavior:
@@ -345,13 +338,13 @@
 
 - Use `docs/v0.9-entrypoint.md` first when deciding where new v0.9 truth belongs.
 - Use `docs/prd.md` only as the closed reference baseline for the current proven runtime.
-- Do not reopen Phase 1 implicitly. The declared Stage 7-20 extraction sequence is already complete, and there is currently no active module slice. Do not start Stage 21 work until the task-control docs explicitly activate the next stage.
+- Do not reopen Phase 1 implicitly. The declared Stage 7-21 extraction sequence is already complete, and there is currently no active module slice.
 - If a change depends on ChatGPT Web DOM/request-shape/selectors facts, put the raw evidence in `docs/operations/chatgpt-web-runtime-evidence.md` instead of scattering it through task docs.
-- If code needs ChatGPT Web page facts, add or update them in `apps/extension/src/chatgpt-adapter/` first, then adapt current userscript consumers through compat wiring.
-- When a cleaner direct implementation exists in `apps/extension` or `apps/gateway`, prefer landing there over recreating new long-term logic in userscript-shaped files.
+- If code needs ChatGPT Web page facts, add or update them in `apps/extension/src/chatgpt-adapter/` first.
+- When a cleaner direct implementation exists in `apps/extension` or `apps/gateway`, land it there; do not rebuild archived userscript-shaped seams.
 - Do not add or keep adapters only to preserve draft-only field names, draft wording, or other reference-only shapes. Keep compatibility only where current live runtime behavior still depends on it.
 - Treat nested `execute` as the only active `/call-tool` execution-metadata compat surface unless a future task doc explicitly reopens that decision with live runtime evidence.
-- `diagnostics` is no longer an open gate. Do not assume a next extraction stage until the task-control docs deliberately declare one.
+- `diagnostics` is closed. Do not assume a next extraction stage until Stage 21 is formally closed and the task-control docs deliberately declare a follow-on slice.
 - Use the expanded `IMPLEMENTATION_PLAN.md` stage contract as the execution source of truth for module boundaries, allowed supporting surfaces, validation, and stage exit conditions; do not re-invent those rules ad hoc in code review.
 - If a change would activate a new Phase 2 or follow-on module stage, first update the task-control docs to declare that slice explicitly rather than assuming the old diagnostics gate still applies.
-- The next possible follow-on slice is Stage 21 `remove-compat-layers`, but it is not active yet. Do not open that cleanup until the task-control docs explicitly declare it.
+- The next possible follow-on slice is undeclared. Choose it explicitly in the task-control docs before opening new scope.

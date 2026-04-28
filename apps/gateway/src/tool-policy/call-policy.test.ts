@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { describe, expect, it } from 'vitest';
 import type { ExecuteRequest } from '@cwmb/tool-contracts';
-import type { LocalTool } from '../tools/index.js';
+import type { LocalTool } from '../tool-registry/local-tool.js';
 import { assessToolCall, assertWriteEnabled, createFailureDecision, createSuccessDecision } from './call-policy.js';
 
 describe('tool-policy call assessment', () => {

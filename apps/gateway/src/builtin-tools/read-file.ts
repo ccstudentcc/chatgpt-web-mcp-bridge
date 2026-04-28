@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import { z } from 'zod';
 import { AppError, assessSensitiveTextContent } from '@cwmb/shared-utils';
-import type { LocalTool } from '../tools/index.js';
+import type { LocalTool } from '../tool-registry/local-tool.js';
 import { looksBinary } from './file-content.js';
 import { resolveBuiltinToolPath } from './workspace-policy.js';
 

@@ -1,6 +1,6 @@
 import type { CatalogToolDescriptor } from '@cwmb/tool-contracts';
 import type { GatewayConfig } from '../config.js';
-import type { LocalTool } from '../tools/index.js';
+import type { LocalTool } from '../tool-registry/local-tool.js';
 import { grepFilesTool } from './grep-files.js';
 import { listDirectoryTool } from './list-directory.js';
 import { createMcpListTool } from './mcp-list.js';
