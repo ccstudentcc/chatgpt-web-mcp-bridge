@@ -35,12 +35,40 @@ apps/extension/src/
 └─ main/
 ```
 
-Current Stage 19-21 runtime state:
+Phase 2.5 target layout:
+
+```text
+apps/extension/
+├─ entrypoints/
+├─ public/
+└─ src/
+   ├─ extension-shell/
+   ├─ ui-surfaces/
+   ├─ chatgpt-adapter/
+   ├─ request-injection/
+   ├─ turn-detection/
+   ├─ result-delivery/
+   ├─ operator-workflows/
+   ├─ settings/
+   └─ main/
+```
+
+Current runtime state:
 
 - `apps/extension/src/main/extension-runtime.ts` now owns the shared browser-runtime composition root used by the real extension shell and the extension-owned runtime helpers under `src/main/*`.
-- `apps/extension/src/extension-shell/*` now owns the Chrome-extension host layer: manifest-driven entrypoints, background lifecycle ping, gateway messaging bridge, main-world request hook, content-script bootstrap, and panel mount isolation.
+- `apps/extension/wxt.config.ts` plus `apps/extension/entrypoints/*` now own the live extension-shell build and entrypoint truth; the former hand-written `esbuild + manifest.json` scaffold is gone.
+- `apps/extension/src/extension-shell/*` now owns the Chrome-extension host layer: background lifecycle ping, gateway messaging bridge, main-world request hook, content-script bootstrap, and panel mount isolation.
+- `apps/extension/src/settings/*` now owns background-backed persisted configuration snapshots and cross-surface settings contracts.
+- `apps/extension/src/ui-surfaces/*` now owns the popup/options `React` + `Tailwind CSS` rendering path.
 - Stage 21 archives the former userscript bootstrap under `apps/userscript/legacy/`; the active browser runtime path is now extension-only.
-- Local extension and root verification are green for `pnpm --filter @cwmb/extension lint`, `test`, and `build` plus root `pnpm lint`, `pnpm test`, and `pnpm build`; real ChatGPT Web extension-path validation also passed on April 28, 2026, so Stage 21 is formally closed.
+- Local extension verification is green for `pnpm --filter @cwmb/extension lint`, `test`, and `build` on the WXT path. Real ChatGPT Web validation is still required before this Phase 2.5 slice can be called complete.
+
+Phase 2.5 changes the active target without invalidating that current baseline:
+
+- `WXT` now replaces the hand-written extension shell in code
+- popup/options now exist as real extension surfaces beside the in-page panel
+- background-owned configuration truth now exists as a first-class `settings` owner path
+- the in-page panel remains the primary execution surface while capability-domain refactors continue
 
 ## 3. Module Boundaries
 

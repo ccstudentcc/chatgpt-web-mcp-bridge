@@ -10,12 +10,13 @@ import {
   withGatewayHealth,
   withoutGatewayCatalog
 } from '../operator-panel/index.js';
+import type { RequestHookStatus, RequestInjectionMode } from '../injection-runtime/index.js';
 import {
-  cycleRequestInjectionMode as getNextRequestInjectionMode,
-  normalizeRequestInjectionMode,
-  type RequestHookStatus,
-  type RequestInjectionMode
-} from '../injection-runtime/index.js';
+  DEFAULT_EXTENSION_SETTINGS,
+  type BooleanSettingOverride,
+  type ExtensionSettingsSnapshot,
+  type WorkSurfaceMode
+} from '../settings/contracts.js';
 
 export type BridgeStatus =
   | 'disconnected'
@@ -58,6 +59,11 @@ export interface PanelPosition {
   top: number;
 }
 
+export interface PanelSize {
+  width: number;
+  height: number;
+}
+
 export interface RequestPromptObserver {
   source: CatalogSource;
   catalogVersion?: string;
@@ -74,6 +80,9 @@ export interface BridgeState {
   status: BridgeStatus;
   token: string;
   baseUrl: string;
+  autoExecutePreference: BooleanSettingOverride;
+  autoInsertPreference: BooleanSettingOverride;
+  autoSendPreference: BooleanSettingOverride;
   trustedLocalMode: boolean;
   maxToolRounds: number;
   gatewayAutoExecuteDefault: boolean;
@@ -83,8 +92,12 @@ export interface BridgeState {
   autoInsertResult: boolean;
   autoSendResult: boolean;
   continueBatchOnError: boolean;
+  workSurfaceMode: WorkSurfaceMode;
   panelCollapsed: boolean;
   panelPosition?: PanelPosition;
+  panelCollapsedSize?: PanelSize;
+  panelExpandedSize?: PanelSize;
+  panelSize?: PanelSize;
   gatewayRuntime?: GatewayRuntimeSnapshot;
   pending: ParsedMcpBlock[];
   pendingBatchId?: string;
@@ -128,17 +141,17 @@ interface PersistedUndeliveredResultSession {
 
 const UNDELIVERED_RESULT_SESSION_KEY = 'cwmb_undelivered_result_session';
 
-const autoExecuteStored = GM_getValue('cwmb_auto_execute', 'inherit');
-const autoInsertStored = GM_getValue('cwmb_auto_insert', 'inherit');
-const autoSendStored = GM_getValue('cwmb_auto_send', 'inherit');
 const panelLeftStored = parseStoredNumber(GM_getValue('cwmb_panel_left', ''));
 const panelTopStored = parseStoredNumber(GM_getValue('cwmb_panel_top', ''));
-
-function readStoredToggle(stored: string, fallback: boolean): boolean {
-  if (stored === 'true') return true;
-  if (stored === 'false') return false;
-  return fallback;
-}
+const legacyPanelWidthStored = parseStoredNumber(GM_getValue('cwmb_panel_width', ''));
+const legacyPanelHeightStored = parseStoredNumber(GM_getValue('cwmb_panel_height', ''));
+const panelExpandedWidthStored = parseStoredNumber(GM_getValue('cwmb_panel_expanded_width', ''))
+  ?? legacyPanelWidthStored;
+const panelExpandedHeightStored = parseStoredNumber(GM_getValue('cwmb_panel_expanded_height', ''))
+  ?? legacyPanelHeightStored;
+const panelCollapsedWidthStored = parseStoredNumber(GM_getValue('cwmb_panel_collapsed_width', ''));
+const panelCollapsedHeightStored = parseStoredNumber(GM_getValue('cwmb_panel_collapsed_height', ''));
+const panelCollapsedStored = GM_getValue('cwmb_panel_collapsed', 'false') === 'true';
 
 function parseStoredNumber(stored: string): number | undefined {
   if (!stored) return undefined;
@@ -146,40 +159,72 @@ function parseStoredNumber(stored: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function toStoredPanelSize(width: number | undefined, height: number | undefined): PanelSize | undefined {
+  return typeof width === 'number' && typeof height === 'number'
+    ? { width, height }
+    : undefined;
+}
+
+function selectActivePanelSize(
+  panelCollapsed: boolean,
+  collapsedSize: PanelSize | undefined,
+  expandedSize: PanelSize | undefined
+): PanelSize | undefined {
+  return panelCollapsed ? collapsedSize : expandedSize;
+}
+
+const restoredCollapsedPanelSize = toStoredPanelSize(panelCollapsedWidthStored, panelCollapsedHeightStored);
+const restoredExpandedPanelSize = toStoredPanelSize(panelExpandedWidthStored, panelExpandedHeightStored);
+
 export const state: BridgeState = {
   status: 'idle',
-  token: GM_getValue('cwmb_token', ''),
-  baseUrl: GM_getValue('cwmb_base_url', 'http://127.0.0.1:8024'),
+  token: DEFAULT_EXTENSION_SETTINGS.token,
+  baseUrl: DEFAULT_EXTENSION_SETTINGS.baseUrl,
+  autoExecutePreference: DEFAULT_EXTENSION_SETTINGS.autoExecute,
+  autoInsertPreference: DEFAULT_EXTENSION_SETTINGS.autoInsert,
+  autoSendPreference: DEFAULT_EXTENSION_SETTINGS.autoSend,
   trustedLocalMode: true,
   maxToolRounds: 3,
   gatewayAutoExecuteDefault: true,
   gatewayAutoInsertDefault: true,
   gatewayAutoSendDefault: true,
-  autoExecuteEnabled: readStoredToggle(autoExecuteStored, true),
-  autoInsertResult: readStoredToggle(autoInsertStored, true),
-  autoSendResult: readStoredToggle(autoSendStored, true),
-  continueBatchOnError: GM_getValue('cwmb_continue_batch_on_error', 'false') === 'true',
-  panelCollapsed: GM_getValue('cwmb_panel_collapsed', 'false') === 'true',
+  autoExecuteEnabled: true,
+  autoInsertResult: true,
+  autoSendResult: true,
+  continueBatchOnError: DEFAULT_EXTENSION_SETTINGS.continueBatchOnError,
+  workSurfaceMode: DEFAULT_EXTENSION_SETTINGS.workSurfaceMode,
+  panelCollapsed: panelCollapsedStored,
   panelPosition: typeof panelLeftStored === 'number' && typeof panelTopStored === 'number'
     ? { left: panelLeftStored, top: panelTopStored }
     : undefined,
+  panelCollapsedSize: restoredCollapsedPanelSize,
+  panelExpandedSize: restoredExpandedPanelSize,
+  panelSize: selectActivePanelSize(
+    panelCollapsedStored,
+    restoredCollapsedPanelSize,
+    restoredExpandedPanelSize
+  ),
   pending: [],
   autoRoundCount: 0,
   executedCallIds: new Set<string>(),
   executedBatchIds: new Set<string>(),
   logs: [],
-  requestInjectionMode: normalizeRequestInjectionMode(GM_getValue('cwmb_request_injection_mode', 'synthetic_system')),
+  requestInjectionMode: DEFAULT_EXTENSION_SETTINGS.requestInjectionMode,
   recoveredComposerSnapshot: undefined
 };
 
-export function saveToken(token: string): void {
-  state.token = token;
-  GM_setValue('cwmb_token', token);
-}
-
-export function saveBaseUrl(baseUrl: string): void {
-  state.baseUrl = baseUrl;
-  GM_setValue('cwmb_base_url', baseUrl);
+export function applyExtensionSettings(settings: ExtensionSettingsSnapshot): void {
+  state.token = settings.token;
+  state.baseUrl = settings.baseUrl;
+  state.autoExecutePreference = settings.autoExecute;
+  state.autoInsertPreference = settings.autoInsert;
+  state.autoSendPreference = settings.autoSend;
+  state.continueBatchOnError = settings.continueBatchOnError;
+  state.requestInjectionMode = settings.requestInjectionMode;
+  state.workSurfaceMode = settings.workSurfaceMode;
+  state.autoExecuteEnabled = resolveBooleanPreference(settings.autoExecute, state.gatewayAutoExecuteDefault);
+  state.autoInsertResult = resolveBooleanPreference(settings.autoInsert, state.gatewayAutoInsertDefault);
+  state.autoSendResult = resolveBooleanPreference(settings.autoSend, state.gatewayAutoSendDefault);
 }
 
 export function hasLiveCatalog(runtime = state.gatewayRuntime): boolean {
@@ -211,6 +256,10 @@ export function clearGatewayRuntime(): void {
   state.gatewayRuntime = undefined;
 }
 
+function resolveBooleanPreference(value: BooleanSettingOverride, fallback: boolean): boolean {
+  return value === 'inherit' ? fallback : value;
+}
+
 export function applyAutomationSettings(settings: {
   trustedLocalMode?: boolean;
   autoExecuteLowRisk?: boolean;
@@ -226,51 +275,31 @@ export function applyAutomationSettings(settings: {
   }
   if (typeof settings.autoExecuteLowRisk === 'boolean') {
     state.gatewayAutoExecuteDefault = settings.autoExecuteLowRisk;
-    if (GM_getValue('cwmb_auto_execute', 'inherit') === 'inherit') {
+    if (state.autoExecutePreference === 'inherit') {
       state.autoExecuteEnabled = settings.autoExecuteLowRisk;
     }
   }
   if (typeof settings.autoInsertResult === 'boolean') {
     state.gatewayAutoInsertDefault = settings.autoInsertResult;
-    if (GM_getValue('cwmb_auto_insert', 'inherit') === 'inherit') {
+    if (state.autoInsertPreference === 'inherit') {
       state.autoInsertResult = settings.autoInsertResult;
     }
   }
   if (typeof settings.autoSendResult === 'boolean') {
     state.gatewayAutoSendDefault = settings.autoSendResult;
-    if (GM_getValue('cwmb_auto_send', 'inherit') === 'inherit') {
+    if (state.autoSendPreference === 'inherit') {
       state.autoSendResult = settings.autoSendResult;
     }
   }
 }
 
-export function toggleAutoExecute(): void {
-  state.autoExecuteEnabled = !state.autoExecuteEnabled;
-  GM_setValue('cwmb_auto_execute', String(state.autoExecuteEnabled));
-}
-
-export function toggleAutoInsert(): void {
-  state.autoInsertResult = !state.autoInsertResult;
-  GM_setValue('cwmb_auto_insert', String(state.autoInsertResult));
-}
-
-export function toggleAutoSend(): void {
-  state.autoSendResult = !state.autoSendResult;
-  GM_setValue('cwmb_auto_send', String(state.autoSendResult));
-}
-
-export function toggleContinueBatchOnError(): void {
-  state.continueBatchOnError = !state.continueBatchOnError;
-  GM_setValue('cwmb_continue_batch_on_error', String(state.continueBatchOnError));
-}
-
-export function cycleRequestInjectionMode(): void {
-  state.requestInjectionMode = getNextRequestInjectionMode(state.requestInjectionMode);
-  GM_setValue('cwmb_request_injection_mode', state.requestInjectionMode);
-}
-
 export function togglePanelCollapsed(): void {
   state.panelCollapsed = !state.panelCollapsed;
+  state.panelSize = selectActivePanelSize(
+    state.panelCollapsed,
+    state.panelCollapsedSize,
+    state.panelExpandedSize
+  );
   GM_setValue('cwmb_panel_collapsed', String(state.panelCollapsed));
 }
 
@@ -290,6 +319,20 @@ export function savePanelPosition(position: PanelPosition): void {
   state.panelPosition = position;
   GM_setValue('cwmb_panel_left', String(position.left));
   GM_setValue('cwmb_panel_top', String(position.top));
+}
+
+export function savePanelSize(size: PanelSize): void {
+  state.panelSize = size;
+  if (state.panelCollapsed) {
+    state.panelCollapsedSize = size;
+    GM_setValue('cwmb_panel_collapsed_width', String(size.width));
+    GM_setValue('cwmb_panel_collapsed_height', String(size.height));
+    return;
+  }
+
+  state.panelExpandedSize = size;
+  GM_setValue('cwmb_panel_expanded_width', String(size.width));
+  GM_setValue('cwmb_panel_expanded_height', String(size.height));
 }
 
 export function addLogEntry(level: ActivityLogEntry['level'], message: string): void {

@@ -274,6 +274,47 @@ Forbidden work:
 - preserving userscript structure just for migration symmetry when a cleaner extension plus gateway path is available
 - (Stages 18-21) implementing full proposal workflow, external MCP lifecycle, or persistent result-cache beyond in-memory TTL semantics
 
+### Phase 2.5: Converge Extension Shell, Multi-Surface UI, And Capability Domains
+
+Primary battleground ring: Extension Ring with explicitly allowed supporting Final Core owner realignment on the extension side
+
+Goals:
+
+- replace the hand-written extension shell with `WXT`
+- keep the ChatGPT in-page panel as the primary operator surface while adding popup and options
+- move operator-facing extension UI onto `React` + `Tailwind CSS`
+- split extension runtime ownership by capability domain instead of leaving shell, panel, and runtime concerns interleaved
+- make background-owned configuration truth and page-owned conversation runtime truth explicit
+
+Allowed work:
+
+- `WXT` entrypoints and generated-manifest shell migration
+- popup and options as supported extension surfaces
+- `React` + `Tailwind CSS` UI surfaces for in-page panel, popup, and options
+- extension-side owner refactors that converge:
+  - `injection-runtime` -> `request-injection`
+  - `turn-runtime` -> `turn-detection`
+  - `operator-panel` -> `operator-workflows` + `ui-surfaces`
+  - background-owned configuration semantics -> `settings`
+- narrow supporting changes in gateway or shared packages only when required to preserve the live compatibility floor
+
+Forbidden work:
+
+- reopening userscript as a supported runtime shell
+- using popup or options as an excuse to create a second execution architecture
+- rewriting gateway framework or shared contract stack just because the browser shell is changing
+- mixing full mode rollout, broad capability rollout, and extension convergence into one unbounded rewrite
+
+Exit criteria:
+
+- `WXT` is the only active extension shell build and dev path
+- popup and options are real supported extension surfaces
+- the in-page panel remains the primary operator surface
+- background-owned configuration truth is explicit and shared across surfaces
+- page-owned conversation runtime truth remains page-owned
+- extension capability-domain ownership is explicit in docs and code
+- real ChatGPT Web validation confirms the WXT path preserved the live browser-to-gateway floor
+
 ### Phase 3: Introduce Mode-Aware Execution
 
 Primary battleground ring: Final Core

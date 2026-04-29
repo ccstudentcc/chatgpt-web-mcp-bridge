@@ -382,4 +382,99 @@ describe('state runtime snapshot helpers', () => {
       currentComposerText: ''
     })).toBe(false);
   });
+
+  it('restores persisted floating-panel position and size state', async () => {
+    vi.stubGlobal('GM_getValue', vi.fn((key: string, defaultValue = '') => {
+      switch (key) {
+        case 'cwmb_panel_left':
+          return '120';
+        case 'cwmb_panel_top':
+          return '80';
+        case 'cwmb_panel_expanded_width':
+          return '540';
+        case 'cwmb_panel_expanded_height':
+          return '680';
+        case 'cwmb_panel_collapsed_width':
+          return '420';
+        case 'cwmb_panel_collapsed_height':
+          return '188';
+        default:
+          return defaultValue;
+      }
+    }));
+    vi.stubGlobal('GM_setValue', vi.fn());
+
+    const { state } = await import('./state.js');
+
+    expect(state.panelPosition).toEqual({ left: 120, top: 80 });
+    expect(state.panelExpandedSize).toEqual({ width: 540, height: 680 });
+    expect(state.panelCollapsedSize).toEqual({ width: 420, height: 188 });
+    expect(state.panelSize).toEqual({ width: 540, height: 680 });
+  });
+
+  it('persists expanded floating-panel size updates', async () => {
+    const setValue = vi.fn();
+    vi.stubGlobal('GM_setValue', setValue);
+
+    const {
+      savePanelSize,
+      state
+    } = await import('./state.js');
+
+    savePanelSize({ width: 512, height: 704 });
+
+    expect(state.panelSize).toEqual({ width: 512, height: 704 });
+    expect(state.panelExpandedSize).toEqual({ width: 512, height: 704 });
+    expect(setValue).toHaveBeenCalledWith('cwmb_panel_expanded_width', '512');
+    expect(setValue).toHaveBeenCalledWith('cwmb_panel_expanded_height', '704');
+  });
+
+  it('persists collapsed floating-panel size updates separately', async () => {
+    const setValue = vi.fn();
+    vi.stubGlobal('GM_setValue', setValue);
+
+    const {
+      savePanelSize,
+      state,
+      togglePanelCollapsed
+    } = await import('./state.js');
+
+    togglePanelCollapsed();
+    savePanelSize({ width: 428, height: 192 });
+
+    expect(state.panelCollapsed).toBe(true);
+    expect(state.panelSize).toEqual({ width: 428, height: 192 });
+    expect(state.panelCollapsedSize).toEqual({ width: 428, height: 192 });
+    expect(setValue).toHaveBeenCalledWith('cwmb_panel_collapsed_width', '428');
+    expect(setValue).toHaveBeenCalledWith('cwmb_panel_collapsed_height', '192');
+  });
+
+  it('switches between persisted collapsed and expanded panel sizes', async () => {
+    vi.stubGlobal('GM_getValue', vi.fn((key: string, defaultValue = '') => {
+      switch (key) {
+        case 'cwmb_panel_expanded_width':
+          return '560';
+        case 'cwmb_panel_expanded_height':
+          return '720';
+        case 'cwmb_panel_collapsed_width':
+          return '408';
+        case 'cwmb_panel_collapsed_height':
+          return '176';
+        default:
+          return defaultValue;
+      }
+    }));
+    vi.stubGlobal('GM_setValue', vi.fn());
+
+    const {
+      state,
+      togglePanelCollapsed
+    } = await import('./state.js');
+
+    expect(state.panelSize).toEqual({ width: 560, height: 720 });
+    togglePanelCollapsed();
+    expect(state.panelSize).toEqual({ width: 408, height: 176 });
+    togglePanelCollapsed();
+    expect(state.panelSize).toEqual({ width: 560, height: 720 });
+  });
 });

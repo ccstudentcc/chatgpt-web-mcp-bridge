@@ -6,7 +6,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build:deps": "pnpm --filter @cwmb/shared-utils build && pnpm --filter @cwmb/turn-model build && pnpm --filter @cwmb/policy-model build && pnpm --filter @cwmb/result-model build",
-    "build": "pnpm run build:deps && tsc -p tsconfig.json",
+    "build": "tsc -b tsconfig.json",
     "test": "pnpm run build:deps && vitest run",
     "lint": "pnpm run build:deps && tsc -p tsconfig.json --noEmit"
   },

@@ -1,52 +1,299 @@
 import { PAGE_ORIGIN_HEADER } from '@cwmb/tool-contracts';
-import { EXTENSION_MESSAGE_TYPES, type ContentScriptReadyMessage, type GatewayProxyRequestMessage, type PingMessage } from './messages.js';
+import {
+  EXTENSION_MESSAGE_TYPES,
+  type ContentScriptReadyMessage,
+  type GatewayProxyRequestMessage,
+  type GetActiveTabSummaryMessage,
+  type GetSettingsMessage,
+  type GetWorkSurfaceContextMessage,
+  type OpenOptionsPageMessage,
+  type PingMessage,
+  type ReportActiveTabSummaryMessage,
+  type UpdateSettingsMessage
+} from './messages.js';
+import type { ActiveTabBridgeSummary, ExtensionSettingsSnapshot } from '../settings/contracts.js';
+import { readExtensionSettings, writeExtensionSettings } from '../settings/storage.js';
+import {
+  isChatGptUrl,
+  syncWorkSurfaceHostMode,
+  type WorkSurfaceContext
+} from './work-surface.js';
 
 const LOG_PREFIX = '[cwmb extension]';
 type GatewayRequestSender = { url?: string; tab?: { url?: string } };
+type ExtensionMessage =
+  | ContentScriptReadyMessage
+  | GatewayProxyRequestMessage
+  | GetActiveTabSummaryMessage
+  | GetSettingsMessage
+  | GetWorkSurfaceContextMessage
+  | OpenOptionsPageMessage
+  | PingMessage
+  | ReportActiveTabSummaryMessage
+  | UpdateSettingsMessage;
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log(`${LOG_PREFIX} service worker installed`);
-});
+const activeTabSummaries = new Map<number, ActiveTabBridgeSummary>();
+let backgroundBridgeInstalled = false;
+const SUMMARY_KEY_PREFIX = 'cwmb_active_tab_summary:';
+const LAST_BRIDGE_TAB_ID_KEY = 'cwmb_last_bridge_tab_id';
+const LAST_BRIDGE_WINDOW_ID_KEY = 'cwmb_last_bridge_window_id';
 
-chrome.runtime.onStartup.addListener(() => {
-  console.log(`${LOG_PREFIX} service worker startup`);
-});
-
-chrome.runtime.onMessage.addListener((message: PingMessage | GatewayProxyRequestMessage | ContentScriptReadyMessage, sender: any, sendResponse: (response: unknown) => void) => {
-  if (!message || typeof message !== 'object' || !('type' in message)) {
-    return false;
+export function startBackgroundBridge(): void {
+  if (backgroundBridgeInstalled) {
+    return;
   }
 
-  if (message.type === EXTENSION_MESSAGE_TYPES.ping) {
-    console.log(`${LOG_PREFIX} lifecycle ping from content script`);
-    sendResponse({ ok: true, receivedAt: Date.now() });
-    return false;
-  }
+  backgroundBridgeInstalled = true;
 
-  if (message.type === EXTENSION_MESSAGE_TYPES.contentScriptReady) {
-    console.log(`${LOG_PREFIX} content script ready`, {
-      path: message.path,
-      hasDomAccess: message.hasDomAccess,
-      tabId: sender?.tab?.id
-    });
-    sendResponse({ ok: true });
-    return false;
-  }
+  chrome.runtime.onInstalled.addListener(() => {
+    console.log(`${LOG_PREFIX} service worker installed`);
+  });
 
-  if (message.type === EXTENSION_MESSAGE_TYPES.gatewayRequest) {
-    void proxyGatewayRequest(message, sender)
-      .then((response) => sendResponse(response))
-      .catch((error: unknown) => {
-        sendResponse({
-          ok: false,
-          error: error instanceof Error ? error.message : 'Gateway proxy failed'
-        });
+  chrome.runtime.onStartup.addListener(() => {
+    console.log(`${LOG_PREFIX} service worker startup`);
+  });
+
+  chrome.tabs?.onRemoved?.addListener((tabId: number) => {
+    activeTabSummaries.delete(tabId);
+    void clearRemovedTabState(tabId);
+  });
+  chrome.tabs?.onActivated?.addListener(() => {
+    void syncPersistedWorkSurfaceMode();
+  });
+
+  chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender: any, sendResponse: (response: unknown) => void) => {
+    if (!message || typeof message !== 'object' || !('type' in message)) {
+      return false;
+    }
+
+    if (message.type === EXTENSION_MESSAGE_TYPES.ping) {
+      console.log(`${LOG_PREFIX} lifecycle ping from content script`);
+      sendResponse({ ok: true, receivedAt: Date.now() });
+      return false;
+    }
+
+    if (message.type === EXTENSION_MESSAGE_TYPES.contentScriptReady) {
+      if (typeof sender?.tab?.id === 'number') {
+        const previous = activeTabSummaries.get(sender.tab.id);
+        const summary = {
+          path: message.path,
+          hasDomAccess: message.hasDomAccess,
+          status: previous?.status ?? 'idle',
+          pendingCount: previous?.pendingCount ?? 0,
+          lastError: previous?.lastError,
+          requestHookStatus: previous?.requestHookStatus,
+          requestPromptSource: previous?.requestPromptSource,
+          catalogSource: previous?.catalogSource,
+          catalogVersion: previous?.catalogVersion,
+          updatedAt: Date.now()
+        } satisfies ActiveTabBridgeSummary;
+        activeTabSummaries.set(sender.tab.id, summary);
+        void persistActiveTabSummary(sender.tab.id, sender.tab.windowId, summary);
+      }
+
+      console.log(`${LOG_PREFIX} content script ready`, {
+        path: message.path,
+        hasDomAccess: message.hasDomAccess,
+        tabId: sender?.tab?.id
       });
-    return true;
+      sendResponse({ ok: true });
+      return false;
+    }
+
+    if (message.type === EXTENSION_MESSAGE_TYPES.getSettings) {
+      void readExtensionSettings().then((settings) => sendResponse(settings));
+      return true;
+    }
+
+    if (message.type === EXTENSION_MESSAGE_TYPES.updateSettings) {
+      void writeExtensionSettings(message.patch)
+        .then(async (settings) => {
+          await syncPersistedWorkSurfaceMode(settings);
+          sendResponse(settings);
+        })
+        .catch((error: unknown) => {
+          sendResponse({
+            error: error instanceof Error ? error.message : 'Failed to update settings'
+          });
+        });
+      return true;
+    }
+
+    if (message.type === EXTENSION_MESSAGE_TYPES.getActiveTabSummary) {
+      void getActiveTabSummary().then((summary) => sendResponse(summary));
+      return true;
+    }
+
+    if (message.type === EXTENSION_MESSAGE_TYPES.getWorkSurfaceContext) {
+      void getWorkSurfaceContext().then((context) => sendResponse(context));
+      return true;
+    }
+
+    if (message.type === EXTENSION_MESSAGE_TYPES.openOptionsPage) {
+      void openOptionsPage()
+        .then(() => sendResponse(undefined))
+        .catch((error: unknown) => {
+          sendResponse({
+            error: error instanceof Error ? error.message : 'Failed to open the options page.'
+          });
+        });
+      return true;
+    }
+
+    if (message.type === EXTENSION_MESSAGE_TYPES.reportActiveTabSummary) {
+      if (typeof sender?.tab?.id === 'number') {
+        const summary = {
+          ...message.summary,
+          updatedAt: Date.now()
+        };
+        activeTabSummaries.set(sender.tab.id, summary);
+        void persistActiveTabSummary(sender.tab.id, sender.tab.windowId, summary);
+      }
+      sendResponse(undefined);
+      return false;
+    }
+
+    if (message.type === EXTENSION_MESSAGE_TYPES.gatewayRequest) {
+      void proxyGatewayRequest(message, sender)
+        .then((response) => sendResponse(response))
+        .catch((error: unknown) => {
+          sendResponse({
+            ok: false,
+            error: error instanceof Error ? error.message : 'Gateway proxy failed'
+          });
+        });
+      return true;
+    }
+
+    return false;
+  });
+
+  void syncPersistedWorkSurfaceMode();
+}
+
+async function getActiveTabSummary(): Promise<ActiveTabBridgeSummary | null> {
+  const [activeTab] = await chrome.tabs.query({
+    active: true,
+    currentWindow: true
+  });
+
+  if (typeof activeTab?.id === 'number') {
+    const activeSummary = await readPersistedActiveTabSummary(activeTab.id);
+    if (activeSummary) {
+      return activeSummary;
+    }
   }
 
-  return false;
-});
+  const stored = await chrome.storage.session.get(LAST_BRIDGE_TAB_ID_KEY);
+  const lastBridgeTabId = stored[LAST_BRIDGE_TAB_ID_KEY];
+
+  if (typeof lastBridgeTabId !== 'number') {
+    return null;
+  }
+
+  return readPersistedActiveTabSummary(lastBridgeTabId);
+}
+
+function getSummaryStorageKey(tabId: number): string {
+  return `${SUMMARY_KEY_PREFIX}${tabId}`;
+}
+
+async function persistActiveTabSummary(tabId: number, windowId: number | undefined, summary: ActiveTabBridgeSummary): Promise<void> {
+  await chrome.storage.session.set({
+    [LAST_BRIDGE_TAB_ID_KEY]: tabId,
+    [LAST_BRIDGE_WINDOW_ID_KEY]: windowId,
+    [getSummaryStorageKey(tabId)]: summary
+  });
+}
+
+async function readPersistedActiveTabSummary(tabId: number): Promise<ActiveTabBridgeSummary | null> {
+  const inMemory = activeTabSummaries.get(tabId);
+  if (inMemory) {
+    return inMemory;
+  }
+
+  const stored = await chrome.storage.session.get(getSummaryStorageKey(tabId));
+  const summary = stored[getSummaryStorageKey(tabId)];
+
+  if (!summary || typeof summary !== 'object') {
+    return null;
+  }
+
+  const persisted = summary as ActiveTabBridgeSummary;
+  activeTabSummaries.set(tabId, persisted);
+  return persisted;
+}
+
+async function clearRemovedTabState(tabId: number): Promise<void> {
+  const stored = await chrome.storage.session.get([LAST_BRIDGE_TAB_ID_KEY, getSummaryStorageKey(tabId)]);
+  const keysToRemove = [getSummaryStorageKey(tabId)];
+
+  if (stored[LAST_BRIDGE_TAB_ID_KEY] === tabId) {
+    keysToRemove.push(LAST_BRIDGE_TAB_ID_KEY, LAST_BRIDGE_WINDOW_ID_KEY);
+  }
+
+  await chrome.storage.session.remove(keysToRemove);
+}
+
+async function getWorkSurfaceContext(): Promise<WorkSurfaceContext> {
+  const [activeTab] = await chrome.tabs.query({
+    active: true,
+    currentWindow: true
+  });
+  const activeTabId = typeof activeTab?.id === 'number' ? activeTab.id : undefined;
+  const activeSummary = activeTabId !== undefined
+    ? await readPersistedActiveTabSummary(activeTabId)
+    : null;
+  const stored = await chrome.storage.session.get([LAST_BRIDGE_TAB_ID_KEY, LAST_BRIDGE_WINDOW_ID_KEY]);
+  const latestChatGptTabId = typeof stored[LAST_BRIDGE_TAB_ID_KEY] === 'number'
+    ? stored[LAST_BRIDGE_TAB_ID_KEY]
+    : undefined;
+  const latestSummary = latestChatGptTabId !== undefined
+    ? await readPersistedActiveTabSummary(latestChatGptTabId)
+    : null;
+
+  return {
+    activeTabId,
+    activeWindowId: typeof activeTab?.windowId === 'number' ? activeTab.windowId : undefined,
+    activeTabIsChatGpt: Boolean(activeSummary) || isChatGptUrl(activeTab?.url),
+    activeSummary,
+    latestSummary,
+    latestChatGptTabId,
+    latestChatGptWindowId: typeof stored[LAST_BRIDGE_WINDOW_ID_KEY] === 'number'
+      ? stored[LAST_BRIDGE_WINDOW_ID_KEY]
+      : undefined
+  };
+}
+
+async function syncPersistedWorkSurfaceMode(settings?: ExtensionSettingsSnapshot): Promise<void> {
+  const nextSettings = settings ?? await readExtensionSettings();
+  const context = await getWorkSurfaceContext();
+  await syncWorkSurfaceHostMode(nextSettings.workSurfaceMode, context);
+}
+
+async function openOptionsPage(): Promise<void> {
+  const optionsUrl = chrome.runtime.getURL('/options.html');
+  const existingTab = await findExistingOptionsTab(optionsUrl);
+
+  if (existingTab?.id) {
+    await chrome.tabs.update(existingTab.id, { active: true });
+    if (typeof existingTab.windowId === 'number' && chrome.windows?.update) {
+      await chrome.windows.update(existingTab.windowId, { focused: true });
+    }
+    return;
+  }
+
+  await chrome.tabs.create({ url: optionsUrl });
+}
+
+async function findExistingOptionsTab(optionsUrl: string) {
+  if (!chrome.tabs?.query) {
+    return null;
+  }
+
+  const matches = await chrome.tabs.query({ url: optionsUrl }).catch(() => []);
+  return matches[0] ?? null;
+}
 
 async function proxyGatewayRequest(message: GatewayProxyRequestMessage, sender: GatewayRequestSender): Promise<unknown> {
   const controller = new AbortController();

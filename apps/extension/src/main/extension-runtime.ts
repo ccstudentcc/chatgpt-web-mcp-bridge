@@ -1,6 +1,11 @@
 import { buildToolCatalogPrompt, createRequestPromptSnapshot, describeRequestPromptSync, readStoredToolCatalog, writeStoredToolCatalog } from '../injection-runtime/index.js';
 import { assessPendingTools } from '../operator-panel/index.js';
 import {
+  deriveWorkSurfaceSnapshot,
+  type WorkSurfaceActionRequest,
+  type WorkSurfaceSnapshot
+} from '../operator-workflows/index.js';
+import {
   createLegacyToolCallRequest,
   getExecuteResponseCompat,
   type CatalogContract,
@@ -44,9 +49,19 @@ import {
   pollLatestAssistantTurnRuntime,
   resolveCurrentRequestIdentity
 } from '../turn-runtime/index.js';
-import { configureUiMountTarget, renderPanel, setUiHandlers } from './ui.js';
+import { getExtensionSettings, reportActiveTabBridgeSummary, updateExtensionSettings } from '../settings/runtime-client.js';
+import { normalizeExtensionSettings } from '../settings/storage.js';
+import { clearLegacyExtensionSettings, isDefaultExtensionSettingsSnapshot, readLegacyExtensionSettings } from '../settings/legacy-page-storage.js';
+import type { ActiveTabBridgeSummary, ExtensionSettingsPatch, ExtensionSettingsSnapshot } from '../settings/contracts.js';
+import { clearFloatingPanel, configureUiMountTarget, renderFloatingPanel, setUiActionRunner } from './ui.js';
+import {
+  EXTENSION_MESSAGE_TYPES,
+  type GetWorkSurfaceSnapshotMessage,
+  type RunWorkSurfaceActionMessage
+} from '../extension-shell/messages.js';
 import {
   addLogEntry,
+  applyExtensionSettings,
   clearRequestPromptObserver,
   clearGatewayCatalog,
   clearGatewayRuntime,
@@ -62,12 +77,7 @@ import {
   syncPersistedUndeliveredResultSession,
   type BridgeStatus,
   type StoredBatch,
-  state,
-  toggleAutoExecute,
-  toggleAutoInsert,
-  toggleAutoSend,
-  toggleContinueBatchOnError,
-  togglePanelCollapsed
+  state
 } from './state.js';
 
 export interface StartExtensionRuntimeOptions {
@@ -89,6 +99,51 @@ const RECOVERED_DELIVERY_RETRY_COOLDOWN_MS = 250;
 let startupUndeliveredRecoveryDeadline = 0;
 let recoveredDeliveryResumeInFlight = false;
 let recoveredDeliveryRetryNotBefore = 0;
+let storageListenerInstalled = false;
+let workSurfaceMessageListenerInstalled = false;
+let navigationSyncInstalled = false;
+let lastConversationPath = '';
+
+function renderPanel(): void {
+  if (state.workSurfaceMode === 'side_panel') {
+    clearFloatingPanel();
+  } else {
+    renderFloatingPanel(buildWorkSurfaceSnapshot());
+  }
+  void publishActiveTabSummary();
+}
+
+function buildWorkSurfaceSnapshot(): WorkSurfaceSnapshot {
+  return deriveWorkSurfaceSnapshot({
+    autoExecuteEnabled: state.autoExecuteEnabled,
+    autoInsertResult: state.autoInsertResult,
+    autoSendResult: state.autoSendResult,
+    baseUrl: state.baseUrl,
+    catalogTools: getCatalogTools(),
+    continueBatchOnError: state.continueBatchOnError,
+    conversationPath: window.location.pathname,
+    gatewayRuntime: state.gatewayRuntime,
+    hasLiveCatalog: hasLiveCatalog(),
+    lastDeliveryRecovery: state.lastDeliveryRecovery,
+    lastError: state.lastError,
+    lastRequestHook: state.lastRequestHook,
+    lastResult: state.lastResult,
+    logs: state.logs,
+    panelCollapsed: state.panelCollapsed,
+    panelSize: state.panelSize,
+    pending: state.pending,
+    pendingBatchId: state.pendingBatchId,
+    progress: state.progress,
+    requestInjectionMode: state.requestInjectionMode,
+    requestPromptCatalogVersion: state.requestPrompt?.catalogVersion,
+    requestPromptSource: state.requestPrompt?.source,
+    retryableBatch: state.retryableBatch,
+    status: state.status,
+    token: state.token,
+    trustedLocalMode: state.trustedLocalMode,
+    workSurfaceMode: state.workSurfaceMode
+  });
+}
 
 export function startExtensionRuntimeWhenReady(options: StartExtensionRuntimeOptions = {}): void {
   if (runtimePromise) {
@@ -114,14 +169,199 @@ export async function startExtensionRuntime(options: StartExtensionRuntimeOption
 
   runtimePromise = (async () => {
     configureUiMountTarget(options.panelMountTarget);
+    await hydrateExtensionSettings();
     if (options.installRequestHook) {
       installPageRequestHook();
     }
     ensureRequestPromptLifecycleInstalled();
+    installWorkSurfaceMessageListener();
+    installBackgroundMessageListener();
     await startBridge();
   })();
 
   return runtimePromise;
+}
+
+async function hydrateExtensionSettings(): Promise<void> {
+  try {
+    const settings = await getExtensionSettings();
+    const legacySettings = readLegacyExtensionSettings();
+
+    if (legacySettings && isDefaultExtensionSettingsSnapshot(settings)) {
+      const migrated = await updateExtensionSettings(legacySettings);
+      clearLegacyExtensionSettings();
+      applyExtensionSettings(migrated);
+      addLogEntry('info', 'Migrated legacy page-local settings into background storage.');
+      return;
+    }
+
+    applyExtensionSettings(settings);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to load background settings';
+    console.warn(`${message}. Falling back to local defaults.`);
+    addLogEntry('warn', `${message}. Using local defaults until background settings respond.`);
+  }
+}
+
+function installBackgroundMessageListener(): void {
+  if (storageListenerInstalled) {
+    return;
+  }
+
+  storageListenerInstalled = true;
+  chrome.storage.onChanged.addListener((changes: Record<string, { newValue?: unknown }>, areaName: string) => {
+    if (areaName !== 'local' || !changes.cwmb_extension_settings?.newValue) {
+      return;
+    }
+
+    const next = normalizeExtensionSettings(changes.cwmb_extension_settings.newValue);
+    if (isSameSettingsSnapshot(next)) {
+      return;
+    }
+
+    applyExtensionSettings(next);
+    addLogEntry('info', 'Background settings updated.');
+    renderPanel();
+    void refreshGatewayStatus();
+  });
+}
+
+function installWorkSurfaceMessageListener(): void {
+  if (workSurfaceMessageListenerInstalled) {
+    return;
+  }
+
+  workSurfaceMessageListenerInstalled = true;
+  chrome.runtime.onMessage.addListener((
+    message: GetWorkSurfaceSnapshotMessage | RunWorkSurfaceActionMessage,
+    _sender: unknown,
+    sendResponse: (response: unknown) => void
+  ) => {
+    if (!message || typeof message !== 'object' || !('type' in message)) {
+      return false;
+    }
+
+    if (message.type === EXTENSION_MESSAGE_TYPES.getWorkSurfaceSnapshot) {
+      sendResponse(buildWorkSurfaceSnapshot());
+      return false;
+    }
+
+    if (message.type === EXTENSION_MESSAGE_TYPES.runWorkSurfaceAction) {
+      void runWorkSurfaceAction(message.action)
+        .then(() => sendResponse(undefined))
+        .catch((error: unknown) => {
+          sendResponse({
+            error: error instanceof Error ? error.message : 'Failed to run the requested work-surface action.'
+          });
+        });
+      return true;
+    }
+
+    return false;
+  });
+}
+
+function isSameSettingsSnapshot(next: ExtensionSettingsSnapshot): boolean {
+  return state.token === next.token
+    && state.baseUrl === next.baseUrl
+    && state.autoExecutePreference === next.autoExecute
+    && state.autoInsertPreference === next.autoInsert
+    && state.autoSendPreference === next.autoSend
+    && state.continueBatchOnError === next.continueBatchOnError
+    && state.requestInjectionMode === next.requestInjectionMode
+    && state.workSurfaceMode === next.workSurfaceMode;
+}
+
+async function persistSettings(patch: ExtensionSettingsPatch, successMessage: string, options?: {
+  refreshGateway?: boolean;
+  rerunPending?: boolean;
+}): Promise<void> {
+  applyExtensionSettings(await updateExtensionSettings(patch));
+  addLogEntry('info', successMessage);
+  renderPanel();
+
+  if (options?.refreshGateway) {
+    await refreshGatewayStatus();
+  }
+
+  if (options?.rerunPending) {
+    void maybeAutoRunPending();
+  }
+}
+
+async function runWorkSurfaceAction(action: WorkSurfaceActionRequest): Promise<void> {
+  switch (action.type) {
+    case 'run_pending':
+      await runPending();
+      return;
+    case 'ignore_pending':
+      ignorePending();
+      return;
+    case 'retry_batch':
+      await retryStoppedBatch();
+      return;
+    case 'insert_result':
+      await insertLastResult();
+      return;
+    case 'insert_catalog':
+      insertToolCatalog();
+      return;
+    case 'update_token':
+      await persistSettings({ token: action.token }, 'Pairing token updated.', { refreshGateway: true });
+      return;
+    case 'update_base_url':
+      await persistSettings({ baseUrl: action.baseUrl }, 'Gateway base URL updated.', { refreshGateway: true });
+      return;
+    case 'refresh_gateway':
+      await refreshGatewayStatus();
+      return;
+    case 'toggle_execute':
+      await persistSettings(
+        { autoExecute: !state.autoExecuteEnabled },
+        `Auto execute ${state.autoExecuteEnabled ? 'disabled' : 'enabled'}.`,
+        { rerunPending: true }
+      );
+      return;
+    case 'toggle_insert':
+      await persistSettings(
+        { autoInsert: !state.autoInsertResult },
+        `Auto insert ${state.autoInsertResult ? 'disabled' : 'enabled'}.`
+      );
+      return;
+    case 'toggle_send':
+      await persistSettings(
+        { autoSend: !state.autoSendResult },
+        `Auto send ${state.autoSendResult ? 'disabled' : 'enabled'}.`
+      );
+      return;
+    case 'toggle_continue_batch':
+      await persistSettings(
+        { continueBatchOnError: !state.continueBatchOnError },
+        `Continue on batch error ${state.continueBatchOnError ? 'disabled' : 'enabled'}.`
+      );
+      return;
+  }
+}
+
+async function publishActiveTabSummary(): Promise<void> {
+  const summary: ActiveTabBridgeSummary = {
+    path: window.location.pathname,
+    hasDomAccess: Boolean(document.documentElement),
+    status: state.status,
+    pendingCount: state.pending.length,
+    lastError: state.lastError,
+    requestHookStatus: state.lastRequestHook?.status,
+    requestPromptSource: state.requestPrompt?.source,
+    catalogSource: state.gatewayRuntime?.catalogSource,
+    catalogVersion: state.gatewayRuntime?.catalog?.catalogVersion,
+    updatedAt: Date.now()
+  };
+
+  try {
+    await reportActiveTabBridgeSummary(summary);
+  } catch {
+    // Ignore summary sync failures. They should not block the live page runtime.
+  }
 }
 
 function ensureRequestPromptLifecycleInstalled(): void {
@@ -677,40 +917,9 @@ function getCurrentReadyDeliveryStatus(): ReadyDeliveryStatus {
 }
 
 async function startBridge(): Promise<void> {
-  setUiHandlers({
-    onRun: () => void runPending(),
-    onIgnore: ignorePending,
-    onRetry: () => void retryStoppedBatch(),
-    onInsert: () => void insertLastResult(),
-    onInsertCatalog: insertToolCatalog,
-    onConfigChanged: () => void refreshGatewayStatus(),
-    onToggleExecute: () => {
-      toggleAutoExecute();
-      addLogEntry('info', `Auto execute ${state.autoExecuteEnabled ? 'enabled' : 'disabled'}.`);
-      renderPanel();
-      void maybeAutoRunPending();
-    },
-    onToggleInsert: () => {
-      toggleAutoInsert();
-      addLogEntry('info', `Auto insert ${state.autoInsertResult ? 'enabled' : 'disabled'}.`);
-      renderPanel();
-    },
-    onToggleSend: () => {
-      toggleAutoSend();
-      addLogEntry('info', `Auto send ${state.autoSendResult ? 'enabled' : 'disabled'}.`);
-      renderPanel();
-    },
-    onToggleContinueBatch: () => {
-      toggleContinueBatchOnError();
-      addLogEntry('info', `Continue on batch error ${state.continueBatchOnError ? 'enabled' : 'disabled'}.`);
-      renderPanel();
-    },
-    onToggleCollapsed: () => {
-      togglePanelCollapsed();
-      renderPanel();
-    }
-  });
+  setUiActionRunner((action) => runWorkSurfaceAction(action));
   addLogEntry('info', 'Bridge panel mounted.');
+  lastConversationPath = window.location.pathname;
   startupUndeliveredRecoveryDeadline = hasPersistedUndeliveredResultSession(window.location.pathname)
     ? Date.now() + STARTUP_UNDELIVERED_RECOVERY_GRACE_MS
     : 0;
@@ -728,11 +937,49 @@ async function startBridge(): Promise<void> {
   await maybeResumeRecoveredResultDelivery();
   void refreshGatewayStatus();
   void scanLatestAssistantMessage();
+  installConversationPathSync();
   onChatMutation(() => void handleLiveChatMutation());
   setInterval(() => {
     void refreshGatewayStatus();
     void scanLatestAssistantMessage();
   }, 30_000);
+}
+
+function installConversationPathSync(): void {
+  if (navigationSyncInstalled) {
+    return;
+  }
+
+  navigationSyncInstalled = true;
+  let scheduled = false;
+  const scheduleSync = (): void => {
+    if (scheduled) {
+      return;
+    }
+
+    scheduled = true;
+    queueMicrotask(() => {
+      scheduled = false;
+      void syncConversationPathChange()
+        .then(() => scanLatestAssistantMessage());
+    });
+  };
+
+  const originalPushState = history.pushState.bind(history);
+  history.pushState = ((...args: Parameters<History['pushState']>) => {
+    const result = originalPushState(...args);
+    scheduleSync();
+    return result;
+  }) as History['pushState'];
+
+  const originalReplaceState = history.replaceState.bind(history);
+  history.replaceState = ((...args: Parameters<History['replaceState']>) => {
+    const result = originalReplaceState(...args);
+    scheduleSync();
+    return result;
+  }) as History['replaceState'];
+
+  window.addEventListener('popstate', scheduleSync);
 }
 
 function syncRoundGuard(requestId: string): void {
@@ -769,11 +1016,26 @@ async function restoreUndeliveredResultSessionOnStartup(): Promise<boolean> {
 }
 
 async function handleLiveChatMutation(): Promise<void> {
+  await syncConversationPathChange();
   await maybeRestoreUndeliveredResultSessionAfterHydration();
   if (startupUndeliveredRecoveryDeadline !== 0) {
     await maybeResumeRecoveredResultDelivery();
   }
   await scanLatestAssistantMessage();
+}
+
+async function syncConversationPathChange(): Promise<void> {
+  const nextConversationPath = window.location.pathname;
+  if (nextConversationPath === lastConversationPath) {
+    return;
+  }
+
+  lastConversationPath = nextConversationPath;
+  startupUndeliveredRecoveryDeadline = hasPersistedUndeliveredResultSession(nextConversationPath)
+    ? Date.now() + STARTUP_UNDELIVERED_RECOVERY_GRACE_MS
+    : 0;
+
+  renderPanel();
 }
 
 function shouldDeferPendingDetectionForComposerDraft(): boolean {

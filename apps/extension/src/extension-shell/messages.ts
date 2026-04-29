@@ -1,7 +1,27 @@
+import type {
+  ActiveTabBridgeSummary,
+  ExtensionSettingsPatch,
+  ExtensionSettingsSnapshot
+} from '../settings/contracts.js';
+import type {
+  WorkSurfaceActionRequest,
+  WorkSurfaceSnapshot
+} from '../operator-workflows/index.js';
+import type { WorkSurfaceContext } from './work-surface.js';
+
 export const EXTENSION_MESSAGE_TYPES = {
   ping: 'cwmb:extension-ping',
   gatewayRequest: 'cwmb:gateway-request',
-  contentScriptReady: 'cwmb:content-script-ready'
+  contentScriptReady: 'cwmb:content-script-ready',
+  getSettings: 'cwmb:get-settings',
+  updateSettings: 'cwmb:update-settings',
+  settingsChanged: 'cwmb:settings-changed',
+  getActiveTabSummary: 'cwmb:get-active-tab-summary',
+  reportActiveTabSummary: 'cwmb:report-active-tab-summary',
+  getWorkSurfaceContext: 'cwmb:get-work-surface-context',
+  openOptionsPage: 'cwmb:open-options-page',
+  getWorkSurfaceSnapshot: 'cwmb:get-work-surface-snapshot',
+  runWorkSurfaceAction: 'cwmb:run-work-surface-action'
 } as const;
 
 export interface GatewayProxyRequestMessage {
@@ -24,4 +44,54 @@ export interface ContentScriptReadyMessage {
   type: typeof EXTENSION_MESSAGE_TYPES.contentScriptReady;
   path: string;
   hasDomAccess: boolean;
+}
+
+export interface GetSettingsMessage {
+  type: typeof EXTENSION_MESSAGE_TYPES.getSettings;
+}
+
+export interface UpdateSettingsMessage {
+  type: typeof EXTENSION_MESSAGE_TYPES.updateSettings;
+  patch: ExtensionSettingsPatch;
+}
+
+export interface SettingsChangedMessage {
+  type: typeof EXTENSION_MESSAGE_TYPES.settingsChanged;
+  settings: ExtensionSettingsSnapshot;
+}
+
+export interface GetActiveTabSummaryMessage {
+  type: typeof EXTENSION_MESSAGE_TYPES.getActiveTabSummary;
+}
+
+export interface ReportActiveTabSummaryMessage {
+  type: typeof EXTENSION_MESSAGE_TYPES.reportActiveTabSummary;
+  summary: ActiveTabBridgeSummary;
+}
+
+export interface GetWorkSurfaceContextMessage {
+  type: typeof EXTENSION_MESSAGE_TYPES.getWorkSurfaceContext;
+}
+
+export interface WorkSurfaceContextMessage {
+  type: typeof EXTENSION_MESSAGE_TYPES.getWorkSurfaceContext;
+  context: WorkSurfaceContext;
+}
+
+export interface OpenOptionsPageMessage {
+  type: typeof EXTENSION_MESSAGE_TYPES.openOptionsPage;
+}
+
+export interface GetWorkSurfaceSnapshotMessage {
+  type: typeof EXTENSION_MESSAGE_TYPES.getWorkSurfaceSnapshot;
+}
+
+export interface WorkSurfaceSnapshotMessage {
+  type: typeof EXTENSION_MESSAGE_TYPES.getWorkSurfaceSnapshot;
+  snapshot: WorkSurfaceSnapshot;
+}
+
+export interface RunWorkSurfaceActionMessage {
+  type: typeof EXTENSION_MESSAGE_TYPES.runWorkSurfaceAction;
+  action: WorkSurfaceActionRequest;
 }

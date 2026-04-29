@@ -1,17 +1,30 @@
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
+import type { UserManifest } from 'wxt';
+
+import wxtConfig from '../../wxt.config.js';
+import chatgptContentEntrypoint from '../../entrypoints/chatgpt.content.js';
+import chatgptMainWorldEntrypoint from '../../entrypoints/chatgpt-main-world.content.js';
 
 describe('manifest', () => {
-  it('declares a Stage 19-ready MV3 extension shell', () => {
-    const manifest = JSON.parse(readFileSync(fileURLToPath(new URL('../../manifest.json', import.meta.url)), 'utf8')) as {
-      manifest_version: number;
-      background?: { service_worker?: string };
-      content_scripts?: Array<{ world?: string }>;
-    };
-    expect(manifest.manifest_version).toBe(3);
-    expect(manifest.background?.service_worker).toBe('background.js');
-    expect(manifest.content_scripts).toHaveLength(2);
-    expect(manifest.content_scripts?.[0]?.world).toBe('MAIN');
+  it('declares a Phase 2.5-ready MV3 WXT shell', () => {
+    const manifest = wxtConfig.manifest as UserManifest;
+
+    expect(wxtConfig.manifestVersion).toBe(3);
+    expect(manifest.permissions).toContain('clipboardWrite');
+    expect(manifest.permissions).toContain('storage');
+    expect(manifest.host_permissions).toContain('https://chatgpt.com/*');
+    expect(manifest.host_permissions).toContain('https://chat.openai.com/*');
+    expect(chatgptMainWorldEntrypoint.world).toBe('MAIN');
+    expect(chatgptContentEntrypoint.matches).toEqual(chatgptMainWorldEntrypoint.matches);
+    expect(chatgptContentEntrypoint.runAt).toBe('document_start');
+  });
+
+  it('keeps the options surface configured as a browser tab entrypoint', () => {
+    const optionsHtml = readFileSync(new URL('../../entrypoints/options/index.html', import.meta.url), 'utf8');
+
+    expect(optionsHtml).toContain('name="wxt.openInTab"');
+    expect(optionsHtml).toContain('content="true"');
   });
 });
