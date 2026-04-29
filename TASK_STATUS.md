@@ -61,7 +61,7 @@
 - On April 29, 2026, after the Stage 24 landing, targeted `pnpm --filter @cwmb/extension lint`, `test`, `build` and root `pnpm lint`, `pnpm test`, `pnpm build` all passed again.
 - On April 29, 2026, the Stage 24 repair pass also landed in local code:
   - `apps/extension/src/ui-surfaces/sidepanel-surface-app.tsx` now keeps the latest settings/context in refs during polling so the bound side panel does not fall back to the placeholder shell after refresh or interval ticks
-  - `apps/extension/src/main/ui.ts` now restores expanded floating-panel scrolling through the root host wrapper instead of pinning the shared work surface
+  - `apps/extension/src/main/ui.ts` and `apps/extension/src/ui-surfaces/work-surface.css` now keep floating-panel sizing on the host wrapper while leaving expanded-state scrolling to one inner content layer, avoiding the visible double-strip resize/scroll artifact
   - `apps/extension/src/ui-surfaces/work-surface-app.tsx` now restores collapsed quick-action toggles while keeping host-mode switching restricted to popup/options only
   - targeted `pnpm --filter @cwmb/extension lint`, `test`, `build` and root `pnpm lint`, `pnpm test`, `pnpm build` all passed again after the repair pass
   - real ChatGPT Web validation is still pending before Stage 24 can close
@@ -74,6 +74,7 @@
   - `apps/extension/src/ui-surfaces/sidepanel-surface-state.ts` and `sidepanel-surface-app.tsx` now provide the documented dual-action empty-state recovery path while invalidating stale snapshots on real tab switches and tolerating only same-tab transient refresh failures
   - popup/options launch actions now recover from stale remembered ChatGPT tabs by opening a new ChatGPT tab, and options no longer overwrites unsaved connection drafts when immediate-save controls change
   - `apps/extension/src/main/ui.ts` and `apps/extension/src/ui-surfaces/work-surface.css` now move the floating panel toward a right-middle default anchor and strengthen the teal/orange desktop-workbench visual direction
+  - the floating panel now keeps edge-drag resizing visually hidden in both collapsed and expanded states, with persisted size still applied through the shared work-surface state
   - real ChatGPT Web validation is still pending before Stage 24 and Stage 25 can close
 - The current dialogue-level acceptance summary for April 27, 2026 reports the bridge chain, batch behavior, workspace read/search/grep tools, security boundaries, protocol alignment, core gateway/protocol/userscript tracing, and real write/UI end-to-end usage as currently usable with no remaining blocker called out for the just-closed Stage 7 boundary.
 - Draft v0.9 docs and draft contract shapes are reference truth only. They are not separate compatibility targets; compatibility work in the current slice applies to the proven live runtime floor and the still-live routes/behaviors it depends on.

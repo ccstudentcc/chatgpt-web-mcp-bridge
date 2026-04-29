@@ -24,9 +24,12 @@
 }
 
 .cwmb-work-surface__shell--floating {
-  min-width: min(420px, calc(100vw - 24px));
-  max-width: min(460px, calc(100vw - 24px));
-  max-height: min(84vh, 860px);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  max-width: none;
+  min-height: 0;
+  max-height: none;
 }
 
 .cwmb-work-surface__shell--sidepanel {
@@ -47,7 +50,9 @@
 
 .cwmb-work-surface__card--floating {
   backdrop-filter: blur(18px);
-  max-height: inherit;
+  width: 100%;
+  height: 100%;
+  max-height: none;
 }
 
 .cwmb-work-surface__card--sidepanel {
@@ -60,7 +65,9 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  max-height: inherit;
+  width: 100%;
+  height: 100%;
+  max-height: none;
   min-height: 0;
   overflow: auto;
   padding: 16px;

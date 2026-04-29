@@ -116,7 +116,7 @@ function applyPanelSize(): void {
   root.style.height = state.panelCollapsed ? 'auto' : `${size.height}px`;
   root.style.maxWidth = `${Math.max(MIN_PANEL_WIDTH, window.innerWidth - 24)}px`;
   root.style.maxHeight = state.panelCollapsed ? 'none' : `${Math.max(MIN_PANEL_HEIGHT, Math.min(MAX_PANEL_HEIGHT, window.innerHeight - 24))}px`;
-  root.style.overflow = state.panelCollapsed ? 'visible' : 'auto';
+  root.style.overflow = state.panelCollapsed ? 'visible' : 'hidden';
   root.style.overscrollBehavior = 'contain';
 }
 
