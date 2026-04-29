@@ -101,6 +101,8 @@ let recoveredDeliveryResumeInFlight = false;
 let recoveredDeliveryRetryNotBefore = 0;
 let storageListenerInstalled = false;
 let workSurfaceMessageListenerInstalled = false;
+let navigationSyncInstalled = false;
+let lastConversationPath = '';
 
 function renderPanel(): void {
   if (state.workSurfaceMode === 'side_panel') {
@@ -917,6 +919,7 @@ function getCurrentReadyDeliveryStatus(): ReadyDeliveryStatus {
 async function startBridge(): Promise<void> {
   setUiActionRunner((action) => runWorkSurfaceAction(action));
   addLogEntry('info', 'Bridge panel mounted.');
+  lastConversationPath = window.location.pathname;
   startupUndeliveredRecoveryDeadline = hasPersistedUndeliveredResultSession(window.location.pathname)
     ? Date.now() + STARTUP_UNDELIVERED_RECOVERY_GRACE_MS
     : 0;
@@ -934,11 +937,49 @@ async function startBridge(): Promise<void> {
   await maybeResumeRecoveredResultDelivery();
   void refreshGatewayStatus();
   void scanLatestAssistantMessage();
+  installConversationPathSync();
   onChatMutation(() => void handleLiveChatMutation());
   setInterval(() => {
     void refreshGatewayStatus();
     void scanLatestAssistantMessage();
   }, 30_000);
+}
+
+function installConversationPathSync(): void {
+  if (navigationSyncInstalled) {
+    return;
+  }
+
+  navigationSyncInstalled = true;
+  let scheduled = false;
+  const scheduleSync = (): void => {
+    if (scheduled) {
+      return;
+    }
+
+    scheduled = true;
+    queueMicrotask(() => {
+      scheduled = false;
+      void syncConversationPathChange()
+        .then(() => scanLatestAssistantMessage());
+    });
+  };
+
+  const originalPushState = history.pushState.bind(history);
+  history.pushState = ((...args: Parameters<History['pushState']>) => {
+    const result = originalPushState(...args);
+    scheduleSync();
+    return result;
+  }) as History['pushState'];
+
+  const originalReplaceState = history.replaceState.bind(history);
+  history.replaceState = ((...args: Parameters<History['replaceState']>) => {
+    const result = originalReplaceState(...args);
+    scheduleSync();
+    return result;
+  }) as History['replaceState'];
+
+  window.addEventListener('popstate', scheduleSync);
 }
 
 function syncRoundGuard(requestId: string): void {
@@ -975,11 +1016,26 @@ async function restoreUndeliveredResultSessionOnStartup(): Promise<boolean> {
 }
 
 async function handleLiveChatMutation(): Promise<void> {
+  await syncConversationPathChange();
   await maybeRestoreUndeliveredResultSessionAfterHydration();
   if (startupUndeliveredRecoveryDeadline !== 0) {
     await maybeResumeRecoveredResultDelivery();
   }
   await scanLatestAssistantMessage();
+}
+
+async function syncConversationPathChange(): Promise<void> {
+  const nextConversationPath = window.location.pathname;
+  if (nextConversationPath === lastConversationPath) {
+    return;
+  }
+
+  lastConversationPath = nextConversationPath;
+  startupUndeliveredRecoveryDeadline = hasPersistedUndeliveredResultSession(nextConversationPath)
+    ? Date.now() + STARTUP_UNDELIVERED_RECOVERY_GRACE_MS
+    : 0;
+
+  renderPanel();
 }
 
 function shouldDeferPendingDetectionForComposerDraft(): boolean {

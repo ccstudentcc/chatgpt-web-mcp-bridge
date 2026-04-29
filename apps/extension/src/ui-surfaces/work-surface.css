@@ -497,23 +497,6 @@
   font-size: 12px;
 }
 
-.cwmb-work-surface__resize-handle {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  width: 18px;
-  height: 18px;
-  border-radius: 6px;
-  background:
-    linear-gradient(135deg, transparent 0 42%, rgba(148, 163, 184, 0.58) 42% 48%, transparent 48% 58%, rgba(15, 118, 110, 0.78) 58% 64%, transparent 64%);
-  cursor: nwse-resize;
-  opacity: 0.72;
-}
-
-.cwmb-work-surface__resize-handle:hover {
-  opacity: 1;
-}
-
 @media (max-width: 720px) {
   .cwmb-work-surface__header,
   .cwmb-work-surface__collapsed-row {

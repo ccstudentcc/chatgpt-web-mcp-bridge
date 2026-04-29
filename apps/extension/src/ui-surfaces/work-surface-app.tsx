@@ -67,22 +67,19 @@ export function FloatingPanelSurface({
                 snapshot={snapshot}
               />
             ) : (
-              <>
-                <div className="cwmb-work-surface__content">
-                  <SurfaceHeader
-                    host={host}
-                    onToggleCollapsed={onToggleCollapsed}
-                    snapshot={snapshot}
-                  />
-                  <WorkSurfaceBody
-                    host={host}
-                    onAction={onAction}
-                    onOpenOptions={onOpenOptions}
-                    snapshot={snapshot}
-                  />
-                </div>
-                <ResizeHandle />
-              </>
+              <div className="cwmb-work-surface__content">
+                <SurfaceHeader
+                  host={host}
+                  onToggleCollapsed={onToggleCollapsed}
+                  snapshot={snapshot}
+                />
+                <WorkSurfaceBody
+                  host={host}
+                  onAction={onAction}
+                  onOpenOptions={onOpenOptions}
+                  snapshot={snapshot}
+                />
+              </div>
             )}
           </article>
         </div>
@@ -491,7 +488,6 @@ function CollapsedSurface({
           ))}
       </div>
       <div className="cwmb-work-surface__collapsed-note">{note}</div>
-      <ResizeHandle />
     </div>
   );
 }
@@ -583,17 +579,6 @@ function normalizeBadgeTone(tone: string): 'danger' | 'info' | 'ok' | 'warn' {
     return 'ok';
   }
   return 'info';
-}
-
-function ResizeHandle() {
-  return (
-    <div
-      aria-label="Resize floating panel"
-      className="cwmb-work-surface__resize-handle"
-      data-cwmb-resize-handle="true"
-      role="presentation"
-    />
-  );
 }
 
 function formatPanelSize(snapshot: WorkSurfaceSnapshot): string {

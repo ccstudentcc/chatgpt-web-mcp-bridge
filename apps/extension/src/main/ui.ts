@@ -12,7 +12,14 @@ import { FloatingPanelSurface } from '../ui-surfaces/work-surface-app.js';
 let root: HTMLDivElement | null = null;
 let mountTarget: HTMLElement | ShadowRoot | null = null;
 let dragState: { pointerId: number; offsetX: number; offsetY: number } | null = null;
-let resizeState: { pointerId: number; originX: number; originY: number; startWidth: number; startHeight: number } | null = null;
+let resizeState: {
+  pointerId: number;
+  edge: ResizeEdge;
+  originX: number;
+  originY: number;
+  startWidth: number;
+  startHeight: number;
+} | null = null;
 let reactRoot: Root | null = null;
 let lastSnapshot: WorkSurfaceSnapshot | null = null;
 let uiActionRunner: ((action: WorkSurfaceActionRequest) => Promise<void> | void) | null = null;
@@ -20,6 +27,9 @@ const MIN_PANEL_WIDTH = 360;
 const MAX_PANEL_WIDTH = 720;
 const MIN_PANEL_HEIGHT = 260;
 const MAX_PANEL_HEIGHT = 860;
+const RESIZE_EDGE_HIT_SIZE = 10;
+
+type ResizeEdge = 'bottom' | 'corner' | 'right';
 
 export function setUiActionRunner(
   runner: (action: WorkSurfaceActionRequest) => Promise<void> | void
@@ -65,9 +75,12 @@ export function clearFloatingPanel(): void {
   reactRoot?.unmount();
   reactRoot = null;
   root.removeEventListener('pointerdown', handleRootPointerDown);
+  root.removeEventListener('pointermove', handleRootPointerMove);
+  root.removeEventListener('pointerleave', handleRootPointerLeave);
   root.remove();
   root = null;
   dragState = null;
+  resizeState = null;
   lastSnapshot = null;
 }
 
@@ -87,6 +100,8 @@ function ensureRoot(): void {
     'background: transparent'
   ].join(';');
   root.addEventListener('pointerdown', handleRootPointerDown);
+  root.addEventListener('pointermove', handleRootPointerMove);
+  root.addEventListener('pointerleave', handleRootPointerLeave);
   (mountTarget ?? document.body).appendChild(root);
   reactRoot = createRoot(root);
 }
@@ -116,10 +131,11 @@ function handleRootPointerDown(event: PointerEvent): void {
   }
 
   const dragHandle = target.closest('[data-cwmb-drag-handle="true"]');
-  const resizeHandle = target.closest('[data-cwmb-resize-handle="true"]');
-  if (resizeHandle) {
+  const resizeEdge = getResizeEdge(event);
+  if (resizeEdge) {
     const rect = root.getBoundingClientRect();
     resizeState = {
+      edge: resizeEdge,
       pointerId: event.pointerId,
       originX: event.clientX,
       originY: event.clientY,
@@ -153,6 +169,29 @@ function handleRootPointerDown(event: PointerEvent): void {
   document.addEventListener('pointercancel', stopDrag);
 }
 
+function handleRootPointerMove(event: PointerEvent): void {
+  if (!root || dragState || resizeState) {
+    return;
+  }
+
+  const edge = getResizeEdge(event);
+  root.style.cursor = edge === 'corner'
+    ? 'nwse-resize'
+    : edge === 'right'
+      ? 'ew-resize'
+      : edge === 'bottom'
+        ? 'ns-resize'
+        : '';
+}
+
+function handleRootPointerLeave(): void {
+  if (!root || dragState || resizeState) {
+    return;
+  }
+
+  root.style.cursor = '';
+}
+
 function onDragMove(event: PointerEvent): void {
   if (!root || !dragState || event.pointerId !== dragState.pointerId) {
     return;
@@ -174,11 +213,20 @@ function onResizeMove(event: PointerEvent): void {
   }
 
   const nextSize = clampPanelSize({
-    width: resizeState.startWidth + (event.clientX - resizeState.originX),
-    height: resizeState.startHeight + (event.clientY - resizeState.originY)
+    width: resizeState.edge === 'right' || resizeState.edge === 'corner'
+      ? resizeState.startWidth + (event.clientX - resizeState.originX)
+      : resizeState.startWidth,
+    height: resizeState.edge === 'bottom' || resizeState.edge === 'corner'
+      ? resizeState.startHeight + (event.clientY - resizeState.originY)
+      : resizeState.startHeight
   });
   root.style.width = `${nextSize.width}px`;
-  root.style.height = state.panelCollapsed ? 'auto' : `${nextSize.height}px`;
+  root.style.height = `${nextSize.height}px`;
+  root.style.cursor = resizeState.edge === 'corner'
+    ? 'nwse-resize'
+    : resizeState.edge === 'right'
+      ? 'ew-resize'
+      : 'ns-resize';
   savePanelSize(nextSize);
   applyPanelPosition();
   if (lastSnapshot) {
@@ -198,11 +246,12 @@ function stopDrag(event: PointerEvent): void {
 }
 
 function stopResize(event: PointerEvent): void {
-  if (!resizeState || event.pointerId !== resizeState.pointerId) {
+  if (!root || !resizeState || event.pointerId !== resizeState.pointerId) {
     return;
   }
 
   resizeState = null;
+  root.style.cursor = '';
   document.removeEventListener('pointermove', onResizeMove);
   document.removeEventListener('pointerup', stopResize);
   document.removeEventListener('pointercancel', stopResize);
@@ -262,4 +311,26 @@ function clampPanelSize(size: PanelSize): PanelSize {
       Math.max(MIN_PANEL_HEIGHT, Math.min(MAX_PANEL_HEIGHT, window.innerHeight - 24))
     )
   };
+}
+
+function getResizeEdge(event: PointerEvent): ResizeEdge | null {
+  if (!root) {
+    return null;
+  }
+
+  const rect = root.getBoundingClientRect();
+  const onRightEdge = event.clientX >= rect.right - RESIZE_EDGE_HIT_SIZE && event.clientX <= rect.right;
+  const onBottomEdge = event.clientY >= rect.bottom - RESIZE_EDGE_HIT_SIZE && event.clientY <= rect.bottom;
+
+  if (onRightEdge && onBottomEdge) {
+    return 'corner';
+  }
+  if (onRightEdge) {
+    return 'right';
+  }
+  if (onBottomEdge) {
+    return 'bottom';
+  }
+
+  return null;
 }

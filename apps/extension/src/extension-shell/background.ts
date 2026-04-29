@@ -283,11 +283,6 @@ async function openOptionsPage(): Promise<void> {
     return;
   }
 
-  if (typeof chrome.runtime.openOptionsPage === 'function') {
-    await chrome.runtime.openOptionsPage();
-    return;
-  }
-
   await chrome.tabs.create({ url: optionsUrl });
 }
 
