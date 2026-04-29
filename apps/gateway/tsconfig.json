@@ -1,9 +1,18 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "composite": true,
     "rootDir": "src",
     "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
     "types": ["node"]
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../../packages/shared-utils" },
+    { "path": "../../packages/turn-model" },
+    { "path": "../../packages/policy-model" },
+    { "path": "../../packages/result-model" },
+    { "path": "../../packages/tool-contracts" }
+  ]
 }

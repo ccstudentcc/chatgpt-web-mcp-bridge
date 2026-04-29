@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build:deps": "pnpm --filter @cwmb/shared-utils build && pnpm --filter @cwmb/turn-model build && pnpm --filter @cwmb/result-model build && pnpm --filter @cwmb/tool-contracts build",
+    "build:deps": "tsc -b tsconfig.build.json",
     "prepare:wxt": "wxt prepare",
     "dev": "pnpm run build:deps && wxt",
     "build": "pnpm run build:deps && wxt build",

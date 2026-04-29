@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "compilerOptions": {
+    "tsBuildInfoFile": "./.wxt/tsconfig.build.tsbuildinfo"
+  },
+  "references": [
+    { "path": "../../packages/shared-utils" },
+    { "path": "../../packages/turn-model" },
+    { "path": "../../packages/result-model" },
+    { "path": "../../packages/tool-contracts" }
+  ]
+}

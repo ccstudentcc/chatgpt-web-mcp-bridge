@@ -44,6 +44,6 @@
 ## Validation
 
 - Use workspace scripts from the repo root: `pnpm dev`, `pnpm build`, `pnpm test`, `pnpm lint`.
-- When app-local work consumes new exports from workspace packages, rebuild those dependency packages first. Current enforced paths are `apps/extension` -> `@cwmb/shared-utils`, `@cwmb/turn-model`, `@cwmb/result-model`, `@cwmb/tool-contracts`; and `apps/gateway` -> `@cwmb/shared-utils`, `@cwmb/turn-model`, `@cwmb/policy-model`, `@cwmb/result-model`, `@cwmb/tool-contracts`.
+- `pnpm --filter @cwmb/extension build` and `pnpm --filter @cwmb/gateway build` now hydrate their workspace-package dependencies through TypeScript project references before app-level bundling or emit. If you bypass those build scripts with direct `tsc`, `vitest`, or `wxt` commands, rebuild the same dependency packages first.
 - For `apps/extension` UI, DOM, or automation changes, run `pnpm --filter @cwmb/extension lint`, `test`, and `build` before the wider root-level verification.
 - Stage explicit file paths when committing from a dirty tree.
