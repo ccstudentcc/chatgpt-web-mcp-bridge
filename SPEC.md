@@ -97,14 +97,14 @@ Exit gate for any Phase 2 stage:
 
 Active module stage: none. The most recently fully closed Phase 2 stage is `remove-compat-layers` (Stage 21).
 
-Phase 2.5 is now active again through two linked design truths:
+The closed Phase 2.5 surface redesign pack is captured through two linked design truths:
 
 - [docs/architecture/phase2.5-extension-convergence.md](docs/architecture/phase2.5-extension-convergence.md)
 - [docs/architecture/phase2.5-surface-hierarchy-and-mode-governance.md](docs/architecture/phase2.5-surface-hierarchy-and-mode-governance.md)
 
-As of April 29, 2026, Stage 23 `surface-mode-contract-and-host-exclusivity` is formally closed after real ChatGPT Web validation. Stage 24 `shared-work-surface-convergence` is code-complete pending real validation, and Stage 25 `popup-deflation-and-options-control-console-redesign` is now the active execution stage inside the reopened Phase 2.5 surface redesign pack.
+As of April 29, 2026, Stage 23 `surface-mode-contract-and-host-exclusivity`, Stage 24 `shared-work-surface-convergence`, and Stage 25 `popup-deflation-and-options-control-console-redesign` are formally closed after real ChatGPT Web validation. Stage 26 Phase 2.5 validation and closeout is also complete, so there is currently no active follow-on slice.
 
-Stages 20-21 remain defined in `IMPLEMENTATION_PLAN.md` for auditability. Do not infer any follow-on slice beyond the currently active Phase 2.5 surface redesign pack until the root task-control docs explicitly activate one.
+Stages 20-21 remain defined in `IMPLEMENTATION_PLAN.md` for auditability. Do not infer any follow-on slice beyond the closed Phase 2.5 surface redesign pack until the root task-control docs explicitly activate one.
 
 Follow-on stack guard:
 
@@ -163,7 +163,7 @@ Most recently completed stage intent:
 - Standardize follow-on work on one project stack: `pnpm` workspace, repo-wide `TypeScript`, extension-shell target `WXT` + Chrome Extension `MV3`, operator-facing extension UI target `React` + `Tailwind CSS`, gateway `Fastify` + `TypeScript`, shared `Zod` schemas, and `Vitest` for unit/module tests.
 - Use Phase 2.5 to converge extension runtime ownership onto capability domains that can serve in-page panel, popup, and options cleanly without creating a second execution architecture.
 - Make background/service worker the owner for persisted extension configuration truth while keeping page runtime as the owner of conversation-scoped live runtime truth.
-- Use the reopened Phase 2.5 slice to establish one explicit surface hierarchy:
+- Use the Phase 2.5 surface redesign slice to establish one explicit surface hierarchy:
   - popup as launch surface plus very small quick settings
   - floating panel or Chrome Side Panel as the single selected work surface
   - options as the full control console
@@ -244,4 +244,4 @@ Most recently completed stage intent:
 - The `operator-panel` stage has one explicit v0.9 owner target for runtime snapshot display, operator intents, and diagnostics entrypoints, and current userscript panel modules are treated as compat consumers rather than the long-term source of truth.
 - Every Phase 2 stage requires root verification, and browser-runtime stages additionally require real ChatGPT Web validation before being called complete.
 - Phase 2.5 is explicit enough that implementation can proceed without reopening whether `WXT`, popup/options, `React` + `Tailwind CSS`, and extension owner refactoring belong in one coordinated slice.
-- The reopened Phase 2.5 surface redesign slice is explicit enough that implementation can proceed without reopening popup scope, options hierarchy, work-surface exclusivity, or Chrome Side Panel adoption.
+- The closed Phase 2.5 surface redesign pack is explicit enough that future work can inherit popup scope, options hierarchy, work-surface exclusivity, and Chrome Side Panel adoption without reopening those decisions by default.

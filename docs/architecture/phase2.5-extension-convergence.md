@@ -2,12 +2,12 @@
 
 ## 0. Document Status
 
-- Status: active design
+- Status: closed design
 - Phase: `2.5`
-- Scope: one explicit follow-on slice between the closed Phase 2 extraction program and later capability rollout
+- Scope: one explicit closed follow-on slice between the closed Phase 2 extraction program and later capability rollout
 - Primary owners: `apps/extension` plus root task-control docs
 
-This document defines the active Phase 2.5 design truth for the extension-side convergence slice. It is narrower than the full v0.9 target architecture and more durable than rollout-local task notes.
+This document records the implemented and validated Phase 2.5 design truth for the extension-side convergence slice. It is narrower than the full v0.9 target architecture and more durable than rollout-local task notes.
 
 ## 1. Purpose
 

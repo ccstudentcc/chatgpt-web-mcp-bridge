@@ -2,16 +2,16 @@
 
 ## 0. Document Status
 
-- Status: active design
+- Status: closed design
 - Phase: `2.5`
-- Scope: follow-on surface redesign slice inside the broader Phase 2.5 convergence program
+- Scope: closed follow-on surface redesign slice inside the broader Phase 2.5 convergence program
 - Primary owners: `apps/extension/src/ui-surfaces/*`, `apps/extension/src/settings/*`, `apps/extension/src/extension-shell/*`, and root task-control docs
 
-This document defines the product and runtime truth for the Phase 2.5 surface redesign slice. It exists because the first Phase 2.5 landing established the WXT shell, popup/options entrypoints, and background-owned settings, but it did not yet establish a clean hierarchy across popup, floating panel, Chrome Side Panel, and options.
+This document records the product and runtime truth for the closed Phase 2.5 surface redesign slice. It exists because the first Phase 2.5 landing established the WXT shell, popup/options entrypoints, and background-owned settings, but it did not yet establish a clean hierarchy across popup, floating panel, Chrome Side Panel, and options.
 
 ## 1. Problem Statement
 
-The current extension surface pack still has four structural problems:
+At the start of this slice, the extension surface pack still had four structural problems:
 
 - popup is carrying too much product weight for a companion launcher
 - options does not yet read as a clearly layered control console

@@ -160,7 +160,7 @@ Latest verified code-side status as of April 29, 2026:
 
 ## Stage 24: Shared Work-Surface Convergence Across Floating Panel And Side Panel
 
-Status: active
+Status: completed
 
 Goal:
 
@@ -225,11 +225,11 @@ Latest verified code-side status as of April 29, 2026:
 - `apps/extension/src/main/*` now publish that shared contract from the live ChatGPT page runtime and answer tab-local work-surface action requests over extension messaging
 - `apps/extension/src/ui-surfaces/*` now render one shared React work-surface app for both floating panel and Chrome Side Panel, while keeping side-panel-only empty-state routing outside ChatGPT
 - targeted `pnpm --filter @cwmb/extension lint`, `test`, and `build` passed after the Stage 24 landing, and root `pnpm lint`, `pnpm test`, and `pnpm build` passed again
-- Stage 24 code-side convergence is now materially complete in local code, but formal closeout still depends on real ChatGPT Web validation for floating-panel and side-panel end-to-end workflow parity.
+- On April 29, 2026, the user confirmed real ChatGPT Web validation for floating-panel mode, side-panel mode, and the non-ChatGPT side-panel empty-state handoff. Stage 24 is now formally closed.
 
 ## Stage 25: Popup Deflation And Options Control-Console Redesign
 
-Status: active
+Status: completed
 
 Goal:
 
@@ -295,15 +295,15 @@ Latest verified code-side status as of April 29, 2026:
 - popup/options launch actions now fall back from a stale remembered ChatGPT tab to opening a new ChatGPT tab instead of dead-ending on an invalid tab id
 - options now keeps connection-form drafts stable while other immediate-save controls change, and it surfaces launch/save errors in the shared header instead of hiding them in `Diagnostics`
 - visual tokens now align more closely to the active teal/orange workbench direction instead of mixed hard-coded blue accents
-- the Stage 25 code-side landing still requires extension/root verification plus real ChatGPT Web validation before closeout
+- On April 29, 2026, the user confirmed real ChatGPT Web validation for popup launch behavior, popup quick-setting limits, and options full-console behavior. Stage 25 is now formally closed.
 
-## Stage 26: Reopened Phase 2.5 Validation And Closeout
+## Stage 26: Phase 2.5 Validation And Closeout
 
-Status: pending
+Status: completed
 
 Goal:
 
-- close the reopened Phase 2.5 surface redesign slice with explicit validation and task-control truth
+- close the Phase 2.5 surface redesign slice with explicit validation and task-control truth
 
 Primary design truth:
 
@@ -322,7 +322,7 @@ Allowed supporting surfaces:
 
 Optimization targets:
 
-- convert the reopened slice from active truth to closed truth without ambiguity
+- convert the slice from active truth to closed truth without ambiguity
 - leave no uncertainty about popup scope, options scope, or work-surface exclusivity after closeout
 - document the real validation checklist so future follow-on slices do not need to rediscover it
 
@@ -349,9 +349,15 @@ Required validation:
 
 Definition of done:
 
-- all reopened Phase 2.5 stages are validated and closed
+- all Phase 2.5 surface redesign stages are validated and closed
 - root task-control docs return to a no-active-follow-on-slice truth unless a later slice is explicitly activated
 - the repo docs state one stable hierarchy for popup, work surface, and options
+
+Latest verified closeout status as of April 29, 2026:
+
+- Stage 24 and Stage 25 both reached real ChatGPT Web acceptance in addition to their earlier extension/root verification passes
+- root task-control docs and the Phase 2.5 architecture docs now record the surface hierarchy and mode-governance pack as closed truth
+- there is currently no active follow-on slice beyond the closed Phase 2.5 surface redesign pack
 
 ## Stage 1: Close And Archive The v0.1 Baseline
 
