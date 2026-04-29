@@ -5,12 +5,14 @@ import {
   type OperatorPanelViewState,
   type PendingToolBlockLike
 } from '../operator-panel/index.js';
+import type { PanelSize } from '../main/state.js';
 import type { WorkSurfaceMode } from '../settings/contracts.js';
 import type { OperatorPanelToggleView } from '../operator-panel/index.js';
 
 export interface WorkSurfaceSnapshot {
   conversationPath: string;
   mode: WorkSurfaceMode;
+  panelSize?: PanelSize;
   title: string;
   subtitle: string;
   toolCatalogPrompt?: string;
@@ -49,12 +51,14 @@ export function getToggleActionRequest(toggle: OperatorPanelToggleView): WorkSur
 export function deriveWorkSurfaceSnapshot<TBlock extends PendingToolBlockLike>(
   input: OperatorPanelViewInput<TBlock> & {
     conversationPath: string;
+    panelSize?: PanelSize;
     workSurfaceMode: WorkSurfaceMode;
   }
 ): WorkSurfaceSnapshot {
   return {
     conversationPath: input.conversationPath,
     mode: input.workSurfaceMode,
+    panelSize: input.panelSize,
     title: 'ChatGPT MCP Bridge',
     subtitle: 'Security-first tool relay for ChatGPT Web',
     toolCatalogPrompt: input.catalogTools.length > 0 ? buildToolCatalogPrompt(input.catalogTools) : undefined,

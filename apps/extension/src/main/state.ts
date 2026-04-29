@@ -59,6 +59,11 @@ export interface PanelPosition {
   top: number;
 }
 
+export interface PanelSize {
+  width: number;
+  height: number;
+}
+
 export interface RequestPromptObserver {
   source: CatalogSource;
   catalogVersion?: string;
@@ -90,6 +95,7 @@ export interface BridgeState {
   workSurfaceMode: WorkSurfaceMode;
   panelCollapsed: boolean;
   panelPosition?: PanelPosition;
+  panelSize?: PanelSize;
   gatewayRuntime?: GatewayRuntimeSnapshot;
   pending: ParsedMcpBlock[];
   pendingBatchId?: string;
@@ -135,6 +141,8 @@ const UNDELIVERED_RESULT_SESSION_KEY = 'cwmb_undelivered_result_session';
 
 const panelLeftStored = parseStoredNumber(GM_getValue('cwmb_panel_left', ''));
 const panelTopStored = parseStoredNumber(GM_getValue('cwmb_panel_top', ''));
+const panelWidthStored = parseStoredNumber(GM_getValue('cwmb_panel_width', ''));
+const panelHeightStored = parseStoredNumber(GM_getValue('cwmb_panel_height', ''));
 
 function parseStoredNumber(stored: string): number | undefined {
   if (!stored) return undefined;
@@ -162,6 +170,9 @@ export const state: BridgeState = {
   panelCollapsed: GM_getValue('cwmb_panel_collapsed', 'false') === 'true',
   panelPosition: typeof panelLeftStored === 'number' && typeof panelTopStored === 'number'
     ? { left: panelLeftStored, top: panelTopStored }
+    : undefined,
+  panelSize: typeof panelWidthStored === 'number' && typeof panelHeightStored === 'number'
+    ? { width: panelWidthStored, height: panelHeightStored }
     : undefined,
   pending: [],
   autoRoundCount: 0,
@@ -273,6 +284,12 @@ export function savePanelPosition(position: PanelPosition): void {
   state.panelPosition = position;
   GM_setValue('cwmb_panel_left', String(position.left));
   GM_setValue('cwmb_panel_top', String(position.top));
+}
+
+export function savePanelSize(size: PanelSize): void {
+  state.panelSize = size;
+  GM_setValue('cwmb_panel_width', String(size.width));
+  GM_setValue('cwmb_panel_height', String(size.height));
 }
 
 export function addLogEntry(level: ActivityLogEntry['level'], message: string): void {

@@ -67,19 +67,22 @@ export function FloatingPanelSurface({
                 snapshot={snapshot}
               />
             ) : (
-              <div className="cwmb-work-surface__content">
-                <SurfaceHeader
-                  host={host}
-                  onToggleCollapsed={onToggleCollapsed}
-                  snapshot={snapshot}
-                />
-                <WorkSurfaceBody
-                  host={host}
-                  onAction={onAction}
-                  onOpenOptions={onOpenOptions}
-                  snapshot={snapshot}
-                />
-              </div>
+              <>
+                <div className="cwmb-work-surface__content">
+                  <SurfaceHeader
+                    host={host}
+                    onToggleCollapsed={onToggleCollapsed}
+                    snapshot={snapshot}
+                  />
+                  <WorkSurfaceBody
+                    host={host}
+                    onAction={onAction}
+                    onOpenOptions={onOpenOptions}
+                    snapshot={snapshot}
+                  />
+                </div>
+                <ResizeHandle />
+              </>
             )}
           </article>
         </div>
@@ -271,6 +274,7 @@ function WorkSurfaceBody({
     <>
       <section className="cwmb-work-surface__topline">
         <MiniCard label="Bound path" value={snapshot.conversationPath} />
+        <MiniCard label="Panel size" value={formatPanelSize(snapshot)} />
         <MiniCard label="Mode rule" value="Popup and options may switch hosts; the work surface may not." />
       </section>
 
@@ -361,7 +365,7 @@ function WorkSurfaceBody({
           <button
             className="cwmb-work-surface__button cwmb-work-surface__button--ghost"
             disabled={actionDisabled}
-            onClick={onOpenOptions}
+            onClick={() => void onOpenOptions()}
             type="button"
           >
             Open full options
@@ -475,25 +479,19 @@ function CollapsedSurface({
           .filter((item): item is { action: WorkSurfaceActionRequest; label: string } => item !== null)
           .map((item, index) => (
             <button
-              className="cwmb-work-surface__button cwmb-work-surface__button--ghost"
+              aria-pressed={isToggleEnabled(snapshot, item.label)}
+              className={`cwmb-work-surface__button ${isToggleEnabled(snapshot, item.label) ? 'cwmb-work-surface__button--toggle-on' : 'cwmb-work-surface__button--toggle-off'}`}
               disabled={busy}
               key={`collapsed-toggle-${index}`}
               onClick={() => void onAction(item.action)}
               type="button"
             >
-              {item.label}
+              {item.label}: {isToggleEnabled(snapshot, item.label) ? 'On' : 'Off'}
             </button>
           ))}
-        <button
-          className="cwmb-work-surface__button cwmb-work-surface__button--ghost"
-          disabled={busy}
-          onClick={onOpenOptions}
-          type="button"
-        >
-          Options
-        </button>
       </div>
       <div className="cwmb-work-surface__collapsed-note">{note}</div>
+      <ResizeHandle />
     </div>
   );
 }
@@ -585,4 +583,27 @@ function normalizeBadgeTone(tone: string): 'danger' | 'info' | 'ok' | 'warn' {
     return 'ok';
   }
   return 'info';
+}
+
+function ResizeHandle() {
+  return (
+    <div
+      aria-label="Resize floating panel"
+      className="cwmb-work-surface__resize-handle"
+      data-cwmb-resize-handle="true"
+      role="presentation"
+    />
+  );
+}
+
+function formatPanelSize(snapshot: WorkSurfaceSnapshot): string {
+  if (!snapshot.panelSize) {
+    return 'Auto';
+  }
+
+  return `${snapshot.panelSize.width} × ${snapshot.panelSize.height}`;
+}
+
+function isToggleEnabled(snapshot: WorkSurfaceSnapshot, label: string): boolean {
+  return snapshot.view.toggles.find((toggle) => toggle.label === label)?.enabled ?? false;
 }

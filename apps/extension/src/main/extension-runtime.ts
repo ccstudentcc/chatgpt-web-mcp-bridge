@@ -128,6 +128,7 @@ function buildWorkSurfaceSnapshot(): WorkSurfaceSnapshot {
     lastResult: state.lastResult,
     logs: state.logs,
     panelCollapsed: state.panelCollapsed,
+    panelSize: state.panelSize,
     pending: state.pending,
     pendingBatchId: state.pendingBatchId,
     progress: state.progress,

@@ -9,6 +9,7 @@ import {
 import {
   getExtensionSettings,
   getWorkSurfaceContext,
+  openExtensionOptionsPage,
   updateExtensionSettings
 } from '../settings/runtime-client.js';
 import type {
@@ -313,7 +314,7 @@ export function ExtensionConsoleApp({ surface }: { surface: Surface }) {
         }}
         onOpenChatGpt={() => void focusOrOpenChatGptTab(context)}
         onLaunchSelectedWorkSurface={() => void launchSelectedWorkSurface(settings.workSurfaceMode)}
-        onOpenOptions={() => chrome.runtime.openOptionsPage()}
+        onOpenOptions={() => openExtensionOptionsPage()}
         onRefresh={() => void refresh()}
         onSaveBaseUrl={() => void persist({ baseUrl: draftBaseUrl.trim() }, { successMessage: 'Gateway URL saved.' })}
         onSaveToken={() => void persist({ token: draftToken.trim() }, { successMessage: 'Pairing token saved.' })}

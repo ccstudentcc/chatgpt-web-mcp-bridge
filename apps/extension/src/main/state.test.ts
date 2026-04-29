@@ -382,4 +382,43 @@ describe('state runtime snapshot helpers', () => {
       currentComposerText: ''
     })).toBe(false);
   });
+
+  it('restores persisted floating-panel position and size state', async () => {
+    vi.stubGlobal('GM_getValue', vi.fn((key: string, defaultValue = '') => {
+      switch (key) {
+        case 'cwmb_panel_left':
+          return '120';
+        case 'cwmb_panel_top':
+          return '80';
+        case 'cwmb_panel_width':
+          return '540';
+        case 'cwmb_panel_height':
+          return '680';
+        default:
+          return defaultValue;
+      }
+    }));
+    vi.stubGlobal('GM_setValue', vi.fn());
+
+    const { state } = await import('./state.js');
+
+    expect(state.panelPosition).toEqual({ left: 120, top: 80 });
+    expect(state.panelSize).toEqual({ width: 540, height: 680 });
+  });
+
+  it('persists floating-panel size updates', async () => {
+    const setValue = vi.fn();
+    vi.stubGlobal('GM_setValue', setValue);
+
+    const {
+      savePanelSize,
+      state
+    } = await import('./state.js');
+
+    savePanelSize({ width: 512, height: 704 });
+
+    expect(state.panelSize).toEqual({ width: 512, height: 704 });
+    expect(setValue).toHaveBeenCalledWith('cwmb_panel_width', '512');
+    expect(setValue).toHaveBeenCalledWith('cwmb_panel_height', '704');
+  });
 });

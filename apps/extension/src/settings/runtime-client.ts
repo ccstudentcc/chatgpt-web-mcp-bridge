@@ -3,6 +3,7 @@ import {
   type GetWorkSurfaceContextMessage,
   type GetActiveTabSummaryMessage,
   type GetSettingsMessage,
+  type OpenOptionsPageMessage,
   type ReportActiveTabSummaryMessage,
   type UpdateSettingsMessage
 } from '../extension-shell/messages.js';
@@ -60,6 +61,14 @@ export async function reportActiveTabBridgeSummary(summary: ActiveTabBridgeSumma
   const message: ReportActiveTabSummaryMessage = {
     type: EXTENSION_MESSAGE_TYPES.reportActiveTabSummary,
     summary
+  };
+
+  await sendRuntimeMessage<void>(message);
+}
+
+export async function openExtensionOptionsPage(): Promise<void> {
+  const message: OpenOptionsPageMessage = {
+    type: EXTENSION_MESSAGE_TYPES.openOptionsPage
   };
 
   await sendRuntimeMessage<void>(message);

@@ -34,6 +34,7 @@
 }
 
 .cwmb-work-surface__card {
+  position: relative;
   border-radius: 24px;
   border: 1px solid rgba(148, 163, 184, 0.35);
   background:
@@ -302,6 +303,18 @@
   color: #115e59;
 }
 
+.cwmb-work-surface__button--toggle-on {
+  border-color: rgba(20, 184, 166, 0.28);
+  background: rgba(204, 251, 241, 0.94);
+  color: #115e59;
+}
+
+.cwmb-work-surface__button--toggle-off {
+  border-color: rgba(226, 232, 240, 0.95);
+  background: rgba(241, 245, 249, 0.96);
+  color: #64748b;
+}
+
 .cwmb-work-surface__button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -482,6 +495,23 @@
 .cwmb-work-surface__collapsed-note {
   color: #475569;
   font-size: 12px;
+}
+
+.cwmb-work-surface__resize-handle {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  background:
+    linear-gradient(135deg, transparent 0 42%, rgba(148, 163, 184, 0.58) 42% 48%, transparent 48% 58%, rgba(15, 118, 110, 0.78) 58% 64%, transparent 64%);
+  cursor: nwse-resize;
+  opacity: 0.72;
+}
+
+.cwmb-work-surface__resize-handle:hover {
+  opacity: 1;
 }
 
 @media (max-width: 720px) {

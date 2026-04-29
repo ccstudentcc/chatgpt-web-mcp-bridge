@@ -19,6 +19,7 @@ export const EXTENSION_MESSAGE_TYPES = {
   getActiveTabSummary: 'cwmb:get-active-tab-summary',
   reportActiveTabSummary: 'cwmb:report-active-tab-summary',
   getWorkSurfaceContext: 'cwmb:get-work-surface-context',
+  openOptionsPage: 'cwmb:open-options-page',
   getWorkSurfaceSnapshot: 'cwmb:get-work-surface-snapshot',
   runWorkSurfaceAction: 'cwmb:run-work-surface-action'
 } as const;
@@ -75,6 +76,10 @@ export interface GetWorkSurfaceContextMessage {
 export interface WorkSurfaceContextMessage {
   type: typeof EXTENSION_MESSAGE_TYPES.getWorkSurfaceContext;
   context: WorkSurfaceContext;
+}
+
+export interface OpenOptionsPageMessage {
+  type: typeof EXTENSION_MESSAGE_TYPES.openOptionsPage;
 }
 
 export interface GetWorkSurfaceSnapshotMessage {

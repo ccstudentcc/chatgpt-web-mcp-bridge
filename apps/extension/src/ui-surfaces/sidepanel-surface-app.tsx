@@ -9,7 +9,11 @@ import type {
   WorkSurfaceActionRequest,
   WorkSurfaceSnapshot
 } from '../operator-workflows/index.js';
-import { getExtensionSettings, getWorkSurfaceContext } from '../settings/runtime-client.js';
+import {
+  getExtensionSettings,
+  getWorkSurfaceContext,
+  openExtensionOptionsPage
+} from '../settings/runtime-client.js';
 import type { ExtensionSettingsSnapshot } from '../settings/contracts.js';
 import { deriveSidepanelSurfaceState } from './sidepanel-surface-state.js';
 import { SharedWorkSurface } from './work-surface-app.js';
@@ -37,6 +41,16 @@ export function SidepanelSurfaceApp() {
         void refresh();
       }
     };
+    const sessionListener = (changes: Record<string, { newValue?: unknown }>, areaName: string) => {
+      if (areaName !== 'session') {
+        return;
+      }
+
+      const summaryChanged = Object.keys(changes).some((key) => key.startsWith('cwmb_active_tab_summary:'));
+      if (summaryChanged || 'cwmb_last_bridge_tab_id' in changes || 'cwmb_last_bridge_window_id' in changes) {
+        void refresh();
+      }
+    };
     const tabListener = () => {
       void refresh();
     };
@@ -45,12 +59,14 @@ export function SidepanelSurfaceApp() {
     }, SNAPSHOT_POLL_MS);
 
     chrome.storage.onChanged.addListener(storageListener);
+    chrome.storage.onChanged.addListener(sessionListener);
     chrome.tabs?.onActivated?.addListener(tabListener);
     chrome.tabs?.onUpdated?.addListener(tabListener);
 
     return () => {
       window.clearInterval(intervalId);
       chrome.storage.onChanged.removeListener(storageListener);
+      chrome.storage.onChanged.removeListener(sessionListener);
       chrome.tabs?.onActivated?.removeListener(tabListener);
       chrome.tabs?.onUpdated?.removeListener(tabListener);
     };
@@ -140,7 +156,7 @@ export function SidepanelSurfaceApp() {
       <SharedWorkSurface
         host="side_panel"
         onAction={runAction}
-        onOpenOptions={() => chrome.runtime.openOptionsPage()}
+        onOpenOptions={() => openExtensionOptionsPage()}
         snapshot={snapshot}
       />
     );
@@ -192,7 +208,7 @@ export function SidepanelSurfaceApp() {
           ) : null}
           <button
             className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:text-sky-700"
-            onClick={() => chrome.runtime.openOptionsPage()}
+            onClick={() => void openExtensionOptionsPage()}
             type="button"
           >
             Open options tab

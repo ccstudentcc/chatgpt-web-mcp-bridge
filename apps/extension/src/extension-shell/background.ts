@@ -6,6 +6,7 @@ import {
   type GetActiveTabSummaryMessage,
   type GetSettingsMessage,
   type GetWorkSurfaceContextMessage,
+  type OpenOptionsPageMessage,
   type PingMessage,
   type ReportActiveTabSummaryMessage,
   type UpdateSettingsMessage
@@ -26,6 +27,7 @@ type ExtensionMessage =
   | GetActiveTabSummaryMessage
   | GetSettingsMessage
   | GetWorkSurfaceContextMessage
+  | OpenOptionsPageMessage
   | PingMessage
   | ReportActiveTabSummaryMessage
   | UpdateSettingsMessage;
@@ -124,6 +126,17 @@ export function startBackgroundBridge(): void {
 
     if (message.type === EXTENSION_MESSAGE_TYPES.getWorkSurfaceContext) {
       void getWorkSurfaceContext().then((context) => sendResponse(context));
+      return true;
+    }
+
+    if (message.type === EXTENSION_MESSAGE_TYPES.openOptionsPage) {
+      void openOptionsPage()
+        .then(() => sendResponse(undefined))
+        .catch((error: unknown) => {
+          sendResponse({
+            error: error instanceof Error ? error.message : 'Failed to open the options page.'
+          });
+        });
       return true;
     }
 
@@ -256,6 +269,35 @@ async function syncPersistedWorkSurfaceMode(settings?: ExtensionSettingsSnapshot
   const nextSettings = settings ?? await readExtensionSettings();
   const context = await getWorkSurfaceContext();
   await syncWorkSurfaceHostMode(nextSettings.workSurfaceMode, context);
+}
+
+async function openOptionsPage(): Promise<void> {
+  const optionsUrl = chrome.runtime.getURL('/options.html');
+  const existingTab = await findExistingOptionsTab(optionsUrl);
+
+  if (existingTab?.id) {
+    await chrome.tabs.update(existingTab.id, { active: true });
+    if (typeof existingTab.windowId === 'number' && chrome.windows?.update) {
+      await chrome.windows.update(existingTab.windowId, { focused: true });
+    }
+    return;
+  }
+
+  if (typeof chrome.runtime.openOptionsPage === 'function') {
+    await chrome.runtime.openOptionsPage();
+    return;
+  }
+
+  await chrome.tabs.create({ url: optionsUrl });
+}
+
+async function findExistingOptionsTab(optionsUrl: string) {
+  if (!chrome.tabs?.query) {
+    return null;
+  }
+
+  const matches = await chrome.tabs.query({ url: optionsUrl }).catch(() => []);
+  return matches[0] ?? null;
 }
 
 async function proxyGatewayRequest(message: GatewayProxyRequestMessage, sender: GatewayRequestSender): Promise<unknown> {

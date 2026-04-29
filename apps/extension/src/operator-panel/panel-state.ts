@@ -168,11 +168,11 @@ export function deriveOperatorPanelViewState<TBlock extends PendingToolBlockLike
       : 'empty';
   const configActions: OperatorPanelButtonView[] = [];
   if (!input.trustedLocalMode) {
-    configActions.push({ action: 'token', label: 'Set token', tone: 'default' });
+    configActions.push({ action: 'token', label: 'Set token', tone: 'ghost' });
   }
-  configActions.push({ action: 'base-url', label: 'Gateway URL', tone: 'default' });
+  configActions.push({ action: 'base-url', label: 'Gateway URL', tone: 'ghost' });
   if (input.hasLiveCatalog && input.catalogTools.length > 0) {
-    configActions.push({ action: 'insert-catalog', label: 'Insert MCP list', tone: 'default' });
+    configActions.push({ action: 'insert-catalog', label: 'Insert MCP list', tone: 'ghost' });
     configActions.push({ action: 'copy-catalog', label: 'Copy MCP list', tone: 'ghost' });
   }
 

@@ -5,15 +5,21 @@ import type {
   WorkSurfaceActionRequest,
   WorkSurfaceSnapshot
 } from '../operator-workflows/index.js';
-import { state, togglePanelCollapsed, savePanelPosition } from './state.js';
+import { state, togglePanelCollapsed, savePanelPosition, savePanelSize, type PanelSize } from './state.js';
+import { EXTENSION_MESSAGE_TYPES } from '../extension-shell/messages.js';
 import { FloatingPanelSurface } from '../ui-surfaces/work-surface-app.js';
 
 let root: HTMLDivElement | null = null;
 let mountTarget: HTMLElement | ShadowRoot | null = null;
 let dragState: { pointerId: number; offsetX: number; offsetY: number } | null = null;
+let resizeState: { pointerId: number; originX: number; originY: number; startWidth: number; startHeight: number } | null = null;
 let reactRoot: Root | null = null;
 let lastSnapshot: WorkSurfaceSnapshot | null = null;
 let uiActionRunner: ((action: WorkSurfaceActionRequest) => Promise<void> | void) | null = null;
+const MIN_PANEL_WIDTH = 360;
+const MAX_PANEL_WIDTH = 720;
+const MIN_PANEL_HEIGHT = 260;
+const MAX_PANEL_HEIGHT = 860;
 
 export function setUiActionRunner(
   runner: (action: WorkSurfaceActionRequest) => Promise<void> | void
@@ -38,7 +44,9 @@ export function renderFloatingPanel(snapshot: WorkSurfaceSnapshot): void {
     collapsed: state.panelCollapsed,
     host: 'floating_panel',
     onAction: (action: WorkSurfaceActionRequest) => uiActionRunner?.(action),
-    onOpenOptions: () => chrome.runtime.openOptionsPage(),
+    onOpenOptions: () => {
+      void chrome.runtime.sendMessage({ type: EXTENSION_MESSAGE_TYPES.openOptionsPage });
+    },
     onToggleCollapsed: () => {
       togglePanelCollapsed();
       if (lastSnapshot) {
@@ -88,8 +96,11 @@ function applyPanelSize(): void {
     return;
   }
 
-  root.style.width = state.panelCollapsed ? 'min(360px, calc(100vw - 24px))' : 'min(460px, calc(100vw - 24px))';
-  root.style.maxHeight = state.panelCollapsed ? 'none' : 'min(84vh, 860px)';
+  const size = getEffectivePanelSize();
+  root.style.width = `${size.width}px`;
+  root.style.height = state.panelCollapsed ? 'auto' : `${size.height}px`;
+  root.style.maxWidth = `${Math.max(MIN_PANEL_WIDTH, window.innerWidth - 24)}px`;
+  root.style.maxHeight = state.panelCollapsed ? 'none' : `${Math.max(MIN_PANEL_HEIGHT, Math.min(MAX_PANEL_HEIGHT, window.innerHeight - 24))}px`;
   root.style.overflow = state.panelCollapsed ? 'visible' : 'auto';
   root.style.overscrollBehavior = 'contain';
 }
@@ -105,6 +116,22 @@ function handleRootPointerDown(event: PointerEvent): void {
   }
 
   const dragHandle = target.closest('[data-cwmb-drag-handle="true"]');
+  const resizeHandle = target.closest('[data-cwmb-resize-handle="true"]');
+  if (resizeHandle) {
+    const rect = root.getBoundingClientRect();
+    resizeState = {
+      pointerId: event.pointerId,
+      originX: event.clientX,
+      originY: event.clientY,
+      startWidth: rect.width,
+      startHeight: rect.height
+    };
+    event.preventDefault();
+    document.addEventListener('pointermove', onResizeMove);
+    document.addEventListener('pointerup', stopResize);
+    document.addEventListener('pointercancel', stopResize);
+    return;
+  }
   if (!dragHandle) {
     return;
   }
@@ -141,6 +168,24 @@ function onDragMove(event: PointerEvent): void {
   savePanelPosition(clamped);
 }
 
+function onResizeMove(event: PointerEvent): void {
+  if (!root || !resizeState || event.pointerId !== resizeState.pointerId) {
+    return;
+  }
+
+  const nextSize = clampPanelSize({
+    width: resizeState.startWidth + (event.clientX - resizeState.originX),
+    height: resizeState.startHeight + (event.clientY - resizeState.originY)
+  });
+  root.style.width = `${nextSize.width}px`;
+  root.style.height = state.panelCollapsed ? 'auto' : `${nextSize.height}px`;
+  savePanelSize(nextSize);
+  applyPanelPosition();
+  if (lastSnapshot) {
+    lastSnapshot.panelSize = nextSize;
+  }
+}
+
 function stopDrag(event: PointerEvent): void {
   if (!dragState || event.pointerId !== dragState.pointerId) {
     return;
@@ -150,6 +195,17 @@ function stopDrag(event: PointerEvent): void {
   document.removeEventListener('pointermove', onDragMove);
   document.removeEventListener('pointerup', stopDrag);
   document.removeEventListener('pointercancel', stopDrag);
+}
+
+function stopResize(event: PointerEvent): void {
+  if (!resizeState || event.pointerId !== resizeState.pointerId) {
+    return;
+  }
+
+  resizeState = null;
+  document.removeEventListener('pointermove', onResizeMove);
+  document.removeEventListener('pointerup', stopResize);
+  document.removeEventListener('pointercancel', stopResize);
 }
 
 function applyPanelPosition(): void {
@@ -177,12 +233,33 @@ function applyPanelPosition(): void {
 
 function clampPanelPosition(left: number, top: number): { left: number; top: number } {
   const margin = 8;
-  const width = root?.offsetWidth ?? 460;
-  const height = root?.offsetHeight ?? 320;
+  const size = getEffectivePanelSize();
+  const width = root?.offsetWidth ?? size.width;
+  const height = root?.offsetHeight ?? (state.panelCollapsed ? 320 : size.height);
   const maxLeft = Math.max(margin, window.innerWidth - width - margin);
   const maxTop = Math.max(margin, window.innerHeight - height - margin);
   return {
     left: Math.min(Math.max(margin, left), maxLeft),
     top: Math.min(Math.max(margin, top), maxTop)
+  };
+}
+
+function getEffectivePanelSize(): PanelSize {
+  return clampPanelSize(state.panelSize ?? {
+    width: 460,
+    height: 640
+  });
+}
+
+function clampPanelSize(size: PanelSize): PanelSize {
+  return {
+    width: Math.min(
+      Math.max(MIN_PANEL_WIDTH, Math.round(size.width)),
+      Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, window.innerWidth - 24))
+    ),
+    height: Math.min(
+      Math.max(MIN_PANEL_HEIGHT, Math.round(size.height)),
+      Math.max(MIN_PANEL_HEIGHT, Math.min(MAX_PANEL_HEIGHT, window.innerHeight - 24))
+    )
   };
 }

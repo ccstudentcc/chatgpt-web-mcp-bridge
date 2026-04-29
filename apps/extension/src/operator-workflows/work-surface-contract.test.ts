@@ -31,6 +31,10 @@ describe('deriveWorkSurfaceSnapshot', () => {
         }
       ],
       panelCollapsed: false,
+      panelSize: {
+        width: 520,
+        height: 700
+      },
       pending: [],
       requestInjectionMode: 'synthetic_system',
       status: 'idle',
@@ -41,6 +45,7 @@ describe('deriveWorkSurfaceSnapshot', () => {
 
     expect(snapshot.conversationPath).toBe('/c/test-work-surface');
     expect(snapshot.mode).toBe('floating_panel');
+    expect(snapshot.panelSize).toEqual({ width: 520, height: 700 });
     expect(snapshot.title).toBe('ChatGPT MCP Bridge');
     expect(snapshot.toolCatalogPrompt).toContain('read_file');
     expect(snapshot.view.statusLabel).toBe('idle');

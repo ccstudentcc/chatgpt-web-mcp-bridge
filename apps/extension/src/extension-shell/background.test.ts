@@ -146,4 +146,60 @@ describe('background bridge', () => {
     expect(sessionStorageArea.store.cwmb_last_bridge_tab_id).toBeUndefined();
     expect(sessionStorageArea.store.cwmb_last_bridge_window_id).toBeUndefined();
   });
+
+  it('reuses an existing options tab before opening a new one', async () => {
+    const localStorageArea = createStorageArea({
+      cwmb_extension_settings: DEFAULT_EXTENSION_SETTINGS
+    });
+    const sessionStorageArea = createStorageArea();
+    const listeners: MessageListener[] = [];
+    const queryTabs = vi.fn(async () => [{ id: 77, windowId: 5 }]);
+    const updateTab = vi.fn(async () => undefined);
+    const updateWindow = vi.fn(async () => undefined);
+    const openOptionsPage = vi.fn(async () => undefined);
+
+    vi.stubGlobal('chrome', {
+      runtime: {
+        getURL: vi.fn((path: string) => `chrome-extension://test${path}`),
+        openOptionsPage,
+        onInstalled: { addListener: vi.fn() },
+        onStartup: { addListener: vi.fn() },
+        onMessage: {
+          addListener: vi.fn((listener: MessageListener) => {
+            listeners.push(listener);
+          })
+        }
+      },
+      tabs: {
+        onRemoved: { addListener: vi.fn() },
+        onActivated: { addListener: vi.fn() },
+        query: queryTabs,
+        update: updateTab
+      },
+      windows: {
+        update: updateWindow
+      },
+      storage: {
+        local: localStorageArea.api,
+        session: sessionStorageArea.api
+      }
+    });
+
+    const { startBackgroundBridge } = await import('./background.js');
+    const { EXTENSION_MESSAGE_TYPES } = await import('./messages.js');
+    startBackgroundBridge();
+
+    const listener = listeners.at(-1);
+    if (!listener) {
+      throw new Error('Missing background listener');
+    }
+
+    await dispatchMessage(listener, {
+      type: EXTENSION_MESSAGE_TYPES.openOptionsPage
+    }, {});
+
+    expect(updateTab).toHaveBeenCalledWith(77, { active: true });
+    expect(updateWindow).toHaveBeenCalledWith(5, { focused: true });
+    expect(openOptionsPage).not.toHaveBeenCalled();
+  });
 });
