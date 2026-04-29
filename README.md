@@ -1,6 +1,6 @@
 # ChatGPT Web MCP Bridge
 
-A safe local tool bridge that lets ChatGPT Web request read-only project context through MCP-style JSON blocks.
+A Chrome Extension plus local gateway that lets ChatGPT Web read local workspace context, call guarded local tools, and return results back into the active conversation.
 
 > This is not an official ChatGPT MCP client. It is a local bridge for ChatGPT Web users who want a conservative, auditable workflow.
 
@@ -20,6 +20,16 @@ A safe local tool bridge that lets ChatGPT Web request read-only project context
 - Phase 2 and Phase 2.5 are complete.
 - There is currently no active follow-on slice; activate the next one through the root task-control docs before reopening implementation scope.
 
+## What ships today
+
+- Chrome Extension `MV3` runtime built with `WXT`
+- local gateway with the live route set `/health`, `/tools`, and `/call-tool`
+- ChatGPT-only request injection, MCP turn detection, result insertion, and auto-send flow
+- one shared primary work surface rendered either as the in-page floating panel or the Chrome Side Panel
+- launcher-first `popup` plus full-console `options`
+- background-owned extension settings and page-owned conversation runtime state
+- conservative builtin-first tool execution with diagnostics, audit, and path-policy enforcement
+
 ## Safety model
 
 Default behavior is intentionally conservative:
@@ -31,10 +41,10 @@ Default behavior is intentionally conservative:
 - Uses trusted local mode by default, so localhost requests do not need a pairing token.
 - Limits all file operations to `workspaceRoot`.
 - Blocks `.env`, SSH keys, browser profile data, Git credentials, and other sensitive paths.
-- Auto-executes enabled v0.1 read-only tools after detection.
+- Auto-executes enabled low-risk tools after detection.
 - Auto-inserts and auto-sends tool results to ChatGPT by default.
 - Keeps `write_file` disabled by default; enabling it requires `allowWrite=true`, and it still stays manual-only because it is high risk.
-- Does not enable `run_pwsh` in v0.1.
+- Keeps `run_pwsh` disabled by default unless `allowPwsh=true`.
 
 Do not point `workspaceRoot` at your whole user directory or disk root.
 
@@ -51,8 +61,23 @@ Do not point `workspaceRoot` at your whole user directory or disk root.
 
 ```pwsh
 pnpm install
-pnpm build
 ```
+
+Useful entrypoints:
+
+```pwsh
+pnpm dev
+pnpm dev:gateway
+pnpm dev:extension
+pnpm build
+pnpm test
+pnpm lint
+```
+
+- `pnpm dev` starts both the gateway and the extension dev flow
+- `pnpm dev:gateway` starts only the local gateway
+- `pnpm dev:extension` starts the extension-side WXT flow
+- `pnpm build` emits the current production build artifacts for the whole workspace
 
 ## Configure workspaceRoot
 
@@ -91,20 +116,29 @@ If you later want explicit pairing-token auth again, set `"trustedLocalMode": fa
 
 ## Load the extension
 
-Build the extension shell:
+Build or refresh the extension output:
 
 ```pwsh
 pnpm dev:extension
+# or
+pnpm --filter @cwmb/extension build
 ```
 
-Then open `chrome://extensions`, enable Developer mode, choose `Load unpacked`, and select `apps/extension/dist`.
+Then open `chrome://extensions`, enable Developer mode, choose `Load unpacked`, and select:
+
+```text
+apps/extension/.output/chrome-mv3
+```
+
+Do not use `apps/extension/dist` as the unpacked extension root. The current WXT-owned extension output lives under `.output/chrome-mv3`.
 
 Expected extension-runtime smoke signals:
 
 - the extension loads without manifest errors,
 - the background service worker logs a lifecycle message,
-- visiting ChatGPT Web mounts the bridge panel inside the content-script shadow host,
-- request-hook diagnostics continue to report injection timing in the panel log.
+- visiting ChatGPT Web mounts the floating panel when `floating_panel` mode is selected,
+- the Chrome Side Panel opens as the primary work surface when `side_panel` mode is selected,
+- request-hook diagnostics continue to report injection timing in the work-surface diagnostics area.
 
 The former userscript implementation is archived under [`apps/userscript/README.md`](apps/userscript/README.md) as a Stage 21 legacy reference. It is no longer a workspace app or a supported runtime path.
 
@@ -115,12 +149,12 @@ Current surface hierarchy after the closed Phase 2.5 pack:
 - options is the full control console
 - only one work-surface host is allowed at runtime for one profile
 
-Open ChatGPT Web. In the bridge panel:
+Open ChatGPT Web. In the work surface:
 
 - adjust `Gateway base URL` if the gateway is not on the default `http://127.0.0.1:8024`,
 - rely on automatic request-layer injection for the live MCP catalog by default,
 - use `Insert MCP list` or `Copy MCP list` only as a diagnostic / fallback path if request injection drifts,
-- use the collapsible inspector panel to review pending tools, result payloads, and the event log,
+- use the collapsed diagnostics/log region to review pending tools, result payloads, and runtime state,
 - verify `Auto execute`, `Auto insert`, and `Auto send` are all on for the fully automatic flow,
 - leave `Continue on error` off if you want fail-stop batch behavior, or turn it on to keep executing later tools after one batch item fails.
 
@@ -153,6 +187,23 @@ ChatGPT outputs mcp block
 ```
 
 If `Auto insert` is off, the panel keeps the result in `Insert result` / `Copy result` mode until you choose to insert it manually.
+
+## Current live surfaces
+
+- Work surface:
+  - ChatGPT floating panel
+  - Chrome Side Panel
+- Secondary extension surfaces:
+  - `popup` for launch actions, bridge summary, and a very small quick-setting set
+  - `options` for full settings, connection state, automation policy, interface preferences, and diagnostics overview
+
+## Current live gateway contracts
+
+- `/health`: gateway reachability, config-derived runtime status, and operator-visible health summary
+- `/tools`: canonical live tool catalog
+- `/call-tool`: canonical live execution route
+
+If `/health` is healthy but browser behavior is wrong, the next place to inspect is usually request injection, turn detection, or result delivery rather than the gateway itself.
 
 ## Optional gated write tool
 
@@ -234,23 +285,27 @@ Useful manual acceptance checks:
 - `run_pwsh` should fail with `PWSH_DISABLED` or `TOOL_DISABLED` in v0.1.
 - In a multi-block batch, once one item fails, the remaining items should come back as `skipped`, with reason `SKIPPED_AFTER_BATCH_FAILURE`.
 
-## Supported v0.1 tools
+## Current live tools
 
 `mcp_list` returns the same live gateway catalog that ChatGPT sees, including `mcp_list` itself, so total/enabled counts stay aligned with `/tools` and the injected prompt.
 
-Default enabled:
+Enabled by default:
 - `mcp_list`
 - `read_file` (blocks high-confidence secrets, redacts lower-confidence assignment-style placeholders)
 - `list_directory`
 - `search_files`
 - `grep_files` (literal `query` or literal `patterns[]` by default, optional explicit `regex` mode, same sensitive-content policy as `read_file`)
 
-Optional gated:
+Optional but shipped:
 - `write_file` (`allowWrite=true`, high risk, manual-only)
+
+Present as disabled placeholders or power tools:
+- `write_file_proposal` (currently disabled placeholder for a later proposal flow)
+- `run_pwsh` (`allowPwsh=true`, high risk, confirmation-oriented, not part of the default conservative path)
 
 ## Historical Roadmap
 
-The bullets below are the older v0.1-era incremental roadmap and are kept only as historical context. The active route now lives in [`docs/v0.9-entrypoint.md`](docs/v0.9-entrypoint.md), [`docs/prd_vnext.md`](docs/prd_vnext.md), and the root task-control docs.
+The bullets below are older roadmap notes kept only as historical context. The current route now lives in [`docs/v0.9-entrypoint.md`](docs/v0.9-entrypoint.md), [`docs/prd_vnext.md`](docs/prd_vnext.md), and the root task-control docs.
 
 - v0.2: Chrome Extension, `write_file_proposal`, diff confirmation UI
 - v0.3: restricted `run_pwsh` with strong confirmation
