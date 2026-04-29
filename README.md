@@ -13,6 +13,13 @@ A safe local tool bridge that lets ChatGPT Web request read-only project context
 - Current operator troubleshooting: [`docs/operations/troubleshooting.md`](docs/operations/troubleshooting.md)
 - Current v0.9 ChatGPT page-facts code owner: `apps/extension/src/chatgpt-adapter/`
 
+## Current repo status
+
+- v0.1 stop line is closed; `docs/prd.md` is the proven reference baseline, not the active target.
+- v0.9 is the active mainline.
+- Phase 2 and Phase 2.5 are complete.
+- There is currently no active follow-on slice; activate the next one through the root task-control docs before reopening implementation scope.
+
 ## Safety model
 
 Default behavior is intentionally conservative:
@@ -37,7 +44,7 @@ Do not point `workspaceRoot` at your whole user directory or disk root.
 - PowerShell Core (`pwsh`) recommended; Windows PowerShell fallback is detected
 - Node.js 20+
 - pnpm 9+
-- Chrome Extension developer mode for the primary Stage 19 runtime path
+- Chrome Extension developer mode for the current extension-only runtime path
 - `rg` recommended for faster search
 
 ## Install
@@ -100,6 +107,13 @@ Expected extension-runtime smoke signals:
 - request-hook diagnostics continue to report injection timing in the panel log.
 
 The former userscript implementation is archived under [`apps/userscript/README.md`](apps/userscript/README.md) as a Stage 21 legacy reference. It is no longer a workspace app or a supported runtime path.
+
+Current surface hierarchy after the closed Phase 2.5 pack:
+
+- ChatGPT in-page floating panel or Chrome Side Panel is the primary work surface
+- popup is a lightweight launcher and quick-settings companion
+- options is the full control console
+- only one work-surface host is allowed at runtime for one profile
 
 Open ChatGPT Web. In the bridge panel:
 
