@@ -25,9 +25,18 @@ let lastSnapshot: WorkSurfaceSnapshot | null = null;
 let uiActionRunner: ((action: WorkSurfaceActionRequest) => Promise<void> | void) | null = null;
 const MIN_PANEL_WIDTH = 360;
 const MAX_PANEL_WIDTH = 720;
+const MIN_COLLAPSED_PANEL_HEIGHT = 160;
 const MIN_PANEL_HEIGHT = 260;
 const MAX_PANEL_HEIGHT = 860;
 const RESIZE_EDGE_HIT_SIZE = 10;
+const DEFAULT_COLLAPSED_PANEL_SIZE: PanelSize = {
+  width: 460,
+  height: 180
+};
+const DEFAULT_EXPANDED_PANEL_SIZE: PanelSize = {
+  width: 460,
+  height: 640
+};
 
 type ResizeEdge = 'bottom' | 'corner' | 'right';
 
@@ -113,9 +122,9 @@ function applyPanelSize(): void {
 
   const size = getEffectivePanelSize();
   root.style.width = `${size.width}px`;
-  root.style.height = state.panelCollapsed ? 'auto' : `${size.height}px`;
+  root.style.height = shouldUseAutoCollapsedHeight() ? 'auto' : `${size.height}px`;
   root.style.maxWidth = `${Math.max(MIN_PANEL_WIDTH, window.innerWidth - 24)}px`;
-  root.style.maxHeight = state.panelCollapsed ? 'none' : `${Math.max(MIN_PANEL_HEIGHT, Math.min(MAX_PANEL_HEIGHT, window.innerHeight - 24))}px`;
+  root.style.maxHeight = `${getPanelHeightBounds().max}px`;
   root.style.overflow = state.panelCollapsed ? 'visible' : 'hidden';
   root.style.overscrollBehavior = 'contain';
 }
@@ -284,7 +293,7 @@ function clampPanelPosition(left: number, top: number): { left: number; top: num
   const margin = 8;
   const size = getEffectivePanelSize();
   const width = root?.offsetWidth ?? size.width;
-  const height = root?.offsetHeight ?? (state.panelCollapsed ? 320 : size.height);
+  const height = root?.offsetHeight ?? (shouldUseAutoCollapsedHeight() ? 320 : size.height);
   const maxLeft = Math.max(margin, window.innerWidth - width - margin);
   const maxTop = Math.max(margin, window.innerHeight - height - margin);
   return {
@@ -294,21 +303,36 @@ function clampPanelPosition(left: number, top: number): { left: number; top: num
 }
 
 function getEffectivePanelSize(): PanelSize {
-  return clampPanelSize(state.panelSize ?? {
-    width: 460,
-    height: 640
-  });
+  return clampPanelSize(
+    state.panelSize ?? (state.panelCollapsed ? DEFAULT_COLLAPSED_PANEL_SIZE : DEFAULT_EXPANDED_PANEL_SIZE)
+  );
+}
+
+function shouldUseAutoCollapsedHeight(): boolean {
+  return state.panelCollapsed && !state.panelCollapsedSize;
+}
+
+function getPanelHeightBounds(): { max: number; min: number } {
+  const viewportMax = Math.max(
+    state.panelCollapsed ? MIN_COLLAPSED_PANEL_HEIGHT : MIN_PANEL_HEIGHT,
+    Math.min(MAX_PANEL_HEIGHT, window.innerHeight - 24)
+  );
+  return {
+    min: state.panelCollapsed ? MIN_COLLAPSED_PANEL_HEIGHT : MIN_PANEL_HEIGHT,
+    max: viewportMax
+  };
 }
 
 function clampPanelSize(size: PanelSize): PanelSize {
+  const heightBounds = getPanelHeightBounds();
   return {
     width: Math.min(
       Math.max(MIN_PANEL_WIDTH, Math.round(size.width)),
       Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, window.innerWidth - 24))
     ),
     height: Math.min(
-      Math.max(MIN_PANEL_HEIGHT, Math.round(size.height)),
-      Math.max(MIN_PANEL_HEIGHT, Math.min(MAX_PANEL_HEIGHT, window.innerHeight - 24))
+      Math.max(heightBounds.min, Math.round(size.height)),
+      heightBounds.max
     )
   };
 }

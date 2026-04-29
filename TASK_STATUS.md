@@ -75,6 +75,9 @@
   - popup/options launch actions now recover from stale remembered ChatGPT tabs by opening a new ChatGPT tab, and options no longer overwrites unsaved connection drafts when immediate-save controls change
   - `apps/extension/src/main/ui.ts` and `apps/extension/src/ui-surfaces/work-surface.css` now move the floating panel toward a right-middle default anchor and strengthen the teal/orange desktop-workbench visual direction
   - the floating panel now keeps edge-drag resizing visually hidden in both collapsed and expanded states, with persisted size still applied through the shared work-surface state
+  - floating-panel sizing now persists separate collapsed and expanded dimensions, while legacy single-size storage only seeds the expanded state for backward compatibility
+  - the expanded floating panel now restores mouse-wheel scrolling through the inner content column, after reestablishing a full-height scroll chain under the clipped host wrapper
+  - shared work-surface topline cards now stop showing `Panel size` and the host-mode governance reminder across all hosts; only `Bound path` remains visible there
   - real ChatGPT Web validation is still pending before Stage 24 and Stage 25 can close
 - The current dialogue-level acceptance summary for April 27, 2026 reports the bridge chain, batch behavior, workspace read/search/grep tools, security boundaries, protocol alignment, core gateway/protocol/userscript tracing, and real write/UI end-to-end usage as currently usable with no remaining blocker called out for the just-closed Stage 7 boundary.
 - Draft v0.9 docs and draft contract shapes are reference truth only. They are not separate compatibility targets; compatibility work in the current slice applies to the proven live runtime floor and the still-live routes/behaviors it depends on.

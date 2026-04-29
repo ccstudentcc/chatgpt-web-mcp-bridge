@@ -271,8 +271,6 @@ function WorkSurfaceBody({
     <>
       <section className="cwmb-work-surface__topline">
         <MiniCard label="Bound path" value={snapshot.conversationPath} />
-        <MiniCard label="Panel size" value={formatPanelSize(snapshot)} />
-        <MiniCard label="Mode rule" value="Popup and options may switch hosts; the work surface may not." />
       </section>
 
       <section className="cwmb-work-surface__band">
@@ -579,14 +577,6 @@ function normalizeBadgeTone(tone: string): 'danger' | 'info' | 'ok' | 'warn' {
     return 'ok';
   }
   return 'info';
-}
-
-function formatPanelSize(snapshot: WorkSurfaceSnapshot): string {
-  if (!snapshot.panelSize) {
-    return 'Auto';
-  }
-
-  return `${snapshot.panelSize.width} × ${snapshot.panelSize.height}`;
 }
 
 function isToggleEnabled(snapshot: WorkSurfaceSnapshot, label: string): boolean {

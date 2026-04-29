@@ -10,6 +10,9 @@
   --cwmb-accent-soft: rgba(20, 184, 166, 0.14);
   --cwmb-accent-strong: #f97316;
   --cwmb-focus-ring: rgba(15, 118, 110, 0.34);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
 }
 
 .cwmb-work-surface button,
@@ -21,6 +24,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-height: 0;
 }
 
 .cwmb-work-surface__shell--floating {
@@ -38,6 +42,8 @@
 
 .cwmb-work-surface__card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   border-radius: 24px;
   border: 1px solid rgba(148, 163, 184, 0.35);
   background:
@@ -49,6 +55,7 @@
 }
 
 .cwmb-work-surface__card--floating {
+  min-height: 0;
   backdrop-filter: blur(18px);
   width: 100%;
   height: 100%;

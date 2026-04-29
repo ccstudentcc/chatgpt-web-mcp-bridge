@@ -95,6 +95,8 @@ export interface BridgeState {
   workSurfaceMode: WorkSurfaceMode;
   panelCollapsed: boolean;
   panelPosition?: PanelPosition;
+  panelCollapsedSize?: PanelSize;
+  panelExpandedSize?: PanelSize;
   panelSize?: PanelSize;
   gatewayRuntime?: GatewayRuntimeSnapshot;
   pending: ParsedMcpBlock[];
@@ -141,14 +143,38 @@ const UNDELIVERED_RESULT_SESSION_KEY = 'cwmb_undelivered_result_session';
 
 const panelLeftStored = parseStoredNumber(GM_getValue('cwmb_panel_left', ''));
 const panelTopStored = parseStoredNumber(GM_getValue('cwmb_panel_top', ''));
-const panelWidthStored = parseStoredNumber(GM_getValue('cwmb_panel_width', ''));
-const panelHeightStored = parseStoredNumber(GM_getValue('cwmb_panel_height', ''));
+const legacyPanelWidthStored = parseStoredNumber(GM_getValue('cwmb_panel_width', ''));
+const legacyPanelHeightStored = parseStoredNumber(GM_getValue('cwmb_panel_height', ''));
+const panelExpandedWidthStored = parseStoredNumber(GM_getValue('cwmb_panel_expanded_width', ''))
+  ?? legacyPanelWidthStored;
+const panelExpandedHeightStored = parseStoredNumber(GM_getValue('cwmb_panel_expanded_height', ''))
+  ?? legacyPanelHeightStored;
+const panelCollapsedWidthStored = parseStoredNumber(GM_getValue('cwmb_panel_collapsed_width', ''));
+const panelCollapsedHeightStored = parseStoredNumber(GM_getValue('cwmb_panel_collapsed_height', ''));
+const panelCollapsedStored = GM_getValue('cwmb_panel_collapsed', 'false') === 'true';
 
 function parseStoredNumber(stored: string): number | undefined {
   if (!stored) return undefined;
   const parsed = Number(stored);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
+
+function toStoredPanelSize(width: number | undefined, height: number | undefined): PanelSize | undefined {
+  return typeof width === 'number' && typeof height === 'number'
+    ? { width, height }
+    : undefined;
+}
+
+function selectActivePanelSize(
+  panelCollapsed: boolean,
+  collapsedSize: PanelSize | undefined,
+  expandedSize: PanelSize | undefined
+): PanelSize | undefined {
+  return panelCollapsed ? collapsedSize : expandedSize;
+}
+
+const restoredCollapsedPanelSize = toStoredPanelSize(panelCollapsedWidthStored, panelCollapsedHeightStored);
+const restoredExpandedPanelSize = toStoredPanelSize(panelExpandedWidthStored, panelExpandedHeightStored);
 
 export const state: BridgeState = {
   status: 'idle',
@@ -167,13 +193,17 @@ export const state: BridgeState = {
   autoSendResult: true,
   continueBatchOnError: DEFAULT_EXTENSION_SETTINGS.continueBatchOnError,
   workSurfaceMode: DEFAULT_EXTENSION_SETTINGS.workSurfaceMode,
-  panelCollapsed: GM_getValue('cwmb_panel_collapsed', 'false') === 'true',
+  panelCollapsed: panelCollapsedStored,
   panelPosition: typeof panelLeftStored === 'number' && typeof panelTopStored === 'number'
     ? { left: panelLeftStored, top: panelTopStored }
     : undefined,
-  panelSize: typeof panelWidthStored === 'number' && typeof panelHeightStored === 'number'
-    ? { width: panelWidthStored, height: panelHeightStored }
-    : undefined,
+  panelCollapsedSize: restoredCollapsedPanelSize,
+  panelExpandedSize: restoredExpandedPanelSize,
+  panelSize: selectActivePanelSize(
+    panelCollapsedStored,
+    restoredCollapsedPanelSize,
+    restoredExpandedPanelSize
+  ),
   pending: [],
   autoRoundCount: 0,
   executedCallIds: new Set<string>(),
@@ -265,6 +295,11 @@ export function applyAutomationSettings(settings: {
 
 export function togglePanelCollapsed(): void {
   state.panelCollapsed = !state.panelCollapsed;
+  state.panelSize = selectActivePanelSize(
+    state.panelCollapsed,
+    state.panelCollapsedSize,
+    state.panelExpandedSize
+  );
   GM_setValue('cwmb_panel_collapsed', String(state.panelCollapsed));
 }
 
@@ -288,8 +323,16 @@ export function savePanelPosition(position: PanelPosition): void {
 
 export function savePanelSize(size: PanelSize): void {
   state.panelSize = size;
-  GM_setValue('cwmb_panel_width', String(size.width));
-  GM_setValue('cwmb_panel_height', String(size.height));
+  if (state.panelCollapsed) {
+    state.panelCollapsedSize = size;
+    GM_setValue('cwmb_panel_collapsed_width', String(size.width));
+    GM_setValue('cwmb_panel_collapsed_height', String(size.height));
+    return;
+  }
+
+  state.panelExpandedSize = size;
+  GM_setValue('cwmb_panel_expanded_width', String(size.width));
+  GM_setValue('cwmb_panel_expanded_height', String(size.height));
 }
 
 export function addLogEntry(level: ActivityLogEntry['level'], message: string): void {
