@@ -50,7 +50,15 @@
   - `apps/extension/entrypoints/sidepanel/*` now provide the first side-panel host surface with non-ChatGPT empty-state handoff
   - `apps/extension/entrypoints/options/index.html` now explicitly configures WXT `openInTab`, so options remains a browser-tab settings surface instead of a popup-like shell
 - On April 29, 2026, after the Stage 23 landing, targeted `pnpm --filter @cwmb/extension lint`, `test`, `build` and root `pnpm lint`, `pnpm test`, `pnpm build` all passed again.
-- Stage 23 is not formally closed yet. The remaining gate is the required real ChatGPT Web validation pass for floating-panel/side-panel exclusivity and popup/options mode switching.
+- On April 29, 2026, the user confirmed real ChatGPT Web validation for floating-panel/side-panel exclusivity and popup/options mode switching. Stage 23 is now formally closed.
+- Stage 24 `shared-work-surface-convergence` is now the active execution stage. The remaining code-side gap is one shared work-surface app and contract across the floating panel and Chrome Side Panel, with real ChatGPT Web validation deferred until after the landing.
+- Stage 24 code-side landing is now in the workspace:
+  - `apps/extension/src/operator-workflows/*` now own the shared work-surface snapshot/action contract
+  - `apps/extension/src/main/*` now expose that contract from the live ChatGPT page runtime and handle tab-local work-surface actions over extension messaging
+  - `apps/extension/src/ui-surfaces/*` now render one shared React work-surface app for both floating panel and Chrome Side Panel, while retaining an explicit non-ChatGPT side-panel empty state
+  - `apps/extension/src/main/ui.ts` is no longer a standalone HTML string renderer; it is now a floating-panel host wrapper around the shared work-surface app
+  - `apps/extension/AGENTS.md` now records `operator-workflows/*` as a live owner path and constrains side-panel workflow truth to stay shared
+- On April 29, 2026, after the Stage 24 landing, targeted `pnpm --filter @cwmb/extension lint`, `test`, `build` and root `pnpm lint`, `pnpm test`, `pnpm build` all passed again.
 - The current dialogue-level acceptance summary for April 27, 2026 reports the bridge chain, batch behavior, workspace read/search/grep tools, security boundaries, protocol alignment, core gateway/protocol/userscript tracing, and real write/UI end-to-end usage as currently usable with no remaining blocker called out for the just-closed Stage 7 boundary.
 - Draft v0.9 docs and draft contract shapes are reference truth only. They are not separate compatibility targets; compatibility work in the current slice applies to the proven live runtime floor and the still-live routes/behaviors it depends on.
 - ChatGPT Web DOM/request-shape/selectors evidence now has one intended home: `docs/operations/chatgpt-web-runtime-evidence.md`.
@@ -230,7 +238,7 @@
 - Active program: Phase 2.5 surface hierarchy and mode governance
 - Battleground: Extension Ring, with explicitly allowed supporting Final Core owner realignment on the extension side
 - Primary axis: popup deflation, options IA redesign, Chrome Side Panel adoption, and one-mode work-surface exclusivity
-- Active module stage: none. Phase 2 module stages are closed; the active execution stage is the reopened Phase 2.5 surface redesign sequence in `IMPLEMENTATION_PLAN.md`
+- Active module stage: none. Phase 2 module stages are closed; the active execution stage is Stage 24 `shared-work-surface-convergence` inside the reopened Phase 2.5 surface redesign sequence in `IMPLEMENTATION_PLAN.md`
 - Phase 1 completed implementation surfaces:
   - `packages/protocol/*`
   - narrow gateway route adapters

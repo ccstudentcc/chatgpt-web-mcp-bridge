@@ -114,6 +114,7 @@ export interface OperatorPanelViewState {
   headerButtonLabel: string;
   intentActions: OperatorPanelButtonView[];
   latestLogMessage?: string;
+  logEntries: OperatorPanelLogView[];
   manualRunNotice?: OperatorPanelNoticeView;
   pendingDisclosureLabel: string;
   progressNotice?: OperatorPanelNoticeView;
@@ -220,6 +221,7 @@ export function deriveOperatorPanelViewState<TBlock extends PendingToolBlockLike
     headerButtonLabel: input.panelCollapsed ? 'Expand' : 'Collapse',
     intentActions,
     latestLogMessage: input.logs[input.logs.length - 1]?.message,
+    logEntries: [...input.logs].reverse(),
     manualRunNotice: isManualRunRequired && capability.autoBlockedReason
       ? { tone: 'info', message: capability.autoBlockedReason }
       : undefined,

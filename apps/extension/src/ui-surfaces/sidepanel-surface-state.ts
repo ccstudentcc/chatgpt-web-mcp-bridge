@@ -37,8 +37,8 @@ export function deriveSidepanelSurfaceState(
 
   return {
     kind: 'bound',
-    title: 'Side panel host ready',
-    description: 'Stage 23 keeps the side panel focused on host exclusivity and tab binding. The shared work-surface app lands in Stage 24.',
+    title: 'Side panel host bound',
+    description: 'The Chrome side panel is bound to the active ChatGPT tab and should now render the same work-surface workflow as the floating panel.',
     primaryAction: null,
     latestPath
   };

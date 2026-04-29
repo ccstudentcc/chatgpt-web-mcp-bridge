@@ -3,6 +3,10 @@ import type {
   ExtensionSettingsPatch,
   ExtensionSettingsSnapshot
 } from '../settings/contracts.js';
+import type {
+  WorkSurfaceActionRequest,
+  WorkSurfaceSnapshot
+} from '../operator-workflows/index.js';
 import type { WorkSurfaceContext } from './work-surface.js';
 
 export const EXTENSION_MESSAGE_TYPES = {
@@ -14,7 +18,9 @@ export const EXTENSION_MESSAGE_TYPES = {
   settingsChanged: 'cwmb:settings-changed',
   getActiveTabSummary: 'cwmb:get-active-tab-summary',
   reportActiveTabSummary: 'cwmb:report-active-tab-summary',
-  getWorkSurfaceContext: 'cwmb:get-work-surface-context'
+  getWorkSurfaceContext: 'cwmb:get-work-surface-context',
+  getWorkSurfaceSnapshot: 'cwmb:get-work-surface-snapshot',
+  runWorkSurfaceAction: 'cwmb:run-work-surface-action'
 } as const;
 
 export interface GatewayProxyRequestMessage {
@@ -69,4 +75,18 @@ export interface GetWorkSurfaceContextMessage {
 export interface WorkSurfaceContextMessage {
   type: typeof EXTENSION_MESSAGE_TYPES.getWorkSurfaceContext;
   context: WorkSurfaceContext;
+}
+
+export interface GetWorkSurfaceSnapshotMessage {
+  type: typeof EXTENSION_MESSAGE_TYPES.getWorkSurfaceSnapshot;
+}
+
+export interface WorkSurfaceSnapshotMessage {
+  type: typeof EXTENSION_MESSAGE_TYPES.getWorkSurfaceSnapshot;
+  snapshot: WorkSurfaceSnapshot;
+}
+
+export interface RunWorkSurfaceActionMessage {
+  type: typeof EXTENSION_MESSAGE_TYPES.runWorkSurfaceAction;
+  action: WorkSurfaceActionRequest;
 }

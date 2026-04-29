@@ -1,6 +1,11 @@
 import { buildToolCatalogPrompt, createRequestPromptSnapshot, describeRequestPromptSync, readStoredToolCatalog, writeStoredToolCatalog } from '../injection-runtime/index.js';
 import { assessPendingTools } from '../operator-panel/index.js';
 import {
+  deriveWorkSurfaceSnapshot,
+  type WorkSurfaceActionRequest,
+  type WorkSurfaceSnapshot
+} from '../operator-workflows/index.js';
+import {
   createLegacyToolCallRequest,
   getExecuteResponseCompat,
   type CatalogContract,
@@ -48,7 +53,12 @@ import { getExtensionSettings, reportActiveTabBridgeSummary, updateExtensionSett
 import { normalizeExtensionSettings } from '../settings/storage.js';
 import { clearLegacyExtensionSettings, isDefaultExtensionSettingsSnapshot, readLegacyExtensionSettings } from '../settings/legacy-page-storage.js';
 import type { ActiveTabBridgeSummary, ExtensionSettingsPatch, ExtensionSettingsSnapshot } from '../settings/contracts.js';
-import { clearFloatingPanel, configureUiMountTarget, renderPanel as renderPanelUi, setUiHandlers } from './ui.js';
+import { clearFloatingPanel, configureUiMountTarget, renderFloatingPanel, setUiActionRunner } from './ui.js';
+import {
+  EXTENSION_MESSAGE_TYPES,
+  type GetWorkSurfaceSnapshotMessage,
+  type RunWorkSurfaceActionMessage
+} from '../extension-shell/messages.js';
 import {
   addLogEntry,
   applyExtensionSettings,
@@ -67,8 +77,7 @@ import {
   syncPersistedUndeliveredResultSession,
   type BridgeStatus,
   type StoredBatch,
-  state,
-  togglePanelCollapsed
+  state
 } from './state.js';
 
 export interface StartExtensionRuntimeOptions {
@@ -91,14 +100,46 @@ let startupUndeliveredRecoveryDeadline = 0;
 let recoveredDeliveryResumeInFlight = false;
 let recoveredDeliveryRetryNotBefore = 0;
 let storageListenerInstalled = false;
+let workSurfaceMessageListenerInstalled = false;
 
 function renderPanel(): void {
   if (state.workSurfaceMode === 'side_panel') {
     clearFloatingPanel();
   } else {
-    renderPanelUi();
+    renderFloatingPanel(buildWorkSurfaceSnapshot());
   }
   void publishActiveTabSummary();
+}
+
+function buildWorkSurfaceSnapshot(): WorkSurfaceSnapshot {
+  return deriveWorkSurfaceSnapshot({
+    autoExecuteEnabled: state.autoExecuteEnabled,
+    autoInsertResult: state.autoInsertResult,
+    autoSendResult: state.autoSendResult,
+    baseUrl: state.baseUrl,
+    catalogTools: getCatalogTools(),
+    continueBatchOnError: state.continueBatchOnError,
+    conversationPath: window.location.pathname,
+    gatewayRuntime: state.gatewayRuntime,
+    hasLiveCatalog: hasLiveCatalog(),
+    lastDeliveryRecovery: state.lastDeliveryRecovery,
+    lastError: state.lastError,
+    lastRequestHook: state.lastRequestHook,
+    lastResult: state.lastResult,
+    logs: state.logs,
+    panelCollapsed: state.panelCollapsed,
+    pending: state.pending,
+    pendingBatchId: state.pendingBatchId,
+    progress: state.progress,
+    requestInjectionMode: state.requestInjectionMode,
+    requestPromptCatalogVersion: state.requestPrompt?.catalogVersion,
+    requestPromptSource: state.requestPrompt?.source,
+    retryableBatch: state.retryableBatch,
+    status: state.status,
+    token: state.token,
+    trustedLocalMode: state.trustedLocalMode,
+    workSurfaceMode: state.workSurfaceMode
+  });
 }
 
 export function startExtensionRuntimeWhenReady(options: StartExtensionRuntimeOptions = {}): void {
@@ -130,6 +171,7 @@ export async function startExtensionRuntime(options: StartExtensionRuntimeOption
       installPageRequestHook();
     }
     ensureRequestPromptLifecycleInstalled();
+    installWorkSurfaceMessageListener();
     installBackgroundMessageListener();
     await startBridge();
   })();
@@ -181,6 +223,41 @@ function installBackgroundMessageListener(): void {
   });
 }
 
+function installWorkSurfaceMessageListener(): void {
+  if (workSurfaceMessageListenerInstalled) {
+    return;
+  }
+
+  workSurfaceMessageListenerInstalled = true;
+  chrome.runtime.onMessage.addListener((
+    message: GetWorkSurfaceSnapshotMessage | RunWorkSurfaceActionMessage,
+    _sender: unknown,
+    sendResponse: (response: unknown) => void
+  ) => {
+    if (!message || typeof message !== 'object' || !('type' in message)) {
+      return false;
+    }
+
+    if (message.type === EXTENSION_MESSAGE_TYPES.getWorkSurfaceSnapshot) {
+      sendResponse(buildWorkSurfaceSnapshot());
+      return false;
+    }
+
+    if (message.type === EXTENSION_MESSAGE_TYPES.runWorkSurfaceAction) {
+      void runWorkSurfaceAction(message.action)
+        .then(() => sendResponse(undefined))
+        .catch((error: unknown) => {
+          sendResponse({
+            error: error instanceof Error ? error.message : 'Failed to run the requested work-surface action.'
+          });
+        });
+      return true;
+    }
+
+    return false;
+  });
+}
+
 function isSameSettingsSnapshot(next: ExtensionSettingsSnapshot): boolean {
   return state.token === next.token
     && state.baseUrl === next.baseUrl
@@ -206,6 +283,60 @@ async function persistSettings(patch: ExtensionSettingsPatch, successMessage: st
 
   if (options?.rerunPending) {
     void maybeAutoRunPending();
+  }
+}
+
+async function runWorkSurfaceAction(action: WorkSurfaceActionRequest): Promise<void> {
+  switch (action.type) {
+    case 'run_pending':
+      await runPending();
+      return;
+    case 'ignore_pending':
+      ignorePending();
+      return;
+    case 'retry_batch':
+      await retryStoppedBatch();
+      return;
+    case 'insert_result':
+      await insertLastResult();
+      return;
+    case 'insert_catalog':
+      insertToolCatalog();
+      return;
+    case 'update_token':
+      await persistSettings({ token: action.token }, 'Pairing token updated.', { refreshGateway: true });
+      return;
+    case 'update_base_url':
+      await persistSettings({ baseUrl: action.baseUrl }, 'Gateway base URL updated.', { refreshGateway: true });
+      return;
+    case 'refresh_gateway':
+      await refreshGatewayStatus();
+      return;
+    case 'toggle_execute':
+      await persistSettings(
+        { autoExecute: !state.autoExecuteEnabled },
+        `Auto execute ${state.autoExecuteEnabled ? 'disabled' : 'enabled'}.`,
+        { rerunPending: true }
+      );
+      return;
+    case 'toggle_insert':
+      await persistSettings(
+        { autoInsert: !state.autoInsertResult },
+        `Auto insert ${state.autoInsertResult ? 'disabled' : 'enabled'}.`
+      );
+      return;
+    case 'toggle_send':
+      await persistSettings(
+        { autoSend: !state.autoSendResult },
+        `Auto send ${state.autoSendResult ? 'disabled' : 'enabled'}.`
+      );
+      return;
+    case 'toggle_continue_batch':
+      await persistSettings(
+        { continueBatchOnError: !state.continueBatchOnError },
+        `Continue on batch error ${state.continueBatchOnError ? 'disabled' : 'enabled'}.`
+      );
+      return;
   }
 }
 
@@ -783,37 +914,7 @@ function getCurrentReadyDeliveryStatus(): ReadyDeliveryStatus {
 }
 
 async function startBridge(): Promise<void> {
-  setUiHandlers({
-    onRun: () => void runPending(),
-    onIgnore: ignorePending,
-    onRetry: () => void retryStoppedBatch(),
-    onInsert: () => void insertLastResult(),
-    onInsertCatalog: insertToolCatalog,
-    onEditToken: (token) => void persistSettings({ token }, 'Pairing token updated.', { refreshGateway: true }),
-    onEditBaseUrl: (baseUrl) => void persistSettings({ baseUrl }, 'Gateway base URL updated.', { refreshGateway: true }),
-    onConfigChanged: () => void refreshGatewayStatus(),
-    onToggleExecute: () => void persistSettings(
-      { autoExecute: !state.autoExecuteEnabled },
-      `Auto execute ${state.autoExecuteEnabled ? 'disabled' : 'enabled'}.`,
-      { rerunPending: true }
-    ),
-    onToggleInsert: () => void persistSettings(
-      { autoInsert: !state.autoInsertResult },
-      `Auto insert ${state.autoInsertResult ? 'disabled' : 'enabled'}.`
-    ),
-    onToggleSend: () => void persistSettings(
-      { autoSend: !state.autoSendResult },
-      `Auto send ${state.autoSendResult ? 'disabled' : 'enabled'}.`
-    ),
-    onToggleContinueBatch: () => void persistSettings(
-      { continueBatchOnError: !state.continueBatchOnError },
-      `Continue on batch error ${state.continueBatchOnError ? 'disabled' : 'enabled'}.`
-    ),
-    onToggleCollapsed: () => {
-      togglePanelCollapsed();
-      renderPanel();
-    }
-  });
+  setUiActionRunner((action) => runWorkSurfaceAction(action));
   addLogEntry('info', 'Bridge panel mounted.');
   startupUndeliveredRecoveryDeadline = hasPersistedUndeliveredResultSession(window.location.pathname)
     ? Date.now() + STARTUP_UNDELIVERED_RECOVERY_GRACE_MS

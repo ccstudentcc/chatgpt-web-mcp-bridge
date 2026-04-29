@@ -5,13 +5,25 @@ import {
   openNewChatGptTab,
   type WorkSurfaceContext
 } from '../extension-shell/work-surface.js';
+import type {
+  WorkSurfaceActionRequest,
+  WorkSurfaceSnapshot
+} from '../operator-workflows/index.js';
 import { getExtensionSettings, getWorkSurfaceContext } from '../settings/runtime-client.js';
 import type { ExtensionSettingsSnapshot } from '../settings/contracts.js';
 import { deriveSidepanelSurfaceState } from './sidepanel-surface-state.js';
+import { SharedWorkSurface } from './work-surface-app.js';
+import {
+  getTabWorkSurfaceSnapshot,
+  runTabWorkSurfaceAction
+} from './work-surface-runtime-client.js';
+
+const SNAPSHOT_POLL_MS = 1_200;
 
 export function SidepanelSurfaceApp() {
   const [settings, setSettings] = useState<ExtensionSettingsSnapshot | null>(null);
   const [context, setContext] = useState<WorkSurfaceContext | null>(null);
+  const [snapshot, setSnapshot] = useState<WorkSurfaceSnapshot | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>();
 
   useEffect(() => {
@@ -23,14 +35,18 @@ export function SidepanelSurfaceApp() {
       }
     };
     const tabListener = () => {
-      void refreshContext();
+      void refresh();
     };
+    const intervalId = window.setInterval(() => {
+      void refreshSnapshot();
+    }, SNAPSHOT_POLL_MS);
 
     chrome.storage.onChanged.addListener(storageListener);
     chrome.tabs?.onActivated?.addListener(tabListener);
     chrome.tabs?.onUpdated?.addListener(tabListener);
 
     return () => {
+      window.clearInterval(intervalId);
       chrome.storage.onChanged.removeListener(storageListener);
       chrome.tabs?.onActivated?.removeListener(tabListener);
       chrome.tabs?.onUpdated?.removeListener(tabListener);
@@ -46,16 +62,46 @@ export function SidepanelSurfaceApp() {
       setSettings(nextSettings);
       setContext(nextContext);
       setErrorMessage(undefined);
+      await refreshSnapshot(nextSettings, nextContext);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to load sidepanel state.');
     }
   }
 
-  async function refreshContext(): Promise<void> {
+  async function refreshSnapshot(
+    currentSettings = settings,
+    currentContext = context
+  ): Promise<void> {
+    if (!currentSettings || !currentContext) {
+      setSnapshot(null);
+      return;
+    }
+
+    if (currentSettings.workSurfaceMode !== 'side_panel' || !currentContext.activeTabIsChatGpt || typeof currentContext.activeTabId !== 'number') {
+      setSnapshot(null);
+      return;
+    }
+
     try {
-      setContext(await getWorkSurfaceContext());
+      setSnapshot(await getTabWorkSurfaceSnapshot(currentContext.activeTabId));
+      setErrorMessage(undefined);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to refresh sidepanel context.');
+      setSnapshot(null);
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to load the active ChatGPT work surface.');
+    }
+  }
+
+  async function runAction(action: WorkSurfaceActionRequest): Promise<void> {
+    if (!context?.activeTabIsChatGpt || typeof context.activeTabId !== 'number') {
+      setErrorMessage('The active ChatGPT tab is unavailable for sidepanel actions.');
+      return;
+    }
+
+    try {
+      await runTabWorkSurfaceAction(context.activeTabId, action);
+      await refreshSnapshot(settings, context);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to run the requested sidepanel action.');
     }
   }
 
@@ -72,6 +118,17 @@ export function SidepanelSurfaceApp() {
 
   const view = deriveSidepanelSurfaceState(settings.workSurfaceMode, context);
   const summary = context?.activeSummary ?? context?.latestSummary ?? null;
+
+  if (view.kind === 'bound' && snapshot) {
+    return (
+      <SharedWorkSurface
+        host="side_panel"
+        onAction={runAction}
+        onOpenOptions={() => chrome.runtime.openOptionsPage()}
+        snapshot={snapshot}
+      />
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-100 p-5">

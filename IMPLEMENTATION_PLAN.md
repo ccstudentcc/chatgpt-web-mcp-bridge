@@ -86,7 +86,7 @@ Definition of done:
 
 ## Stage 23: Reopen Phase 2.5 - Surface Mode Contract And Host Exclusivity
 
-Status: active
+Status: completed
 
 Goal:
 
@@ -156,11 +156,11 @@ Latest verified code-side status as of April 29, 2026:
 - landed popup/options mode switching plus selected-host launch actions, while keeping options as a browser-tab settings surface
 - landed the first side-panel host page with active-tab binding and non-ChatGPT empty-state handoff
 - targeted `pnpm --filter @cwmb/extension lint`, `test`, `build` and root `pnpm lint`, `pnpm test`, `pnpm build` all passed after the landing
-- Stage 23 remains active until the required real ChatGPT Web validation pass is completed
+- On April 29, 2026, the user confirmed real ChatGPT Web validation for floating-panel/side-panel exclusivity and popup/options mode switching, so Stage 23 is formally closed
 
 ## Stage 24: Shared Work-Surface Convergence Across Floating Panel And Side Panel
 
-Status: pending
+Status: active
 
 Goal:
 
@@ -218,6 +218,14 @@ Definition of done:
 - floating panel and side panel expose the same workflow capabilities
 - the side panel follows the active ChatGPT tab and degrades to an explicit empty state outside ChatGPT
 - diagnostics remain secondary rather than dominating the first screen
+
+Latest verified code-side status as of April 29, 2026:
+
+- `apps/extension/src/operator-workflows/*` now own a serializable shared work-surface snapshot/action contract instead of treating the floating panel as the only operator-workflow consumer
+- `apps/extension/src/main/*` now publish that shared contract from the live ChatGPT page runtime and answer tab-local work-surface action requests over extension messaging
+- `apps/extension/src/ui-surfaces/*` now render one shared React work-surface app for both floating panel and Chrome Side Panel, while keeping side-panel-only empty-state routing outside ChatGPT
+- targeted `pnpm --filter @cwmb/extension lint`, `test`, and `build` passed after the Stage 24 landing, and root `pnpm lint`, `pnpm test`, and `pnpm build` passed again
+- Stage 24 remains active until the user completes the required real ChatGPT Web validation for floating-panel and side-panel end-to-end workflow parity
 
 ## Stage 25: Popup Deflation And Options Control-Console Redesign
 

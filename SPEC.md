@@ -102,6 +102,8 @@ Phase 2.5 is now active again through two linked design truths:
 - [docs/architecture/phase2.5-extension-convergence.md](docs/architecture/phase2.5-extension-convergence.md)
 - [docs/architecture/phase2.5-surface-hierarchy-and-mode-governance.md](docs/architecture/phase2.5-surface-hierarchy-and-mode-governance.md)
 
+As of April 29, 2026, Stage 23 `surface-mode-contract-and-host-exclusivity` is formally closed after real ChatGPT Web validation. Stage 24 `shared-work-surface-convergence` is the active execution stage inside the reopened Phase 2.5 surface redesign pack.
+
 Stages 20-21 remain defined in `IMPLEMENTATION_PLAN.md` for auditability. Do not infer any follow-on slice beyond the currently active Phase 2.5 surface redesign pack until the root task-control docs explicitly activate one.
 
 Follow-on stack guard:
