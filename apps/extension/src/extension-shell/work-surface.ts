@@ -142,7 +142,12 @@ export async function focusRecentChatGptTab(
     return false;
   }
 
-  await chrome.tabs.update(context.latestChatGptTabId, { active: true });
+  const tab = await chrome.tabs.get(context.latestChatGptTabId).catch(() => null);
+  if (!tab?.id || !isChatGptUrl(tab.url)) {
+    return false;
+  }
+
+  await chrome.tabs.update(tab.id, { active: true });
   if (typeof context.latestChatGptWindowId === 'number' && chrome.windows?.update) {
     await chrome.windows.update(context.latestChatGptWindowId, { focused: true });
   }

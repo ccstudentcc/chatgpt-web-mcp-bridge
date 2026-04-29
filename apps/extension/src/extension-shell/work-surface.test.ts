@@ -88,10 +88,12 @@ describe('work-surface host orchestration', () => {
   });
 
   it('focuses the latest ChatGPT tab when one is known', async () => {
+    const getTab = vi.fn(async () => ({ id: 41, url: 'https://chatgpt.com/c/123' }));
     const updateTab = vi.fn(async () => undefined);
     const updateWindow = vi.fn(async () => undefined);
     vi.stubGlobal('chrome', {
       tabs: {
+        get: getTab,
         update: updateTab
       },
       windows: {
@@ -106,5 +108,28 @@ describe('work-surface host orchestration', () => {
 
     expect(updateTab).toHaveBeenCalledWith(41, { active: true });
     expect(updateWindow).toHaveBeenCalledWith(9, { focused: true });
+  });
+
+  it('returns false when the remembered latest tab no longer exists', async () => {
+    const getTab = vi.fn(async () => {
+      throw new Error('No tab with id: 41');
+    });
+    const updateTab = vi.fn(async () => undefined);
+    vi.stubGlobal('chrome', {
+      tabs: {
+        get: getTab,
+        update: updateTab
+      },
+      windows: {
+        update: vi.fn(async () => undefined)
+      }
+    });
+
+    await expect(focusRecentChatGptTab({
+      latestChatGptTabId: 41,
+      latestChatGptWindowId: 9
+    })).resolves.toBe(false);
+
+    expect(updateTab).not.toHaveBeenCalled();
   });
 });

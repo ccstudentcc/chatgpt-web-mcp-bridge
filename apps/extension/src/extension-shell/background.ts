@@ -53,7 +53,7 @@ export function startBackgroundBridge(): void {
 
   chrome.tabs?.onRemoved?.addListener((tabId: number) => {
     activeTabSummaries.delete(tabId);
-    void chrome.storage.session.remove([getSummaryStorageKey(tabId)]);
+    void clearRemovedTabState(tabId);
   });
   chrome.tabs?.onActivated?.addListener(() => {
     void syncPersistedWorkSurfaceMode();
@@ -209,6 +209,17 @@ async function readPersistedActiveTabSummary(tabId: number): Promise<ActiveTabBr
   const persisted = summary as ActiveTabBridgeSummary;
   activeTabSummaries.set(tabId, persisted);
   return persisted;
+}
+
+async function clearRemovedTabState(tabId: number): Promise<void> {
+  const stored = await chrome.storage.session.get([LAST_BRIDGE_TAB_ID_KEY, getSummaryStorageKey(tabId)]);
+  const keysToRemove = [getSummaryStorageKey(tabId)];
+
+  if (stored[LAST_BRIDGE_TAB_ID_KEY] === tabId) {
+    keysToRemove.push(LAST_BRIDGE_TAB_ID_KEY, LAST_BRIDGE_WINDOW_ID_KEY);
+  }
+
+  await chrome.storage.session.remove(keysToRemove);
 }
 
 async function getWorkSurfaceContext(): Promise<WorkSurfaceContext> {

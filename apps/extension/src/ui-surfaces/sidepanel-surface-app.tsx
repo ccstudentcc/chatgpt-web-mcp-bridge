@@ -27,6 +27,7 @@ export function SidepanelSurfaceApp() {
   const [errorMessage, setErrorMessage] = useState<string>();
   const settingsRef = useRef<ExtensionSettingsSnapshot | null>(null);
   const contextRef = useRef<WorkSurfaceContext | null>(null);
+  const boundSnapshotTabIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     void refresh();
@@ -81,15 +82,24 @@ export function SidepanelSurfaceApp() {
     }
 
     if (currentSettings.workSurfaceMode !== 'side_panel' || !currentContext.activeTabIsChatGpt || typeof currentContext.activeTabId !== 'number') {
+      boundSnapshotTabIdRef.current = null;
       setSnapshot(null);
       return;
     }
 
+    if (boundSnapshotTabIdRef.current !== null && boundSnapshotTabIdRef.current !== currentContext.activeTabId) {
+      setSnapshot(null);
+    }
+
     try {
-      setSnapshot(await getTabWorkSurfaceSnapshot(currentContext.activeTabId));
+      const nextSnapshot = await getTabWorkSurfaceSnapshot(currentContext.activeTabId);
+      setSnapshot(nextSnapshot);
+      boundSnapshotTabIdRef.current = currentContext.activeTabId;
       setErrorMessage(undefined);
     } catch (error) {
-      setSnapshot(null);
+      if (boundSnapshotTabIdRef.current !== currentContext.activeTabId) {
+        setSnapshot(null);
+      }
       setErrorMessage(error instanceof Error ? error.message : 'Failed to load the active ChatGPT work surface.');
     }
   }
@@ -160,6 +170,15 @@ export function SidepanelSurfaceApp() {
               type="button"
             >
               Focus latest ChatGPT tab
+            </button>
+          ) : null}
+          {view.secondaryAction === 'open_new_chatgpt' ? (
+            <button
+              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:text-sky-700"
+              onClick={() => void openNewChatGptTab()}
+              type="button"
+            >
+              Open ChatGPT
             </button>
           ) : null}
           {view.primaryAction === 'open_new_chatgpt' ? (

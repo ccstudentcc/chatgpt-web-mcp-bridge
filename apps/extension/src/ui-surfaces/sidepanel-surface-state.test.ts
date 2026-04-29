@@ -18,6 +18,7 @@ describe('deriveSidepanelSurfaceState', () => {
     })).toMatchObject({
       kind: 'empty',
       primaryAction: 'focus_latest_chatgpt',
+      secondaryAction: 'open_new_chatgpt',
       latestPath: '/c/latest'
     });
   });

@@ -140,6 +140,10 @@ describe('background bridge', () => {
     });
 
     onRemovedListeners.forEach((listener) => listener(11));
+    await Promise.resolve();
+    await Promise.resolve();
     expect(sessionStorageArea.store['cwmb_active_tab_summary:11']).toBeUndefined();
+    expect(sessionStorageArea.store.cwmb_last_bridge_tab_id).toBeUndefined();
+    expect(sessionStorageArea.store.cwmb_last_bridge_window_id).toBeUndefined();
   });
 });

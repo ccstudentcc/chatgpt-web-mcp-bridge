@@ -6,6 +6,7 @@ export interface SidepanelSurfaceState {
   title: string;
   description: string;
   primaryAction: 'focus_latest_chatgpt' | 'open_new_chatgpt' | null;
+  secondaryAction: 'focus_latest_chatgpt' | 'open_new_chatgpt' | null;
   latestPath: string;
 }
 
@@ -21,6 +22,7 @@ export function deriveSidepanelSurfaceState(
       title: 'Side panel inactive',
       description: 'This profile is currently using the floating panel mode. Switch modes from popup or the options tab if you want the Chrome side panel.',
       primaryAction: context?.latestChatGptTabId ? 'focus_latest_chatgpt' : 'open_new_chatgpt',
+      secondaryAction: context?.latestChatGptTabId ? 'open_new_chatgpt' : null,
       latestPath
     };
   }
@@ -31,6 +33,7 @@ export function deriveSidepanelSurfaceState(
       title: 'Open ChatGPT to continue',
       description: 'The selected work surface is the Chrome side panel, but the current tab is not ChatGPT. Focus the latest ChatGPT tab or open a new one to resume the live runtime.',
       primaryAction: context?.latestChatGptTabId ? 'focus_latest_chatgpt' : 'open_new_chatgpt',
+      secondaryAction: context?.latestChatGptTabId ? 'open_new_chatgpt' : null,
       latestPath
     };
   }
@@ -40,6 +43,7 @@ export function deriveSidepanelSurfaceState(
     title: 'Side panel host bound',
     description: 'The Chrome side panel is bound to the active ChatGPT tab and should now render the same work-surface workflow as the floating panel.',
     primaryAction: null,
+    secondaryAction: null,
     latestPath
   };
 }

@@ -29,6 +29,29 @@ export function FloatingPanelSurface({
   onToggleCollapsed,
   snapshot
 }: FloatingPanelSurfaceProps) {
+  const [collapsedBusyAction, setCollapsedBusyAction] = useState<string | null>(null);
+
+  async function runCollapsedAction(action: WorkSurfaceActionRequest): Promise<void> {
+    if (collapsedBusyAction) {
+      return;
+    }
+
+    setCollapsedBusyAction(action.type);
+    try {
+      await onAction(action);
+    } finally {
+      setCollapsedBusyAction(null);
+    }
+  }
+
+  function openOptionsPage(): void {
+    if (collapsedBusyAction) {
+      return;
+    }
+
+    onOpenOptions();
+  }
+
   return (
     <>
       <style>{workSurfaceCss}</style>
@@ -37,7 +60,9 @@ export function FloatingPanelSurface({
           <article className="cwmb-work-surface__card cwmb-work-surface__card--floating">
             {collapsed ? (
               <CollapsedSurface
-                onAction={onAction}
+                busy={collapsedBusyAction !== null}
+                onAction={runCollapsedAction}
+                onOpenOptions={openOptionsPage}
                 onToggleCollapsed={onToggleCollapsed}
                 snapshot={snapshot}
               />
@@ -135,8 +160,9 @@ function WorkSurfaceBody({
 }: SharedProps) {
   const [pendingOpen, setPendingOpen] = useState(false);
   const [resultOpen, setResultOpen] = useState(false);
-  const [logsOpen, setLogsOpen] = useState(host === 'side_panel');
+  const [logsOpen, setLogsOpen] = useState(false);
   const [localNotice, setLocalNotice] = useState<string>();
+  const [busyAction, setBusyAction] = useState<string | null>(null);
   const pendingId = useId();
   const resultId = useId();
   const logsId = useId();
@@ -149,6 +175,22 @@ function WorkSurfaceBody({
     snapshot.view.errorNotice,
     snapshot.view.recoveryNotice
   ].filter(Boolean);
+
+  const actionDisabled = busyAction !== null;
+
+  async function runActionRequest(actionKey: string, action: WorkSurfaceActionRequest): Promise<void> {
+    if (busyAction) {
+      return;
+    }
+
+    setBusyAction(actionKey);
+    setLocalNotice(undefined);
+    try {
+      await onAction(action);
+    } finally {
+      setBusyAction(null);
+    }
+  }
 
   async function handleButton(action: string): Promise<void> {
     if (action === 'copy-catalog') {
@@ -178,39 +220,39 @@ function WorkSurfaceBody({
       return;
     }
     if (action === 'run') {
-      await onAction({ type: 'run_pending' });
+      await runActionRequest('run_pending', { type: 'run_pending' });
       return;
     }
     if (action === 'ignore') {
-      await onAction({ type: 'ignore_pending' });
+      await runActionRequest('ignore_pending', { type: 'ignore_pending' });
       return;
     }
     if (action === 'retry-batch') {
-      await onAction({ type: 'retry_batch' });
+      await runActionRequest('retry_batch', { type: 'retry_batch' });
       return;
     }
     if (action === 'insert-result') {
-      await onAction({ type: 'insert_result' });
+      await runActionRequest('insert_result', { type: 'insert_result' });
       return;
     }
     if (action === 'insert-catalog') {
-      await onAction({ type: 'insert_catalog' });
+      await runActionRequest('insert_catalog', { type: 'insert_catalog' });
       return;
     }
     if (action === 'toggle-execute') {
-      await onAction({ type: 'toggle_execute' });
+      await runActionRequest('toggle_execute', { type: 'toggle_execute' });
       return;
     }
     if (action === 'toggle-insert') {
-      await onAction({ type: 'toggle_insert' });
+      await runActionRequest('toggle_insert', { type: 'toggle_insert' });
       return;
     }
     if (action === 'toggle-send') {
-      await onAction({ type: 'toggle_send' });
+      await runActionRequest('toggle_send', { type: 'toggle_send' });
       return;
     }
     if (action === 'toggle-continue-batch') {
-      await onAction({ type: 'toggle_continue_batch' });
+      await runActionRequest('toggle_continue_batch', { type: 'toggle_continue_batch' });
       return;
     }
   }
@@ -270,7 +312,12 @@ function WorkSurfaceBody({
 
         <div className="cwmb-work-surface__actions" style={{ marginTop: 12 }}>
           {snapshot.view.intentActions.map((button) => (
-            <ActionButton button={button} key={button.action} onClick={() => void handleButton(button.action)} />
+            <ActionButton
+              button={button}
+              disabled={actionDisabled}
+              key={button.action}
+              onClick={() => void handleButton(button.action)}
+            />
           ))}
         </div>
       </section>
@@ -304,14 +351,25 @@ function WorkSurfaceBody({
         <h2 className="cwmb-work-surface__band-title">Secondary Settings</h2>
         <div className="cwmb-work-surface__actions">
           {snapshot.view.configActions.map((button) => (
-            <ActionButton button={button} key={button.action} onClick={() => void handleButton(button.action)} />
+            <ActionButton
+              button={button}
+              disabled={actionDisabled}
+              key={button.action}
+              onClick={() => void handleButton(button.action)}
+            />
           ))}
-          <button className="cwmb-work-surface__button cwmb-work-surface__button--ghost" onClick={onOpenOptions} type="button">
+          <button
+            className="cwmb-work-surface__button cwmb-work-surface__button--ghost"
+            disabled={actionDisabled}
+            onClick={onOpenOptions}
+            type="button"
+          >
             Open full options
           </button>
           <button
             className="cwmb-work-surface__button cwmb-work-surface__button--ghost"
-            onClick={() => void onAction({ type: 'refresh_gateway' })}
+            disabled={actionDisabled}
+            onClick={() => void runActionRequest('refresh_gateway', { type: 'refresh_gateway' })}
             type="button"
           >
             Refresh gateway
@@ -323,7 +381,9 @@ function WorkSurfaceBody({
             <div className="cwmb-work-surface__toggle" key={toggle.action}>
               <div className="cwmb-work-surface__toggle-label">{toggle.label}</div>
               <button
+                aria-pressed={toggle.enabled}
                 className={`cwmb-work-surface__toggle-button ${toggle.enabled ? 'cwmb-work-surface__toggle-button--on' : 'cwmb-work-surface__toggle-button--off'}`}
+                disabled={actionDisabled}
                 onClick={() => void handleButton(toggle.action)}
                 type="button"
               >
@@ -364,11 +424,15 @@ function WorkSurfaceBody({
 }
 
 function CollapsedSurface({
+  busy,
   onAction,
+  onOpenOptions,
   onToggleCollapsed,
   snapshot
 }: {
+  busy: boolean;
   onAction: (action: WorkSurfaceActionRequest) => Promise<void> | void;
+  onOpenOptions: () => void;
   onToggleCollapsed: () => void;
   snapshot: WorkSurfaceSnapshot;
 }) {
@@ -396,7 +460,12 @@ function CollapsedSurface({
 
       <div className="cwmb-work-surface__actions">
         {snapshot.view.collapsedActions.map((button) => (
-          <ActionButton button={button} key={button.action} onClick={() => void handleCollapsedAction(button.action, onAction)} />
+          <ActionButton
+            button={button}
+            disabled={busy}
+            key={button.action}
+            onClick={() => void handleCollapsedAction(button.action, onAction)}
+          />
         ))}
         {snapshot.view.toggles
           .map((toggle) => {
@@ -407,6 +476,7 @@ function CollapsedSurface({
           .map((item, index) => (
             <button
               className="cwmb-work-surface__button cwmb-work-surface__button--ghost"
+              disabled={busy}
               key={`collapsed-toggle-${index}`}
               onClick={() => void onAction(item.action)}
               type="button"
@@ -414,6 +484,14 @@ function CollapsedSurface({
               {item.label}
             </button>
           ))}
+        <button
+          className="cwmb-work-surface__button cwmb-work-surface__button--ghost"
+          disabled={busy}
+          onClick={onOpenOptions}
+          type="button"
+        >
+          Options
+        </button>
       </div>
       <div className="cwmb-work-surface__collapsed-note">{note}</div>
     </div>
@@ -460,14 +538,17 @@ function Notice({ children, tone }: { children: string; tone: 'danger' | 'info' 
 
 function ActionButton({
   button,
+  disabled = false,
   onClick
 }: {
   button: { action: string; label: string; tone: 'danger' | 'default' | 'ghost' | 'primary' };
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       className={`cwmb-work-surface__button ${toneClass(button.tone)}`}
+      disabled={disabled}
       onClick={onClick}
       type="button"
     >

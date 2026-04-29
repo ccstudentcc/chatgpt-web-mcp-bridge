@@ -73,7 +73,7 @@ function ensureRoot(): void {
   root.style.cssText = [
     'position: fixed',
     'right: 12px',
-    'top: 12px',
+    'top: 18vh',
     'z-index: 2147483647',
     'overflow: visible',
     'background: transparent'
@@ -157,10 +157,11 @@ function applyPanelPosition(): void {
     return;
   }
 
-  const defaultOffset = 12;
+  const defaultRightOffset = 12;
+  const defaultTop = Math.max(12, Math.round(window.innerHeight * 0.18));
   if (!state.panelPosition) {
-    root.style.right = `${defaultOffset}px`;
-    root.style.top = `${defaultOffset}px`;
+    root.style.right = `${defaultRightOffset}px`;
+    root.style.top = `${defaultTop}px`;
     root.style.left = 'auto';
     return;
   }

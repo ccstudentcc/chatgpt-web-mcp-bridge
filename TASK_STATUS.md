@@ -51,7 +51,7 @@
   - `apps/extension/entrypoints/options/index.html` now explicitly configures WXT `openInTab`, so options remains a browser-tab settings surface instead of a popup-like shell
 - On April 29, 2026, after the Stage 23 landing, targeted `pnpm --filter @cwmb/extension lint`, `test`, `build` and root `pnpm lint`, `pnpm test`, `pnpm build` all passed again.
 - On April 29, 2026, the user confirmed real ChatGPT Web validation for floating-panel/side-panel exclusivity and popup/options mode switching. Stage 23 is now formally closed.
-- Stage 24 `shared-work-surface-convergence` is now the active execution stage. The remaining code-side gap is one shared work-surface app and contract across the floating panel and Chrome Side Panel, with real ChatGPT Web validation deferred until after the landing.
+- Stage 24 `shared-work-surface-convergence` is now code-landed locally and awaiting real ChatGPT Web validation for formal closeout.
 - Stage 24 code-side landing is now in the workspace:
   - `apps/extension/src/operator-workflows/*` now own the shared work-surface snapshot/action contract
   - `apps/extension/src/main/*` now expose that contract from the live ChatGPT page runtime and handle tab-local work-surface actions over extension messaging
@@ -65,6 +65,16 @@
   - `apps/extension/src/ui-surfaces/work-surface-app.tsx` now restores collapsed quick-action toggles while keeping host-mode switching restricted to popup/options only
   - targeted `pnpm --filter @cwmb/extension lint`, `test`, `build` and root `pnpm lint`, `pnpm test`, `pnpm build` all passed again after the repair pass
   - real ChatGPT Web validation is still pending before Stage 24 can close
+- Stage 25 `popup-deflation-and-options-control-console-redesign` is now the active execution stage.
+- The current Stage 25 code-side landing is now in the workspace:
+  - `apps/extension/src/ui-surfaces/extension-console-app.tsx` now gives popup a launcher-first IA and options a real left-nav control-console IA
+  - popup now limits writable quick settings to work-surface mode, gateway base URL, pairing token, and auto execute
+  - options now separates `General`, `Connection`, `Automation`, `Interface`, and `Diagnostics` instead of reusing a popup-sized card stack
+  - `apps/extension/src/ui-surfaces/work-surface-app.tsx` now applies busy/disabled semantics to primary actions and persistent toggles, keeps diagnostics collapsed by default, and improves keyboard state affordances
+  - `apps/extension/src/ui-surfaces/sidepanel-surface-state.ts` and `sidepanel-surface-app.tsx` now provide the documented dual-action empty-state recovery path while invalidating stale snapshots on real tab switches and tolerating only same-tab transient refresh failures
+  - popup/options launch actions now recover from stale remembered ChatGPT tabs by opening a new ChatGPT tab, and options no longer overwrites unsaved connection drafts when immediate-save controls change
+  - `apps/extension/src/main/ui.ts` and `apps/extension/src/ui-surfaces/work-surface.css` now move the floating panel toward a right-middle default anchor and strengthen the teal/orange desktop-workbench visual direction
+  - real ChatGPT Web validation is still pending before Stage 24 and Stage 25 can close
 - The current dialogue-level acceptance summary for April 27, 2026 reports the bridge chain, batch behavior, workspace read/search/grep tools, security boundaries, protocol alignment, core gateway/protocol/userscript tracing, and real write/UI end-to-end usage as currently usable with no remaining blocker called out for the just-closed Stage 7 boundary.
 - Draft v0.9 docs and draft contract shapes are reference truth only. They are not separate compatibility targets; compatibility work in the current slice applies to the proven live runtime floor and the still-live routes/behaviors it depends on.
 - ChatGPT Web DOM/request-shape/selectors evidence now has one intended home: `docs/operations/chatgpt-web-runtime-evidence.md`.
@@ -244,7 +254,7 @@
 - Active program: Phase 2.5 surface hierarchy and mode governance
 - Battleground: Extension Ring, with explicitly allowed supporting Final Core owner realignment on the extension side
 - Primary axis: popup deflation, options IA redesign, Chrome Side Panel adoption, and one-mode work-surface exclusivity
-- Active module stage: none. Phase 2 module stages are closed; the active execution stage is Stage 24 `shared-work-surface-convergence` inside the reopened Phase 2.5 surface redesign sequence in `IMPLEMENTATION_PLAN.md`
+- Active module stage: none. Phase 2 module stages are closed; the active execution stage is Stage 25 `popup-deflation-and-options-control-console-redesign` while Stage 24 remains code-complete pending real validation inside the reopened Phase 2.5 surface redesign sequence in `IMPLEMENTATION_PLAN.md`
 - Phase 1 completed implementation surfaces:
   - `packages/protocol/*`
   - narrow gateway route adapters

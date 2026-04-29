@@ -225,11 +225,11 @@ Latest verified code-side status as of April 29, 2026:
 - `apps/extension/src/main/*` now publish that shared contract from the live ChatGPT page runtime and answer tab-local work-surface action requests over extension messaging
 - `apps/extension/src/ui-surfaces/*` now render one shared React work-surface app for both floating panel and Chrome Side Panel, while keeping side-panel-only empty-state routing outside ChatGPT
 - targeted `pnpm --filter @cwmb/extension lint`, `test`, and `build` passed after the Stage 24 landing, and root `pnpm lint`, `pnpm test`, and `pnpm build` passed again
-- Stage 24 remains active until the user completes the required real ChatGPT Web validation for floating-panel and side-panel end-to-end workflow parity
+- Stage 24 code-side convergence is now materially complete in local code, but formal closeout still depends on real ChatGPT Web validation for floating-panel and side-panel end-to-end workflow parity.
 
 ## Stage 25: Popup Deflation And Options Control-Console Redesign
 
-Status: pending
+Status: active
 
 Goal:
 
@@ -286,6 +286,16 @@ Definition of done:
 - popup exposes only the allowed quick-setting set
 - options is the full control console with clear left-nav hierarchy
 - popup and options both read and write the same normalized settings truth
+
+Latest verified code-side status as of April 29, 2026:
+
+- `apps/extension/src/ui-surfaces/extension-console-app.tsx` now splits popup and options into separate information architectures instead of one shared scaled shell
+- popup is now launcher-first with only the declared quick-setting budget: work-surface mode, gateway base URL, pairing token, and auto execute
+- options now presents a left-nav control-console structure across `General`, `Connection`, `Automation`, `Interface`, and `Diagnostics`
+- popup/options launch actions now fall back from a stale remembered ChatGPT tab to opening a new ChatGPT tab instead of dead-ending on an invalid tab id
+- options now keeps connection-form drafts stable while other immediate-save controls change, and it surfaces launch/save errors in the shared header instead of hiding them in `Diagnostics`
+- visual tokens now align more closely to the active teal/orange workbench direction instead of mixed hard-coded blue accents
+- the Stage 25 code-side landing still requires extension/root verification plus real ChatGPT Web validation before closeout
 
 ## Stage 26: Reopened Phase 2.5 Validation And Closeout
 
