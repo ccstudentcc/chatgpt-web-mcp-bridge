@@ -59,6 +59,12 @@
   - `apps/extension/src/main/ui.ts` is no longer a standalone HTML string renderer; it is now a floating-panel host wrapper around the shared work-surface app
   - `apps/extension/AGENTS.md` now records `operator-workflows/*` as a live owner path and constrains side-panel workflow truth to stay shared
 - On April 29, 2026, after the Stage 24 landing, targeted `pnpm --filter @cwmb/extension lint`, `test`, `build` and root `pnpm lint`, `pnpm test`, `pnpm build` all passed again.
+- On April 29, 2026, the Stage 24 repair pass also landed in local code:
+  - `apps/extension/src/ui-surfaces/sidepanel-surface-app.tsx` now keeps the latest settings/context in refs during polling so the bound side panel does not fall back to the placeholder shell after refresh or interval ticks
+  - `apps/extension/src/main/ui.ts` now restores expanded floating-panel scrolling through the root host wrapper instead of pinning the shared work surface
+  - `apps/extension/src/ui-surfaces/work-surface-app.tsx` now restores collapsed quick-action toggles while keeping host-mode switching restricted to popup/options only
+  - targeted `pnpm --filter @cwmb/extension lint`, `test`, `build` and root `pnpm lint`, `pnpm test`, `pnpm build` all passed again after the repair pass
+  - real ChatGPT Web validation is still pending before Stage 24 can close
 - The current dialogue-level acceptance summary for April 27, 2026 reports the bridge chain, batch behavior, workspace read/search/grep tools, security boundaries, protocol alignment, core gateway/protocol/userscript tracing, and real write/UI end-to-end usage as currently usable with no remaining blocker called out for the just-closed Stage 7 boundary.
 - Draft v0.9 docs and draft contract shapes are reference truth only. They are not separate compatibility targets; compatibility work in the current slice applies to the proven live runtime floor and the still-live routes/behaviors it depends on.
 - ChatGPT Web DOM/request-shape/selectors evidence now has one intended home: `docs/operations/chatgpt-web-runtime-evidence.md`.

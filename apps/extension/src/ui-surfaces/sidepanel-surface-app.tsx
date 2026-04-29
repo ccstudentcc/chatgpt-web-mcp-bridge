@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   focusRecentChatGptTab,
@@ -25,6 +25,8 @@ export function SidepanelSurfaceApp() {
   const [context, setContext] = useState<WorkSurfaceContext | null>(null);
   const [snapshot, setSnapshot] = useState<WorkSurfaceSnapshot | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>();
+  const settingsRef = useRef<ExtensionSettingsSnapshot | null>(null);
+  const contextRef = useRef<WorkSurfaceContext | null>(null);
 
   useEffect(() => {
     void refresh();
@@ -38,7 +40,7 @@ export function SidepanelSurfaceApp() {
       void refresh();
     };
     const intervalId = window.setInterval(() => {
-      void refreshSnapshot();
+      void refreshSnapshot(settingsRef.current, contextRef.current);
     }, SNAPSHOT_POLL_MS);
 
     chrome.storage.onChanged.addListener(storageListener);
@@ -61,6 +63,8 @@ export function SidepanelSurfaceApp() {
       ]);
       setSettings(nextSettings);
       setContext(nextContext);
+      settingsRef.current = nextSettings;
+      contextRef.current = nextContext;
       setErrorMessage(undefined);
       await refreshSnapshot(nextSettings, nextContext);
     } catch (error) {
@@ -73,7 +77,6 @@ export function SidepanelSurfaceApp() {
     currentContext = context
   ): Promise<void> {
     if (!currentSettings || !currentContext) {
-      setSnapshot(null);
       return;
     }
 
@@ -99,7 +102,10 @@ export function SidepanelSurfaceApp() {
 
     try {
       await runTabWorkSurfaceAction(context.activeTabId, action);
-      await refreshSnapshot(settings, context);
+      const nextContext = await getWorkSurfaceContext();
+      setContext(nextContext);
+      contextRef.current = nextContext;
+      await refreshSnapshot(settingsRef.current, nextContext);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to run the requested sidepanel action.');
     }

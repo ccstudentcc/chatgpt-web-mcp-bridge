@@ -1,6 +1,10 @@
 import { useId, useState } from 'react';
 
-import type { WorkSurfaceActionRequest, WorkSurfaceSnapshot } from '../operator-workflows/index.js';
+import {
+  getToggleActionRequest,
+  type WorkSurfaceActionRequest,
+  type WorkSurfaceSnapshot
+} from '../operator-workflows/index.js';
 import workSurfaceCss from './work-surface.css?inline';
 
 type HostKind = 'floating_panel' | 'side_panel';
@@ -107,8 +111,8 @@ function SurfaceHeader({
       </div>
 
       <div className="cwmb-work-surface__header-meta">
-        <Badge tone="info">{formatMode(snapshot.mode)}</Badge>
-        <Badge tone={normalizeBadgeTone(snapshot.view.statusTone)}>{snapshot.view.statusLabel}</Badge>
+          <Badge tone="info">{formatMode(snapshot.mode)}</Badge>
+          <Badge tone={normalizeBadgeTone(snapshot.view.statusTone)}>{snapshot.view.statusLabel}</Badge>
         {onToggleCollapsed ? (
           <button
             className="cwmb-work-surface__badge cwmb-work-surface__collapse"
@@ -394,6 +398,22 @@ function CollapsedSurface({
         {snapshot.view.collapsedActions.map((button) => (
           <ActionButton button={button} key={button.action} onClick={() => void handleCollapsedAction(button.action, onAction)} />
         ))}
+        {snapshot.view.toggles
+          .map((toggle) => {
+            const action = getToggleActionRequest(toggle);
+            return action ? { action, label: toggle.label } : null;
+          })
+          .filter((item): item is { action: WorkSurfaceActionRequest; label: string } => item !== null)
+          .map((item, index) => (
+            <button
+              className="cwmb-work-surface__button cwmb-work-surface__button--ghost"
+              key={`collapsed-toggle-${index}`}
+              onClick={() => void onAction(item.action)}
+              type="button"
+            >
+              {item.label}
+            </button>
+          ))}
       </div>
       <div className="cwmb-work-surface__collapsed-note">{note}</div>
     </div>

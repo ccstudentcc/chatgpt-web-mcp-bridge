@@ -6,6 +6,7 @@ import {
   type PendingToolBlockLike
 } from '../operator-panel/index.js';
 import type { WorkSurfaceMode } from '../settings/contracts.js';
+import type { OperatorPanelToggleView } from '../operator-panel/index.js';
 
 export interface WorkSurfaceSnapshot {
   conversationPath: string;
@@ -29,6 +30,21 @@ export type WorkSurfaceActionRequest =
   | { type: 'toggle_insert' }
   | { type: 'toggle_send' }
   | { type: 'toggle_continue_batch' };
+
+export function getToggleActionRequest(toggle: OperatorPanelToggleView): WorkSurfaceActionRequest | null {
+  switch (toggle.action) {
+    case 'toggle-execute':
+      return { type: 'toggle_execute' };
+    case 'toggle-insert':
+      return { type: 'toggle_insert' };
+    case 'toggle-send':
+      return { type: 'toggle_send' };
+    case 'toggle-continue-batch':
+      return { type: 'toggle_continue_batch' };
+    default:
+      return null;
+  }
+}
 
 export function deriveWorkSurfaceSnapshot<TBlock extends PendingToolBlockLike>(
   input: OperatorPanelViewInput<TBlock> & {

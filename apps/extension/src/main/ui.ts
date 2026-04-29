@@ -90,6 +90,8 @@ function applyPanelSize(): void {
 
   root.style.width = state.panelCollapsed ? 'min(360px, calc(100vw - 24px))' : 'min(460px, calc(100vw - 24px))';
   root.style.maxHeight = state.panelCollapsed ? 'none' : 'min(84vh, 860px)';
+  root.style.overflow = state.panelCollapsed ? 'visible' : 'auto';
+  root.style.overscrollBehavior = 'contain';
 }
 
 function handleRootPointerDown(event: PointerEvent): void {
