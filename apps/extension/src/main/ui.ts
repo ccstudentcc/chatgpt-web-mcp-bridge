@@ -186,6 +186,16 @@ export function renderPanel(): void {
   restoreScrollSnapshot(scrollSnapshot);
 }
 
+export function clearFloatingPanel(): void {
+  if (!root) {
+    return;
+  }
+
+  root.remove();
+  root = null;
+  dragState = null;
+}
+
 function ensureRoot(): void {
   if (root) return;
   root = document.createElement('div');

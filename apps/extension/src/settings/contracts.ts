@@ -1,6 +1,7 @@
 import type { RequestInjectionMode } from '../injection-runtime/index.js';
 
 export type BooleanSettingOverride = boolean | 'inherit';
+export type WorkSurfaceMode = 'floating_panel' | 'side_panel';
 
 export interface ExtensionSettingsSnapshot {
   token: string;
@@ -10,6 +11,7 @@ export interface ExtensionSettingsSnapshot {
   autoSend: BooleanSettingOverride;
   continueBatchOnError: boolean;
   requestInjectionMode: RequestInjectionMode;
+  workSurfaceMode: WorkSurfaceMode;
 }
 
 export interface ExtensionSettingsPatch {
@@ -20,6 +22,7 @@ export interface ExtensionSettingsPatch {
   autoSend?: BooleanSettingOverride;
   continueBatchOnError?: boolean;
   requestInjectionMode?: RequestInjectionMode;
+  workSurfaceMode?: WorkSurfaceMode;
 }
 
 export interface ActiveTabBridgeSummary {
@@ -42,5 +45,6 @@ export const DEFAULT_EXTENSION_SETTINGS: ExtensionSettingsSnapshot = {
   autoInsert: 'inherit',
   autoSend: 'inherit',
   continueBatchOnError: false,
-  requestInjectionMode: 'synthetic_system'
+  requestInjectionMode: 'synthetic_system',
+  workSurfaceMode: 'floating_panel'
 };

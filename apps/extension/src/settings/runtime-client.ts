@@ -1,10 +1,12 @@
 import {
   EXTENSION_MESSAGE_TYPES,
+  type GetWorkSurfaceContextMessage,
   type GetActiveTabSummaryMessage,
   type GetSettingsMessage,
   type ReportActiveTabSummaryMessage,
   type UpdateSettingsMessage
 } from '../extension-shell/messages.js';
+import type { WorkSurfaceContext } from '../extension-shell/work-surface.js';
 import type {
   ActiveTabBridgeSummary,
   ExtensionSettingsPatch,
@@ -44,6 +46,14 @@ export async function getActiveTabBridgeSummary(): Promise<ActiveTabBridgeSummar
   };
 
   return sendRuntimeMessage<ActiveTabBridgeSummary | null>(message);
+}
+
+export async function getWorkSurfaceContext(): Promise<WorkSurfaceContext> {
+  const message: GetWorkSurfaceContextMessage = {
+    type: EXTENSION_MESSAGE_TYPES.getWorkSurfaceContext
+  };
+
+  return sendRuntimeMessage<WorkSurfaceContext>(message);
 }
 
 export async function reportActiveTabBridgeSummary(summary: ActiveTabBridgeSummary): Promise<void> {

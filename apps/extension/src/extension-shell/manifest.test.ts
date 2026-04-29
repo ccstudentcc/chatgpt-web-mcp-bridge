@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 import type { UserManifest } from 'wxt';
 
@@ -17,5 +19,12 @@ describe('manifest', () => {
     expect(chatgptMainWorldEntrypoint.world).toBe('MAIN');
     expect(chatgptContentEntrypoint.matches).toEqual(chatgptMainWorldEntrypoint.matches);
     expect(chatgptContentEntrypoint.runAt).toBe('document_start');
+  });
+
+  it('keeps the options surface configured as a browser tab entrypoint', () => {
+    const optionsHtml = readFileSync(new URL('../../entrypoints/options/index.html', import.meta.url), 'utf8');
+
+    expect(optionsHtml).toContain('name="wxt.openInTab"');
+    expect(optionsHtml).toContain('content="true"');
   });
 });

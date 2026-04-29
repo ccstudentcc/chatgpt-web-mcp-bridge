@@ -48,7 +48,7 @@ import { getExtensionSettings, reportActiveTabBridgeSummary, updateExtensionSett
 import { normalizeExtensionSettings } from '../settings/storage.js';
 import { clearLegacyExtensionSettings, isDefaultExtensionSettingsSnapshot, readLegacyExtensionSettings } from '../settings/legacy-page-storage.js';
 import type { ActiveTabBridgeSummary, ExtensionSettingsPatch, ExtensionSettingsSnapshot } from '../settings/contracts.js';
-import { configureUiMountTarget, renderPanel as renderPanelUi, setUiHandlers } from './ui.js';
+import { clearFloatingPanel, configureUiMountTarget, renderPanel as renderPanelUi, setUiHandlers } from './ui.js';
 import {
   addLogEntry,
   applyExtensionSettings,
@@ -93,7 +93,11 @@ let recoveredDeliveryRetryNotBefore = 0;
 let storageListenerInstalled = false;
 
 function renderPanel(): void {
-  renderPanelUi();
+  if (state.workSurfaceMode === 'side_panel') {
+    clearFloatingPanel();
+  } else {
+    renderPanelUi();
+  }
   void publishActiveTabSummary();
 }
 
@@ -184,7 +188,8 @@ function isSameSettingsSnapshot(next: ExtensionSettingsSnapshot): boolean {
     && state.autoInsertPreference === next.autoInsert
     && state.autoSendPreference === next.autoSend
     && state.continueBatchOnError === next.continueBatchOnError
-    && state.requestInjectionMode === next.requestInjectionMode;
+    && state.requestInjectionMode === next.requestInjectionMode
+    && state.workSurfaceMode === next.workSurfaceMode;
 }
 
 async function persistSettings(patch: ExtensionSettingsPatch, successMessage: string, options?: {

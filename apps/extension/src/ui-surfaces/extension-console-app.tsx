@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react';
 
 import {
-  getActiveTabBridgeSummary,
+  focusRecentChatGptTab,
+  openNewChatGptTab,
+  openSidePanelHost,
+  type WorkSurfaceContext
+} from '../extension-shell/work-surface.js';
+import {
   getExtensionSettings,
+  getWorkSurfaceContext,
   updateExtensionSettings
 } from '../settings/runtime-client.js';
 import type {
-  ActiveTabBridgeSummary,
   BooleanSettingOverride,
-  ExtensionSettingsSnapshot
+  ExtensionSettingsSnapshot,
+  WorkSurfaceMode
 } from '../settings/contracts.js';
 
 type Surface = 'popup' | 'options';
@@ -31,7 +37,8 @@ const STATUS_TONE: Record<string, string> = {
   failed: 'text-rose-700 bg-rose-100'
 };
 
-function normalizeSummaryStatus(summary: ActiveTabBridgeSummary | null): string {
+function normalizeSummaryStatus(context: WorkSurfaceContext | null): string {
+  const summary = getDisplaySummary(context);
   if (!summary) {
     return 'No active ChatGPT tab';
   }
@@ -47,27 +54,55 @@ function summarizeConfigMode(value: BooleanSettingOverride): string {
   return value ? 'Forced on' : 'Forced off';
 }
 
+function formatWorkSurfaceMode(value: WorkSurfaceMode): string {
+  return value === 'side_panel' ? 'Chrome side panel' : 'Floating panel';
+}
+
+function getDisplaySummary(context: WorkSurfaceContext | null) {
+  return context?.activeSummary ?? context?.latestSummary ?? null;
+}
+
 export function ExtensionConsoleApp({ surface }: { surface: Surface }) {
   const [settings, setSettings] = useState<ExtensionSettingsSnapshot | null>(null);
-  const [summary, setSummary] = useState<ActiveTabBridgeSummary | null>(null);
+  const [context, setContext] = useState<WorkSurfaceContext | null>(null);
   const [draftBaseUrl, setDraftBaseUrl] = useState('');
   const [draftToken, setDraftToken] = useState('');
   const [saving, setSaving] = useState(false);
+  const [launching, setLaunching] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string>();
   const [errorMessage, setErrorMessage] = useState<string>();
 
   useEffect(() => {
     void refresh();
+
+    const storageListener = (changes: Record<string, { newValue?: unknown }>, areaName: string) => {
+      if (areaName === 'local' && changes.cwmb_extension_settings) {
+        void refresh();
+      }
+    };
+    const tabListener = () => {
+      void refreshContext();
+    };
+
+    chrome.storage.onChanged.addListener(storageListener);
+    chrome.tabs?.onActivated?.addListener(tabListener);
+    chrome.tabs?.onUpdated?.addListener(tabListener);
+
+    return () => {
+      chrome.storage.onChanged.removeListener(storageListener);
+      chrome.tabs?.onActivated?.removeListener(tabListener);
+      chrome.tabs?.onUpdated?.removeListener(tabListener);
+    };
   }, []);
 
   async function refresh(): Promise<void> {
     try {
-      const [nextSettings, nextSummary] = await Promise.all([
+      const [nextSettings, nextContext] = await Promise.all([
         getExtensionSettings(),
-        getActiveTabBridgeSummary()
+        getWorkSurfaceContext()
       ]);
       setSettings(nextSettings);
-      setSummary(nextSummary);
+      setContext(nextContext);
       setDraftBaseUrl(nextSettings.baseUrl);
       setDraftToken(nextSettings.token);
       setErrorMessage(undefined);
@@ -76,7 +111,20 @@ export function ExtensionConsoleApp({ surface }: { surface: Surface }) {
     }
   }
 
-  async function persist(patch: Partial<ExtensionSettingsSnapshot>): Promise<void> {
+  async function refreshContext(): Promise<void> {
+    try {
+      setContext(await getWorkSurfaceContext());
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to refresh work-surface context.');
+    }
+  }
+
+  async function persist(
+    patch: Partial<ExtensionSettingsSnapshot>,
+    options?: {
+      launchAfterSave?: boolean;
+    }
+  ): Promise<void> {
     setSaving(true);
     setSaveMessage(undefined);
     setErrorMessage(undefined);
@@ -86,11 +134,64 @@ export function ExtensionConsoleApp({ surface }: { surface: Surface }) {
       setSettings(next);
       setDraftBaseUrl(next.baseUrl);
       setDraftToken(next.token);
-      setSaveMessage('Settings saved');
+
+      const nextContext = await getWorkSurfaceContext();
+      setContext(nextContext);
+
+      if (options?.launchAfterSave) {
+        await launchSelectedWorkSurface(next.workSurfaceMode, nextContext);
+      } else {
+        setSaveMessage('Settings saved');
+      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to save settings.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function launchSelectedWorkSurface(
+    mode: WorkSurfaceMode,
+    nextContext = context
+  ): Promise<void> {
+    setLaunching(true);
+    setSaveMessage(undefined);
+    setErrorMessage(undefined);
+
+    try {
+      if (!nextContext) {
+        throw new Error('Work-surface context is unavailable.');
+      }
+
+      if (mode === 'side_panel') {
+        const launch = await openSidePanelHost(nextContext);
+        if (launch.opened) {
+          setSaveMessage('Chrome side panel opened.');
+        } else {
+          setSaveMessage(
+            launch.errorMessage
+              ?? 'Mode saved. Use the browser side-panel button if Chrome blocks automatic opening.'
+          );
+        }
+        return;
+      }
+
+      if (nextContext.activeTabIsChatGpt) {
+        setSaveMessage('Floating panel will stay on the current ChatGPT tab.');
+        return;
+      }
+
+      if (await focusRecentChatGptTab(nextContext)) {
+        setSaveMessage('Focused the latest ChatGPT tab. Floating panel will render there.');
+        return;
+      }
+
+      await openNewChatGptTab();
+      setSaveMessage('Opened a new ChatGPT tab for the floating panel.');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to launch the selected work surface.');
+    } finally {
+      setLaunching(false);
     }
   }
 
@@ -105,6 +206,8 @@ export function ExtensionConsoleApp({ surface }: { surface: Surface }) {
     );
   }
 
+  const summary = getDisplaySummary(context);
+
   return (
     <main className={surface === 'popup' ? 'min-w-[360px] p-4' : 'min-h-screen p-6 md:p-10'}>
       <section className="mx-auto w-full max-w-5xl rounded-[28px] border border-white/70 bg-white/78 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.12)] backdrop-blur-xl md:p-8">
@@ -116,13 +219,13 @@ export function ExtensionConsoleApp({ surface }: { surface: Surface }) {
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
               {surface === 'popup'
-                ? 'Quick status, quick toggles, and a fast path into the full control surface.'
-                : 'Background-owned settings live here. Page runtime remains the execution surface on ChatGPT.'}
+                ? 'Quick status, quick settings, and a fast path into the selected work surface.'
+                : 'This browser-tab console owns the full extension settings. Page runtime remains the execution owner on ChatGPT.'}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <span className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_TONE[summary?.status ?? 'idle'] ?? 'text-slate-700 bg-slate-100'}`}>
-              {normalizeSummaryStatus(summary)}
+              {normalizeSummaryStatus(context)}
             </span>
             <button
               className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:text-sky-700"
@@ -137,7 +240,7 @@ export function ExtensionConsoleApp({ surface }: { surface: Surface }) {
                 onClick={() => chrome.runtime.openOptionsPage()}
                 type="button"
               >
-                Open options
+                Open options tab
               </button>
             ) : null}
           </div>
@@ -153,7 +256,7 @@ export function ExtensionConsoleApp({ surface }: { surface: Surface }) {
                 </span>
               </div>
               <div className="mt-4 grid gap-3 md:grid-cols-2">
-                <SummaryCard label="Bridge state" value={normalizeSummaryStatus(summary)} />
+                <SummaryCard label="Bridge state" value={normalizeSummaryStatus(context)} />
                 <SummaryCard label="Pending tools" value={String(summary?.pendingCount ?? 0)} />
                 <SummaryCard label="Page path" value={summary?.path ?? 'No active ChatGPT conversation'} />
                 <SummaryCard label="Request hook" value={summary?.requestHookStatus ?? 'Unavailable'} />
@@ -163,6 +266,50 @@ export function ExtensionConsoleApp({ surface }: { surface: Surface }) {
                   {summary.lastError}
                 </p>
               ) : null}
+            </div>
+
+            <div className="rounded-[24px] border border-white/70 bg-white/80 p-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Work surface</h2>
+                <span className="font-mono text-xs text-slate-500">{formatWorkSurfaceMode(settings.workSurfaceMode)}</span>
+              </div>
+              <div className="mt-4 space-y-4">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-slate-700">Selected host mode</span>
+                  <select
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500"
+                    disabled={saving || launching}
+                    onChange={(event) => void persist({
+                      workSurfaceMode: event.target.value === 'side_panel' ? 'side_panel' : 'floating_panel'
+                    }, { launchAfterSave: true })}
+                    value={settings.workSurfaceMode}
+                  >
+                    <option value="floating_panel">Floating panel on ChatGPT</option>
+                    <option value="side_panel">Chrome side panel</option>
+                  </select>
+                </label>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    className="rounded-full bg-sky-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    disabled={saving || launching}
+                    onClick={() => void launchSelectedWorkSurface(settings.workSurfaceMode)}
+                    type="button"
+                  >
+                    {launching ? 'Opening…' : 'Open selected surface'}
+                  </button>
+                  <button
+                    className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:text-sky-700"
+                    disabled={saving || launching}
+                    onClick={() => void (context?.latestChatGptTabId ? focusRecentChatGptTab(context) : openNewChatGptTab())}
+                    type="button"
+                  >
+                    {context?.latestChatGptTabId ? 'Focus latest ChatGPT tab' : 'Open ChatGPT'}
+                  </button>
+                </div>
+                <p className="text-sm leading-6 text-slate-600">
+                  Popup and this browser-tab console may change the host mode. The work surface itself cannot.
+                </p>
+              </div>
             </div>
 
             <div className="rounded-[24px] border border-white/70 bg-white/80 p-4">
@@ -179,7 +326,7 @@ export function ExtensionConsoleApp({ surface }: { surface: Surface }) {
                     </div>
                     <select
                       className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
-                      disabled={saving}
+                      disabled={saving || launching}
                       onChange={(event) => {
                         const value = event.target.value;
                         void persist({
@@ -234,7 +381,7 @@ export function ExtensionConsoleApp({ surface }: { surface: Surface }) {
                   <span className="mb-2 block text-sm font-medium text-slate-700">Request injection mode</span>
                   <select
                     className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500"
-                    disabled={saving}
+                    disabled={saving || launching}
                     onChange={(event) => void persist({ requestInjectionMode: event.target.value === 'prepend_user' ? 'prepend_user' : 'synthetic_system' })}
                     value={settings.requestInjectionMode}
                   >
@@ -254,11 +401,11 @@ export function ExtensionConsoleApp({ surface }: { surface: Surface }) {
               </div>
               <div className="mt-5 flex items-center justify-between">
                 <div className="text-sm text-slate-500">
-                  {saveMessage ?? 'Changes apply to the in-page panel, popup, and options through one background-owned snapshot.'}
+                  {saveMessage ?? 'Changes apply through one background-owned settings snapshot.'}
                 </div>
                 <button
                   className="rounded-full bg-sky-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-                  disabled={saving}
+                  disabled={saving || launching}
                   type="submit"
                 >
                   {saving ? 'Saving…' : 'Save settings'}
@@ -270,8 +417,8 @@ export function ExtensionConsoleApp({ surface }: { surface: Surface }) {
               <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Read-model notes</h2>
               <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
                 <li>Popup and options only consume background settings plus summarized active-tab bridge state.</li>
-                <li>The ChatGPT in-page panel remains the primary execution surface for run, insert, send, and recovery flows.</li>
-                <li>Conversation-local diagnostics stay page-owned; this console only mirrors a safe summary.</li>
+                <li>The floating panel remains the in-page work surface whenever `floating_panel` is selected.</li>
+                <li>The options surface stays a browser tab, not a popup-sized settings shell.</li>
               </ul>
             </div>
             {errorMessage ? (

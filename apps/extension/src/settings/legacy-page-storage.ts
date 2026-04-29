@@ -81,5 +81,6 @@ export function isDefaultExtensionSettingsSnapshot(settings: ExtensionSettingsSn
     && settings.autoInsert === DEFAULT_EXTENSION_SETTINGS.autoInsert
     && settings.autoSend === DEFAULT_EXTENSION_SETTINGS.autoSend
     && settings.continueBatchOnError === DEFAULT_EXTENSION_SETTINGS.continueBatchOnError
-    && settings.requestInjectionMode === DEFAULT_EXTENSION_SETTINGS.requestInjectionMode;
+    && settings.requestInjectionMode === DEFAULT_EXTENSION_SETTINGS.requestInjectionMode
+    && settings.workSurfaceMode === DEFAULT_EXTENSION_SETTINGS.workSurfaceMode;
 }

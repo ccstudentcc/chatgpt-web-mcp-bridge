@@ -3,6 +3,7 @@ import type {
   ExtensionSettingsPatch,
   ExtensionSettingsSnapshot
 } from '../settings/contracts.js';
+import type { WorkSurfaceContext } from './work-surface.js';
 
 export const EXTENSION_MESSAGE_TYPES = {
   ping: 'cwmb:extension-ping',
@@ -12,7 +13,8 @@ export const EXTENSION_MESSAGE_TYPES = {
   updateSettings: 'cwmb:update-settings',
   settingsChanged: 'cwmb:settings-changed',
   getActiveTabSummary: 'cwmb:get-active-tab-summary',
-  reportActiveTabSummary: 'cwmb:report-active-tab-summary'
+  reportActiveTabSummary: 'cwmb:report-active-tab-summary',
+  getWorkSurfaceContext: 'cwmb:get-work-surface-context'
 } as const;
 
 export interface GatewayProxyRequestMessage {
@@ -58,4 +60,13 @@ export interface GetActiveTabSummaryMessage {
 export interface ReportActiveTabSummaryMessage {
   type: typeof EXTENSION_MESSAGE_TYPES.reportActiveTabSummary;
   summary: ActiveTabBridgeSummary;
+}
+
+export interface GetWorkSurfaceContextMessage {
+  type: typeof EXTENSION_MESSAGE_TYPES.getWorkSurfaceContext;
+}
+
+export interface WorkSurfaceContextMessage {
+  type: typeof EXTENSION_MESSAGE_TYPES.getWorkSurfaceContext;
+  context: WorkSurfaceContext;
 }

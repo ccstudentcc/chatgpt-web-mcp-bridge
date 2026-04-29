@@ -149,6 +149,15 @@ Definition of done:
 - floating panel and side panel are runtime-exclusive
 - side-panel launch behavior and fallback handoff are explicit in code and docs
 
+Latest verified code-side status as of April 29, 2026:
+
+- landed `workSurfaceMode` inside the background-owned settings contract and normalization path
+- landed side-panel host orchestration plus page-side floating-panel suppression for `side_panel` mode
+- landed popup/options mode switching plus selected-host launch actions, while keeping options as a browser-tab settings surface
+- landed the first side-panel host page with active-tab binding and non-ChatGPT empty-state handoff
+- targeted `pnpm --filter @cwmb/extension lint`, `test`, `build` and root `pnpm lint`, `pnpm test`, `pnpm build` all passed after the landing
+- Stage 23 remains active until the required real ChatGPT Web validation pass is completed
+
 ## Stage 24: Shared Work-Surface Convergence Across Floating Panel And Side Panel
 
 Status: pending

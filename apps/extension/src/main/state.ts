@@ -14,7 +14,8 @@ import type { RequestHookStatus, RequestInjectionMode } from '../injection-runti
 import {
   DEFAULT_EXTENSION_SETTINGS,
   type BooleanSettingOverride,
-  type ExtensionSettingsSnapshot
+  type ExtensionSettingsSnapshot,
+  type WorkSurfaceMode
 } from '../settings/contracts.js';
 
 export type BridgeStatus =
@@ -86,6 +87,7 @@ export interface BridgeState {
   autoInsertResult: boolean;
   autoSendResult: boolean;
   continueBatchOnError: boolean;
+  workSurfaceMode: WorkSurfaceMode;
   panelCollapsed: boolean;
   panelPosition?: PanelPosition;
   gatewayRuntime?: GatewayRuntimeSnapshot;
@@ -156,6 +158,7 @@ export const state: BridgeState = {
   autoInsertResult: true,
   autoSendResult: true,
   continueBatchOnError: DEFAULT_EXTENSION_SETTINGS.continueBatchOnError,
+  workSurfaceMode: DEFAULT_EXTENSION_SETTINGS.workSurfaceMode,
   panelCollapsed: GM_getValue('cwmb_panel_collapsed', 'false') === 'true',
   panelPosition: typeof panelLeftStored === 'number' && typeof panelTopStored === 'number'
     ? { left: panelLeftStored, top: panelTopStored }
@@ -177,6 +180,7 @@ export function applyExtensionSettings(settings: ExtensionSettingsSnapshot): voi
   state.autoSendPreference = settings.autoSend;
   state.continueBatchOnError = settings.continueBatchOnError;
   state.requestInjectionMode = settings.requestInjectionMode;
+  state.workSurfaceMode = settings.workSurfaceMode;
   state.autoExecuteEnabled = resolveBooleanPreference(settings.autoExecute, state.gatewayAutoExecuteDefault);
   state.autoInsertResult = resolveBooleanPreference(settings.autoInsert, state.gatewayAutoInsertDefault);
   state.autoSendResult = resolveBooleanPreference(settings.autoSend, state.gatewayAutoSendDefault);

@@ -96,6 +96,7 @@ It is the canonical place for:
 - diagnostics overview and operator-facing explanations
 
 Options may launch the currently selected work surface, but it does not become the work surface itself.
+Options is a real browser-tab settings surface, not a popup-sized shell.
 
 ## 5. Work-Surface Mode Governance
 

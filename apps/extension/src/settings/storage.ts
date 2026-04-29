@@ -2,7 +2,8 @@ import {
   DEFAULT_EXTENSION_SETTINGS,
   type BooleanSettingOverride,
   type ExtensionSettingsPatch,
-  type ExtensionSettingsSnapshot
+  type ExtensionSettingsSnapshot,
+  type WorkSurfaceMode
 } from './contracts.js';
 
 const STORAGE_KEY = 'cwmb_extension_settings';
@@ -23,6 +24,10 @@ function normalizeBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
 
+function normalizeWorkSurfaceMode(value: unknown, fallback: WorkSurfaceMode): WorkSurfaceMode {
+  return value === 'side_panel' ? 'side_panel' : value === 'floating_panel' ? 'floating_panel' : fallback;
+}
+
 export function normalizeExtensionSettings(value: unknown): ExtensionSettingsSnapshot {
   const candidate = value && typeof value === 'object' ? value as Partial<ExtensionSettingsSnapshot> : {};
 
@@ -38,7 +43,11 @@ export function normalizeExtensionSettings(value: unknown): ExtensionSettingsSna
     ),
     requestInjectionMode: candidate.requestInjectionMode === 'prepend_user'
       ? 'prepend_user'
-      : DEFAULT_EXTENSION_SETTINGS.requestInjectionMode
+      : DEFAULT_EXTENSION_SETTINGS.requestInjectionMode,
+    workSurfaceMode: normalizeWorkSurfaceMode(
+      candidate.workSurfaceMode,
+      DEFAULT_EXTENSION_SETTINGS.workSurfaceMode
+    )
   };
 }
 

@@ -42,6 +42,15 @@
   - floating panel and Chrome Side Panel must expose the same work-surface capability set
   - only one work-surface host may be visible at runtime
   - work-surface mode may be changed only from popup or options
+- Stage 23 code-side landing is now in the workspace:
+  - `apps/extension/src/settings/*` now persist and normalize `workSurfaceMode`
+  - `apps/extension/src/extension-shell/*` now own side-panel host orchestration and work-surface context lookup
+  - `apps/extension/src/main/*` now suppress the floating panel whenever `side_panel` mode is selected
+  - popup and options can now switch and launch the selected work-surface host from the shared background-owned settings snapshot
+  - `apps/extension/entrypoints/sidepanel/*` now provide the first side-panel host surface with non-ChatGPT empty-state handoff
+  - `apps/extension/entrypoints/options/index.html` now explicitly configures WXT `openInTab`, so options remains a browser-tab settings surface instead of a popup-like shell
+- On April 29, 2026, after the Stage 23 landing, targeted `pnpm --filter @cwmb/extension lint`, `test`, `build` and root `pnpm lint`, `pnpm test`, `pnpm build` all passed again.
+- Stage 23 is not formally closed yet. The remaining gate is the required real ChatGPT Web validation pass for floating-panel/side-panel exclusivity and popup/options mode switching.
 - The current dialogue-level acceptance summary for April 27, 2026 reports the bridge chain, batch behavior, workspace read/search/grep tools, security boundaries, protocol alignment, core gateway/protocol/userscript tracing, and real write/UI end-to-end usage as currently usable with no remaining blocker called out for the just-closed Stage 7 boundary.
 - Draft v0.9 docs and draft contract shapes are reference truth only. They are not separate compatibility targets; compatibility work in the current slice applies to the proven live runtime floor and the still-live routes/behaviors it depends on.
 - ChatGPT Web DOM/request-shape/selectors evidence now has one intended home: `docs/operations/chatgpt-web-runtime-evidence.md`.

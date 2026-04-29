@@ -5,12 +5,18 @@ import {
   type GatewayProxyRequestMessage,
   type GetActiveTabSummaryMessage,
   type GetSettingsMessage,
+  type GetWorkSurfaceContextMessage,
   type PingMessage,
   type ReportActiveTabSummaryMessage,
   type UpdateSettingsMessage
 } from './messages.js';
 import type { ActiveTabBridgeSummary, ExtensionSettingsSnapshot } from '../settings/contracts.js';
 import { readExtensionSettings, writeExtensionSettings } from '../settings/storage.js';
+import {
+  isChatGptUrl,
+  syncWorkSurfaceHostMode,
+  type WorkSurfaceContext
+} from './work-surface.js';
 
 const LOG_PREFIX = '[cwmb extension]';
 type GatewayRequestSender = { url?: string; tab?: { url?: string } };
@@ -19,6 +25,7 @@ type ExtensionMessage =
   | GatewayProxyRequestMessage
   | GetActiveTabSummaryMessage
   | GetSettingsMessage
+  | GetWorkSurfaceContextMessage
   | PingMessage
   | ReportActiveTabSummaryMessage
   | UpdateSettingsMessage;
@@ -27,6 +34,7 @@ const activeTabSummaries = new Map<number, ActiveTabBridgeSummary>();
 let backgroundBridgeInstalled = false;
 const SUMMARY_KEY_PREFIX = 'cwmb_active_tab_summary:';
 const LAST_BRIDGE_TAB_ID_KEY = 'cwmb_last_bridge_tab_id';
+const LAST_BRIDGE_WINDOW_ID_KEY = 'cwmb_last_bridge_window_id';
 
 export function startBackgroundBridge(): void {
   if (backgroundBridgeInstalled) {
@@ -46,6 +54,9 @@ export function startBackgroundBridge(): void {
   chrome.tabs?.onRemoved?.addListener((tabId: number) => {
     activeTabSummaries.delete(tabId);
     void chrome.storage.session.remove([getSummaryStorageKey(tabId)]);
+  });
+  chrome.tabs?.onActivated?.addListener(() => {
+    void syncPersistedWorkSurfaceMode();
   });
 
   chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender: any, sendResponse: (response: unknown) => void) => {
@@ -75,7 +86,7 @@ export function startBackgroundBridge(): void {
           updatedAt: Date.now()
         } satisfies ActiveTabBridgeSummary;
         activeTabSummaries.set(sender.tab.id, summary);
-        void persistActiveTabSummary(sender.tab.id, summary);
+        void persistActiveTabSummary(sender.tab.id, sender.tab.windowId, summary);
       }
 
       console.log(`${LOG_PREFIX} content script ready`, {
@@ -94,7 +105,10 @@ export function startBackgroundBridge(): void {
 
     if (message.type === EXTENSION_MESSAGE_TYPES.updateSettings) {
       void writeExtensionSettings(message.patch)
-        .then((settings) => sendResponse(settings))
+        .then(async (settings) => {
+          await syncPersistedWorkSurfaceMode(settings);
+          sendResponse(settings);
+        })
         .catch((error: unknown) => {
           sendResponse({
             error: error instanceof Error ? error.message : 'Failed to update settings'
@@ -108,6 +122,11 @@ export function startBackgroundBridge(): void {
       return true;
     }
 
+    if (message.type === EXTENSION_MESSAGE_TYPES.getWorkSurfaceContext) {
+      void getWorkSurfaceContext().then((context) => sendResponse(context));
+      return true;
+    }
+
     if (message.type === EXTENSION_MESSAGE_TYPES.reportActiveTabSummary) {
       if (typeof sender?.tab?.id === 'number') {
         const summary = {
@@ -115,7 +134,7 @@ export function startBackgroundBridge(): void {
           updatedAt: Date.now()
         };
         activeTabSummaries.set(sender.tab.id, summary);
-        void persistActiveTabSummary(sender.tab.id, summary);
+        void persistActiveTabSummary(sender.tab.id, sender.tab.windowId, summary);
       }
       sendResponse(undefined);
       return false;
@@ -135,6 +154,8 @@ export function startBackgroundBridge(): void {
 
     return false;
   });
+
+  void syncPersistedWorkSurfaceMode();
 }
 
 async function getActiveTabSummary(): Promise<ActiveTabBridgeSummary | null> {
@@ -164,9 +185,10 @@ function getSummaryStorageKey(tabId: number): string {
   return `${SUMMARY_KEY_PREFIX}${tabId}`;
 }
 
-async function persistActiveTabSummary(tabId: number, summary: ActiveTabBridgeSummary): Promise<void> {
+async function persistActiveTabSummary(tabId: number, windowId: number | undefined, summary: ActiveTabBridgeSummary): Promise<void> {
   await chrome.storage.session.set({
     [LAST_BRIDGE_TAB_ID_KEY]: tabId,
+    [LAST_BRIDGE_WINDOW_ID_KEY]: windowId,
     [getSummaryStorageKey(tabId)]: summary
   });
 }
@@ -187,6 +209,42 @@ async function readPersistedActiveTabSummary(tabId: number): Promise<ActiveTabBr
   const persisted = summary as ActiveTabBridgeSummary;
   activeTabSummaries.set(tabId, persisted);
   return persisted;
+}
+
+async function getWorkSurfaceContext(): Promise<WorkSurfaceContext> {
+  const [activeTab] = await chrome.tabs.query({
+    active: true,
+    currentWindow: true
+  });
+  const activeTabId = typeof activeTab?.id === 'number' ? activeTab.id : undefined;
+  const activeSummary = activeTabId !== undefined
+    ? await readPersistedActiveTabSummary(activeTabId)
+    : null;
+  const stored = await chrome.storage.session.get([LAST_BRIDGE_TAB_ID_KEY, LAST_BRIDGE_WINDOW_ID_KEY]);
+  const latestChatGptTabId = typeof stored[LAST_BRIDGE_TAB_ID_KEY] === 'number'
+    ? stored[LAST_BRIDGE_TAB_ID_KEY]
+    : undefined;
+  const latestSummary = latestChatGptTabId !== undefined
+    ? await readPersistedActiveTabSummary(latestChatGptTabId)
+    : null;
+
+  return {
+    activeTabId,
+    activeWindowId: typeof activeTab?.windowId === 'number' ? activeTab.windowId : undefined,
+    activeTabIsChatGpt: Boolean(activeSummary) || isChatGptUrl(activeTab?.url),
+    activeSummary,
+    latestSummary,
+    latestChatGptTabId,
+    latestChatGptWindowId: typeof stored[LAST_BRIDGE_WINDOW_ID_KEY] === 'number'
+      ? stored[LAST_BRIDGE_WINDOW_ID_KEY]
+      : undefined
+  };
+}
+
+async function syncPersistedWorkSurfaceMode(settings?: ExtensionSettingsSnapshot): Promise<void> {
+  const nextSettings = settings ?? await readExtensionSettings();
+  const context = await getWorkSurfaceContext();
+  await syncWorkSurfaceHostMode(nextSettings.workSurfaceMode, context);
 }
 
 async function proxyGatewayRequest(message: GatewayProxyRequestMessage, sender: GatewayRequestSender): Promise<unknown> {
